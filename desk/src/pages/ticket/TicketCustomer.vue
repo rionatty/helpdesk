@@ -44,11 +44,39 @@
         <TicketCustomerTemplateFields v-if="isMobileView" />
 
         <TicketConversation class="grow" />
+        <div v-if="showEditor" class="px-5 pt-2 pb-1">
+          <TypingIndicator :ticketId="props.ticketId" />
+        </div>
         <div
-          class="w-full p-5"
+          v-if="showEditor && isExpanded"
+          class="px-5 pb-2 flex flex-wrap gap-2"
+        >
+          <Button
+            v-for="snippet in cannedReplies"
+            :key="snippet.label"
+            theme="gray"
+            variant="subtle"
+            size="sm"
+            :label="snippet.label"
+            @click="applyCannedReply(snippet.text)"
+          />
+        </div>
+        <div
+          class="w-full p-5 relative"
           @keydown.ctrl.enter.capture.stop="sendEmail"
           @keydown.meta.enter.capture.stop="sendEmail"
+          @dragover.prevent="onDragOver"
+          @dragleave="onDragLeave"
+          @drop.prevent="onDrop"
         >
+          <div
+            v-if="isDragging"
+            class="absolute inset-2 z-10 bg-surface-blue-1/80 border-2 border-dashed border-blue-400 rounded-md flex items-center justify-center pointer-events-none"
+          >
+            <div class="text-base text-blue-700 font-medium">
+              {{ __("Drop to attach") }}
+            </div>
+          </div>
           <TicketTextEditor
             v-if="showEditor"
             ref="editor"
@@ -118,6 +146,8 @@ import TicketCustomerTemplateFields from "./TicketCustomerTemplateFields.vue";
 import TicketFeedback from "./TicketFeedback.vue";
 import TicketStatusStepper from "@/components/ticket/TicketStatusStepper.vue";
 import TicketHeader from "@/components/ticket/TicketHeader.vue";
+import TypingIndicator from "@/components/TypingIndicator.vue";
+import { useTyping } from "@/composables/realtime";
 const TicketTextEditor = defineAsyncComponent(
   () => import("./TicketTextEditor.vue")
 );
@@ -166,6 +196,62 @@ const isExpanded = ref(false);
 const { isMobileView } = useScreenSize();
 const { $dialog, $socket } = globalStore();
 const isDismissed = ref(false);
+const isDragging = ref(false);
+
+const cannedReplies = computed(() => [
+  {
+    label: __("Resolved on my end"),
+    text: __("Looks resolved on my end — thanks for the help!"),
+  },
+  {
+    label: __("Still broken"),
+    text: __("It's still not working. Could you take another look?"),
+  },
+  {
+    label: __("I have a question"),
+    text: __("One quick follow-up question: "),
+  },
+]);
+
+function applyCannedReply(text: string) {
+  if (!editor.value?.editor) {
+    editorContent.value = text;
+    return;
+  }
+  const current = editorContent.value || "";
+  const next = current && current !== "<p></p>" ? `${current} ${text}` : text;
+  editor.value.editor.commands.setContent(next, true);
+  editor.value.editor.commands.focus("end");
+}
+
+const { onUserType, stopTyping, cleanup: cleanupTyping } = useTyping(
+  props.ticketId
+);
+watch(editorContent, (v) => {
+  if (v && v !== "<p></p>") onUserType();
+});
+
+function onDragOver(e: DragEvent) {
+  if (e.dataTransfer?.types.includes("Files")) {
+    isDragging.value = true;
+  }
+}
+function onDragLeave(e: DragEvent) {
+  if (e.target === e.currentTarget) isDragging.value = false;
+}
+async function onDrop(e: DragEvent) {
+  isDragging.value = false;
+  const files = e.dataTransfer?.files;
+  if (!files?.length) return;
+  for (const f of Array.from(files)) {
+    try {
+      const result = await uploadFunction(f, "HD Ticket", props.ticketId);
+      if (result) attachments.value = [...attachments.value, result];
+    } catch (_) {
+      toast.error(__("Failed to attach {0}", [f.name]));
+    }
+  }
+}
 
 function getTodayKey() {
   return new Date().toISOString().split("T")[0];
@@ -264,6 +350,7 @@ function sendEmail() {
   if (isContentEmpty(editorContent.value) || send.loading) {
     return;
   }
+  stopTyping();
   send.submit();
 }
 
@@ -382,6 +469,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   stopViewing(props.ticketId);
+  cleanupTyping();
   document.title = "Helpdesk";
   $socket.off("helpdesk:ticket-update");
 });
