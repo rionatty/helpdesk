@@ -76,8 +76,8 @@ const props = withDefaults(defineProps<P>(), {
 
 const bubbleClass = computed(() =>
   props.fromCustomer
-    ? "bg-surface-white border-outline-gray-2"
-    : "bg-surface-blue-1 border-blue-400"
+    ? "bg-surface-white border-outline-gray-3 shadow-sm"
+    : "bg-surface-white border-blue-500 shadow-md"
 );
 
 function sanitize(html: string) {
