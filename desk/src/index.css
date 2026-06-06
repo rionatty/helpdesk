@@ -218,6 +218,94 @@ html:not([data-theme="dark"]) .hover\:shadow-lg:hover {
   background-color: var(--hd-gold-2);
 }
 
+/* ===== Colorful accent pills (sit on navy heroes) ===== */
+.hd-pill {
+  border-radius: 9999px;
+  padding: 4px 12px;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  font-weight: 600;
+  text-transform: uppercase;
+  border: 1px solid;
+}
+.hd-pill-gold {
+  color: #ffd60a;
+  border-color: rgba(252, 197, 2, 0.5);
+  background-color: rgba(252, 197, 2, 0.08);
+}
+.hd-pill-emerald {
+  color: #34d399;
+  border-color: rgba(52, 211, 153, 0.5);
+  background-color: rgba(52, 211, 153, 0.08);
+}
+.hd-pill-coral {
+  color: #fb7185;
+  border-color: rgba(251, 113, 133, 0.5);
+  background-color: rgba(251, 113, 133, 0.08);
+}
+.hd-pill-sky {
+  color: #38bdf8;
+  border-color: rgba(56, 189, 248, 0.5);
+  background-color: rgba(56, 189, 248, 0.08);
+}
+
+/* ===== Colorful action card — vivid top strip + gradient icon bg ===== */
+.hd-color-card {
+  position: relative;
+  overflow: hidden;
+}
+.hd-color-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  inset-inline: 0;
+  height: 4px;
+  background: var(--hd-card-accent, #3b82f6);
+}
+.hd-color-card[data-accent="blue"] {
+  --hd-card-accent: linear-gradient(90deg, #3b82f6, #06b6d4);
+}
+.hd-color-card[data-accent="emerald"] {
+  --hd-card-accent: linear-gradient(90deg, #10b981, #14b8a6);
+}
+.hd-color-card[data-accent="violet"] {
+  --hd-card-accent: linear-gradient(90deg, #8b5cf6, #ec4899);
+}
+.hd-color-card[data-accent="amber"] {
+  --hd-card-accent: linear-gradient(90deg, #f59e0b, #f97316);
+}
+.hd-color-card[data-accent="blue"]:hover {
+  box-shadow: 0 14px 28px -8px rgba(59, 130, 246, 0.28), var(--hd-elev-2);
+}
+.hd-color-card[data-accent="emerald"]:hover {
+  box-shadow: 0 14px 28px -8px rgba(16, 185, 129, 0.28), var(--hd-elev-2);
+}
+.hd-color-card[data-accent="violet"]:hover {
+  box-shadow: 0 14px 28px -8px rgba(139, 92, 246, 0.28), var(--hd-elev-2);
+}
+.hd-color-card[data-accent="amber"]:hover {
+  box-shadow: 0 14px 28px -8px rgba(245, 158, 11, 0.28), var(--hd-elev-2);
+}
+
+.hd-icon-blue {
+  background: linear-gradient(135deg, #3b82f6, #06b6d4);
+}
+.hd-icon-emerald {
+  background: linear-gradient(135deg, #10b981, #14b8a6);
+}
+.hd-icon-violet {
+  background: linear-gradient(135deg, #8b5cf6, #ec4899);
+}
+.hd-icon-amber {
+  background: linear-gradient(135deg, #f59e0b, #f97316);
+}
+.hd-icon-rose {
+  background: linear-gradient(135deg, #f43f5e, #fb7185);
+}
+.hd-icon-indigo {
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+}
+
 /* Slim scrollbars — refined slate-blue thumb in light mode */
 html:not([data-theme="dark"]) * {
   scrollbar-color: #c2cee0 transparent;

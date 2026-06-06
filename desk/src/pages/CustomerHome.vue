@@ -39,9 +39,9 @@
             </button>
           </form>
           <div class="flex flex-wrap gap-2 mt-2">
-            <span class="hd-gold-pill">{{ __("Secure") }}</span>
-            <span class="hd-gold-pill">{{ __("Fast") }}</span>
-            <span class="hd-gold-pill">{{ __("Official") }}</span>
+            <span class="hd-pill hd-pill-gold">{{ __("Secure") }}</span>
+            <span class="hd-pill hd-pill-emerald">{{ __("Fast") }}</span>
+            <span class="hd-pill hd-pill-coral">{{ __("Official") }}</span>
           </div>
         </div>
         <div class="hidden md:flex flex-1 items-center justify-center">
@@ -59,13 +59,14 @@
           v-for="card in actionCards"
           :key="card.label"
           :to="card.to"
-          class="executive-card executive-card-hover group flex flex-col gap-4 px-5 py-5"
+          :data-accent="card.accent"
+          class="executive-card executive-card-hover hd-color-card group flex flex-col gap-4 px-5 py-5 pt-6"
         >
           <div
-            class="size-12 rounded-2xl flex items-center justify-center ring-1 ring-inset ring-black/5"
+            class="size-12 rounded-2xl flex items-center justify-center shadow-md ring-1 ring-inset ring-white/40"
             :class="card.iconBg"
           >
-            <component :is="card.icon" class="size-6" :class="card.iconColor" />
+            <component :is="card.icon" class="size-6 text-white" />
           </div>
           <div>
             <div class="text-base font-semibold text-ink-gray-9">
@@ -76,7 +77,8 @@
             </p>
           </div>
           <div
-            class="text-sm font-medium text-blue-600 mt-auto flex items-center gap-1 group-hover:gap-2 transition-all"
+            class="text-sm font-medium mt-auto flex items-center gap-1 group-hover:gap-2 transition-all"
+            :class="card.ctaColor"
           >
             {{ __(card.cta) }}
             <LucideChevronRight class="size-4" />
@@ -147,10 +149,10 @@
               @click="opt.onClick"
             >
               <div
-                class="size-10 rounded-full flex items-center justify-center shrink-0"
+                class="size-10 rounded-full flex items-center justify-center shrink-0 shadow-sm ring-1 ring-inset ring-white/40"
                 :class="opt.iconBg"
               >
-                <component :is="opt.icon" class="size-5" :class="opt.iconColor" />
+                <component :is="opt.icon" class="size-5 text-white" />
               </div>
               <div class="flex-1 min-w-0">
                 <div class="text-sm font-semibold text-ink-gray-8">
@@ -176,9 +178,10 @@
           class="flex items-start gap-3"
         >
           <div
-            class="size-10 rounded-full bg-surface-menu-bar flex items-center justify-center shrink-0"
+            class="size-10 rounded-full flex items-center justify-center shrink-0 shadow-sm ring-1 ring-inset ring-white/40"
+            :class="t.iconBg"
           >
-            <component :is="t.icon" class="size-5 text-ink-gray-7" />
+            <component :is="t.icon" class="size-5 text-white" />
           </div>
           <div>
             <div class="text-sm font-semibold text-ink-gray-8">
@@ -240,8 +243,9 @@ const actionCards = [
     label: "Knowledge Base",
     description: "Browse articles and guides to find answers to common questions.",
     icon: LucideBookOpen,
-    iconBg: "bg-surface-blue-1",
-    iconColor: "text-blue-600",
+    iconBg: "hd-icon-blue",
+    ctaColor: "text-blue-600",
+    accent: "blue",
     cta: "Explore articles",
     to: { name: "CustomerKnowledgeBase" },
   },
@@ -249,8 +253,9 @@ const actionCards = [
     label: "Submit a Ticket",
     description: "Can't find what you need? Submit a ticket and our team will help you.",
     icon: LucideTicket,
-    iconBg: "bg-surface-green-2",
-    iconColor: "text-green-700",
+    iconBg: "hd-icon-emerald",
+    ctaColor: "text-emerald-600",
+    accent: "emerald",
     cta: "Submit a ticket",
     to: { name: "TicketNew" },
   },
@@ -258,8 +263,9 @@ const actionCards = [
     label: "My Tickets",
     description: "View your previous tickets, check status, and continue conversations.",
     icon: LucideListChecks,
-    iconBg: "bg-surface-violet-1",
-    iconColor: "text-violet-700",
+    iconBg: "hd-icon-violet",
+    ctaColor: "text-violet-600",
+    accent: "violet",
     cta: "View my tickets",
     to: { name: "TicketsCustomer" },
   },
@@ -267,8 +273,9 @@ const actionCards = [
     label: "System Status",
     description: "Check the status of our services and see any ongoing incidents.",
     icon: LucideBell,
-    iconBg: "bg-surface-amber-2",
-    iconColor: "text-amber-700",
+    iconBg: "hd-icon-amber",
+    ctaColor: "text-amber-600",
+    accent: "amber",
     cta: "Check status",
     to: { name: "StatusPage" },
   },
@@ -279,18 +286,15 @@ const helpOptions = [
     label: "Submit a ticket",
     description: "Open a ticket and our team will reply soon.",
     icon: LucideMessageCircle,
-    iconBg: "bg-surface-blue-1",
-    iconColor: "text-blue-600",
+    iconBg: "hd-icon-indigo",
     onClick: () => router.push({ name: "TicketNew" }),
   },
   {
     label: "Email support",
     description: "Send us an email and we'll get back to you.",
     icon: LucideMail,
-    iconBg: "bg-surface-red-1",
-    iconColor: "text-red-600",
+    iconBg: "hd-icon-rose",
     onClick: () => {
-      const brand = (config.brandName || "Support").toLowerCase().replace(/\s+/g, "");
       window.location.href = `mailto:support@example.com?subject=${encodeURIComponent(
         "Help request"
       )}`;
@@ -300,8 +304,7 @@ const helpOptions = [
     label: "Business hours",
     description: "Mon–Fri, 9:00 AM – 6:00 PM (your local time).",
     icon: LucideClock,
-    iconBg: "bg-surface-green-2",
-    iconColor: "text-green-700",
+    iconBg: "hd-icon-emerald",
     onClick: () => router.push({ name: "StatusPage" }),
   },
 ];
@@ -311,16 +314,19 @@ const trustBadges = [
     label: "Secure & Confidential",
     description: "Your privacy and data are always protected.",
     icon: LucideShield,
+    iconBg: "hd-icon-emerald",
   },
   {
     label: "Expert Support",
     description: "Our team is here to help you succeed.",
     icon: LucideUsers,
+    iconBg: "hd-icon-indigo",
   },
   {
     label: "Customer First",
     description: "We're committed to providing the best support.",
     icon: LucideStar,
+    iconBg: "hd-icon-amber",
   },
 ];
 
