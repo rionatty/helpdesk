@@ -274,6 +274,12 @@ html:not([data-theme="dark"]) .hover\:shadow-lg:hover {
 .hd-color-card[data-accent="amber"] {
   --hd-card-accent: linear-gradient(90deg, #f59e0b, #f97316);
 }
+.hd-color-card[data-accent="rose"] {
+  --hd-card-accent: linear-gradient(90deg, #f43f5e, #fb7185);
+}
+.hd-color-card[data-accent="indigo"] {
+  --hd-card-accent: linear-gradient(90deg, #6366f1, #8b5cf6);
+}
 .hd-color-card[data-accent="blue"]:hover {
   box-shadow: 0 14px 28px -8px rgba(59, 130, 246, 0.28), var(--hd-elev-2);
 }
@@ -285,6 +291,49 @@ html:not([data-theme="dark"]) .hover\:shadow-lg:hover {
 }
 .hd-color-card[data-accent="amber"]:hover {
   box-shadow: 0 14px 28px -8px rgba(245, 158, 11, 0.28), var(--hd-elev-2);
+}
+.hd-color-card[data-accent="rose"]:hover {
+  box-shadow: 0 14px 28px -8px rgba(244, 63, 94, 0.28), var(--hd-elev-2);
+}
+.hd-color-card[data-accent="indigo"]:hover {
+  box-shadow: 0 14px 28px -8px rgba(99, 102, 241, 0.28), var(--hd-elev-2);
+}
+
+/* Subtle colored wash inside cards — kicks in for elevated tiles */
+.hd-tinted-bg[data-accent="blue"] {
+  background-image: radial-gradient(
+    1200px circle at top right,
+    rgba(59, 130, 246, 0.05),
+    transparent 60%
+  );
+}
+.hd-tinted-bg[data-accent="emerald"] {
+  background-image: radial-gradient(
+    1200px circle at top right,
+    rgba(16, 185, 129, 0.05),
+    transparent 60%
+  );
+}
+.hd-tinted-bg[data-accent="violet"] {
+  background-image: radial-gradient(
+    1200px circle at top right,
+    rgba(139, 92, 246, 0.05),
+    transparent 60%
+  );
+}
+.hd-tinted-bg[data-accent="amber"] {
+  background-image: radial-gradient(
+    1200px circle at top right,
+    rgba(245, 158, 11, 0.06),
+    transparent 60%
+  );
+}
+.hd-tinted-bg[data-accent="rose"] {
+  background-image: radial-gradient(
+    1200px circle at top right,
+    rgba(244, 63, 94, 0.05),
+    transparent 60%
+  );
 }
 
 .hd-icon-blue {

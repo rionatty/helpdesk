@@ -1,5 +1,8 @@
 <template>
-  <div class="h-full w-full rounded border border-outline-gray-1">
+  <div
+    class="hd-color-card hd-tinted-bg executive-card h-full w-full overflow-hidden"
+    :data-accent="accent"
+  >
     <AgentTicketsCard v-if="item.chart == 'agent_tickets'" :data="item.data" />
     <AvgTimeCard
       v-if="item.chart == 'avg_first_response_time'"
@@ -28,7 +31,7 @@
 </template>
 
 <script setup lang="ts">
-import { type PropType } from "vue";
+import { computed, type PropType } from "vue";
 import AvgTimeCard from "./AvgTimeCard.vue";
 import AvgTimeMetrics from "./AvgTimeMetrics.vue";
 import RecentFeedback from "./RecentFeedback.vue";
@@ -47,4 +50,15 @@ const props = defineProps({
     required: true,
   },
 });
+
+const ACCENT: Record<string, string> = {
+  agent_tickets: "blue",
+  avg_first_response_time: "rose",
+  avg_resolution_time: "violet",
+  recent_feedback: "amber",
+  avg_time_metrics: "emerald",
+  pending_tickets: "amber",
+};
+
+const accent = computed(() => ACCENT[props.item.chart] || "blue");
 </script>
