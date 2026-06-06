@@ -1,81 +1,81 @@
 <template>
   <div
     v-if="Boolean(articles.data?.length) && query.length > 2"
-    class="rounded border p-4 text-base"
+    class="rounded-lg border border-outline-blue-1 bg-surface-blue-1 p-4 text-base"
   >
-    <div class="mb-2 font-medium ps-2" v-if="!hideViewAll">
-      These articles may already cover what you are looking for
+    <div class="mb-3 flex items-center justify-between gap-2">
+      <div class="flex items-center gap-2 font-medium text-ink-gray-8">
+        <LucideLightbulb class="size-4 text-blue-600" />
+        <span>{{ __("Maybe one of these solves it?") }}</span>
+      </div>
       <RouterLink
-        class="group cursor-pointer space-x-1 hover:text-ink-gray-9"
-        :to="{
-          name: 'CustomerKnowledgeBase',
-        }"
+        v-if="!hideViewAll"
+        class="text-xs text-ink-gray-6 hover:text-ink-gray-9 underline"
+        :to="{ name: 'CustomerKnowledgeBase' }"
         target="_blank"
       >
-        <span class="text-xs underline">(View All)</span>
+        {{ __("Browse all articles") }}
       </RouterLink>
     </div>
-    <dl
-      class="mx-auto w-full flex flex-col gap-2"
-      v-if="articles.data.length > 0"
-    >
-      <div
+    <dl class="mx-auto w-full flex flex-col gap-1.5">
+      <RouterLink
         v-for="a in articles.data"
         :key="a.id"
-        class="rounded-md border-2 p-2 border-hidden hover:bg-surface-gray-2"
+        class="group flex flex-col gap-0.5 rounded-md bg-surface-white px-3 py-2 hover:bg-surface-blue-2 transition-colors"
+        :to="{
+          name: 'ArticlePublic',
+          params: { articleId: a.name.split('#')[0] },
+          hash: `#${a.name.split('#')[1]}`,
+        }"
+        @click="handleSearchArticleClick(a)"
+        target="_blank"
       >
-        <RouterLink
-          class="group cursor-pointer hover:text-ink-gray-9 flex flex-col gap-1"
-          :to="{
-            name: 'ArticlePublic',
-            params: {
-              articleId: a.name.split('#')[0],
-            },
-            hash: `#${a.name.split('#')[1]}`,
-          }"
-          @click="handleSearchArticleClick(a)"
-          target="_blank"
-        >
-          <dt class="font-base">{{ a.subject }} - {{ a.headings }}</dt>
-          <!-- eslint-disable-next-line vue/no-v-html -->
-          <dd
-            class="font-base text-p-sm text-ink-gray-5 line-clamp-1"
-            v-html="a.description"
-          ></dd>
-        </RouterLink>
-      </div>
+        <dt class="font-medium text-ink-gray-8 group-hover:text-ink-gray-9">
+          {{ a.subject }}
+          <span class="text-ink-gray-5 font-normal">— {{ a.headings }}</span>
+        </dt>
+        <dd
+          class="text-p-sm text-ink-gray-6 line-clamp-1"
+          v-html="a.description"
+        />
+      </RouterLink>
     </dl>
+    <div class="mt-3 text-xs text-ink-gray-5">
+      {{ __("Don't see your answer? Keep going below to send your ticket.") }}
+    </div>
   </div>
   <div
     v-else-if="
       !articles.loading && articles.data?.length === 0 && query.length > 2
     "
-    class="flex flex-col items-center justify-center h-[240px] gap-2 rounded border"
+    class="flex items-center gap-3 rounded-lg border border-outline-gray-2 px-4 py-3 text-base"
   >
-    <LucideSearch class="size-8 text-ink-gray-3" />
-    <div class="flex items-center flex-col justify-center">
-      <p class="font-base">No answers found</p>
-      <span class="font-base text-p-sm text-ink-gray-5 text-center"
-        >Rephrase the question and try again with some keywords</span
-      >
+    <LucideSearch class="size-5 text-ink-gray-4 shrink-0" />
+    <div class="flex flex-col">
+      <p class="font-medium text-ink-gray-7">
+        {{ __("No matching articles") }}
+      </p>
+      <span class="text-p-sm text-ink-gray-5">
+        {{ __("Add a description below and we'll take it from here.") }}
+      </span>
     </div>
   </div>
   <div
     v-else-if="articles.loading"
-    class="flex flex-col items-center justify-center h-[240px] gap-2 rounded border"
+    class="flex items-center gap-3 rounded-lg border border-outline-gray-2 px-4 py-3 text-base"
   >
-    <LucideSearch class="size-8 text-ink-gray-3" />
-    <div class="flex items-center flex-col justify-center">
-      <p class="font-base">Searching...</p>
-      <span class="font-base text-p-sm text-ink-gray-5 text-center"
-        >Please wait while we search for the answers</span
-      >
+    <LucideSearch class="size-5 text-ink-gray-4 shrink-0 animate-pulse" />
+    <div class="flex flex-col">
+      <p class="font-medium text-ink-gray-7">
+        {{ __("Looking for answers…") }}
+      </p>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { capture } from "@/telemetry";
+import { __ } from "@/translation";
 import { createResource } from "frappe-ui";
 import { watch } from "vue";
 interface P {

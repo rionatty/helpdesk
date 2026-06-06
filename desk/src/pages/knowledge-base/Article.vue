@@ -223,6 +223,30 @@
       <div class="p-4" v-if="isCustomerPortal">
         <ArticleFeedback :feedback="feedback" :article-id="articleId" />
       </div>
+      <div
+        v-if="isCustomerPortal && relatedArticles.data && relatedArticles.data.length"
+        class="px-4 pb-8 flex flex-col gap-3"
+      >
+        <p class="text-lg font-medium text-ink-gray-9">
+          {{ __("Related articles") }}
+        </p>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <RouterLink
+            v-for="r in relatedArticles.data"
+            :key="r.name"
+            class="flex flex-col gap-1 rounded-lg border border-outline-gray-2 hover:border-outline-gray-4 hover:shadow-sm px-4 py-3 transition-all"
+            :to="{ name: 'ArticlePublic', params: { articleId: r.name } }"
+          >
+            <div class="font-medium text-ink-gray-8 truncate">
+              {{ r.title }}
+            </div>
+            <div class="flex items-center gap-1.5 text-xs text-ink-gray-5">
+              <LucideEye class="size-3.5" />
+              <span>{{ r.views || 0 }} {{ __("views") }}</span>
+            </div>
+          </RouterLink>
+        </div>
+      </div>
     </div>
     <!-- Loading State -->
     <div
@@ -417,6 +441,19 @@ const articleStats = createResource({
     dislikes.value = data.dislikes;
     views.value = data.views;
   },
+  auto: true,
+});
+
+const relatedArticles = createListResource({
+  doctype: "HD Article",
+  fields: ["name", "title", "views"],
+  filters: computed(() => ({
+    status: "Published",
+    category: article.data?.category_id,
+    name: ["!=", props.articleId],
+  })),
+  orderBy: "views desc",
+  pageLength: 4,
   auto: true,
 });
 
