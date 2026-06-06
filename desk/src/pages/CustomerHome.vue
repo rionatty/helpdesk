@@ -1,17 +1,17 @@
 <template>
   <div class="overflow-y-auto h-full bg-customer-portal">
     <div class="max-w-6xl mx-auto px-4 md:px-8 py-8 md:py-12 flex flex-col gap-8">
-      <!-- Hero -->
+      <!-- Hero — navy + gold brand -->
       <section
-        class="flex flex-col md:flex-row items-center gap-6 animate-in-fade"
+        class="hd-brand-hero rounded-3xl p-6 md:p-10 flex flex-col md:flex-row items-center gap-6 animate-in-fade"
       >
         <div class="flex-1 flex flex-col gap-4 max-w-xl">
           <h1
-            class="executive-heading text-3xl md:text-[2.5rem] text-ink-gray-9 leading-[1.1]"
+            class="executive-heading text-3xl md:text-[2.5rem] text-white leading-[1.1]"
           >
             {{ __("Hi there! How can we help you?") }}
           </h1>
-          <p class="text-lg text-ink-gray-6 leading-relaxed">
+          <p class="text-lg hd-on-navy-soft leading-relaxed">
             {{
               __(
                 "Find answers, solve problems, and get the support you need."
@@ -19,7 +19,7 @@
             }}
           </p>
           <form
-            class="flex items-stretch gap-2 rounded-2xl border border-outline-gray-2 bg-surface-white shadow-md overflow-hidden mt-2 focus-within:border-blue-400 focus-within:shadow-lg transition-all"
+            class="flex items-stretch gap-2 rounded-2xl bg-white shadow-md overflow-hidden mt-2 focus-within:ring-2 focus-within:ring-[var(--hd-gold)] transition-all"
             @submit.prevent="onSearch"
           >
             <div class="flex items-center px-3 text-ink-gray-5">
@@ -33,17 +33,22 @@
             />
             <button
               type="submit"
-              class="bg-blue-600 hover:bg-blue-700 text-white font-medium px-5 transition-colors"
+              class="hd-gold-solid px-5 transition-colors"
             >
               {{ __("Search") }}
             </button>
           </form>
+          <div class="flex flex-wrap gap-2 mt-2">
+            <span class="hd-gold-pill">{{ __("Secure") }}</span>
+            <span class="hd-gold-pill">{{ __("Fast") }}</span>
+            <span class="hd-gold-pill">{{ __("Official") }}</span>
+          </div>
         </div>
         <div class="hidden md:flex flex-1 items-center justify-center">
           <div
-            class="size-64 rounded-[2rem] bg-gradient-to-br from-blue-50 via-surface-white to-blue-50/40 border border-outline-gray-1 shadow-lg flex items-center justify-center"
+            class="size-56 rounded-[2rem] bg-white/10 backdrop-blur-sm border border-white/15 flex items-center justify-center"
           >
-            <LucideHeadphones class="size-24 text-blue-600/90" />
+            <LucideHeadphones class="size-24 text-[var(--hd-gold)]" />
           </div>
         </div>
       </section>

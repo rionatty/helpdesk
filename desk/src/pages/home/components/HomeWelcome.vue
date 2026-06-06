@@ -1,6 +1,6 @@
 <template>
   <div
-    class="executive-card rounded-2xl px-6 py-5 mb-5 bg-gradient-to-br from-blue-50/60 via-surface-white to-surface-white animate-in-fade"
+    class="hd-brand-hero rounded-2xl px-6 py-5 mb-5 animate-in-fade"
   >
     <div
       class="flex items-start md:items-center justify-between gap-4 flex-col md:flex-row"
@@ -10,38 +10,38 @@
           size="xl"
           :label="userName"
           :image="userImage"
-          class="ring-2 ring-offset-2 ring-outline-gray-2"
+          class="ring-2 ring-offset-2 ring-[var(--hd-gold)]/40"
         />
         <div>
-          <div
-            class="executive-heading text-2xl text-ink-gray-9 leading-tight"
-          >
+          <div class="executive-heading text-2xl text-white leading-tight">
             {{ greeting }}, {{ firstName }}
           </div>
-          <div class="text-sm text-ink-gray-6 mt-1">
+          <div class="text-sm hd-on-navy-soft mt-1">
             {{ subtitleLine }}
           </div>
         </div>
       </div>
       <div class="flex items-center gap-2 flex-wrap">
         <div
-          class="flex items-center gap-2 px-3 py-2 rounded-lg border border-outline-gray-1 bg-surface-white"
+          class="flex items-center gap-2 px-3 py-2 rounded-lg border border-white/15 bg-white/8"
         >
-          <div class="size-8 rounded-full bg-surface-blue-1 flex items-center justify-center">
-            <LucideTicket class="size-4 text-blue-600" />
+          <div
+            class="size-8 rounded-full bg-[var(--hd-gold)]/15 flex items-center justify-center"
+          >
+            <LucideTicket class="size-4 text-[var(--hd-gold)]" />
           </div>
           <div class="leading-tight">
-            <div class="text-lg font-semibold text-ink-gray-9">
+            <div class="text-lg font-semibold text-white">
               {{ assignedCount }}
             </div>
-            <div class="text-xs text-ink-gray-5">
+            <div class="text-xs hd-on-navy-muted">
               {{ __("Assigned to you") }}
             </div>
           </div>
         </div>
         <RouterLink
           :to="{ name: 'TicketAgentNew' }"
-          class="flex items-center gap-2 px-3 py-2 rounded-lg border border-ink-gray-9 bg-ink-gray-9 text-white font-medium hover:bg-ink-gray-8 transition-colors"
+          class="hd-gold-solid flex items-center gap-2 px-3 py-2 rounded-lg transition-colors"
         >
           <LucidePlus class="size-4" />
           <span>{{ __("New ticket") }}</span>

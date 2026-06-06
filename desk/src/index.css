@@ -86,9 +86,19 @@ body {
 /* ============================================================= */
 html:not([data-theme="dark"]) {
   /* Refined cool surfaces — desaturated blue reads premium */
-  --surface-menu-bar: #e8eef8;
-  --hd-bg: #eef3fb;
-  --hd-bg-veil: #e3ebf7;
+  --surface-menu-bar: #e9ecf4;
+  --hd-bg: #f3f4f8;
+  --hd-bg-veil: #e6e9f1;
+
+  /* Brand palette — deep navy + warm gold */
+  --hd-navy: #0e2148;
+  --hd-navy-2: #18305c;
+  --hd-navy-3: #1f3d75;
+  --hd-navy-hi: #2b4f96;
+  --hd-gold: #fcc502;
+  --hd-gold-2: #ffd60a;
+  --hd-gold-soft: #fff4c4;
+  --hd-gold-line: rgba(252, 197, 2, 0.6);
 
   /* Slate-tinted shadow ramp (rgb 15 23 42 = slate-900).        */
   /* Layered + low-opacity is the hallmark of executive UIs.     */
@@ -164,6 +174,48 @@ html:not([data-theme="dark"]) .hover\:shadow-lg:hover {
     var(--hd-bg-veil) 0%,
     var(--hd-bg) 360px
   );
+}
+
+/* ===== Brand hero — deep navy gradient with gold accents ===== */
+.hd-brand-hero {
+  background-image: linear-gradient(
+    135deg,
+    var(--hd-navy) 0%,
+    var(--hd-navy-2) 55%,
+    var(--hd-navy-3) 100%
+  );
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: var(--hd-elev-3);
+}
+.hd-brand-hero .hd-on-navy-muted {
+  color: rgba(255, 255, 255, 0.7);
+}
+.hd-brand-hero .hd-on-navy-soft {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+/* Gold pill — used inside navy heroes for trust/badge chips */
+.hd-gold-pill {
+  border: 1px solid var(--hd-gold-line);
+  color: var(--hd-gold);
+  background-color: rgba(252, 197, 2, 0.07);
+  border-radius: 9999px;
+  padding: 4px 12px;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+/* Gold solid CTA — used sparingly */
+.hd-gold-solid {
+  background-color: var(--hd-gold);
+  color: var(--hd-navy);
+  font-weight: 600;
+}
+.hd-gold-solid:hover {
+  background-color: var(--hd-gold-2);
 }
 
 /* Slim scrollbars — refined slate-blue thumb in light mode */

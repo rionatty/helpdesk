@@ -4,11 +4,11 @@
     :class="{
       'w-auto': isExpanded,
       'w-8': !isExpanded,
-      'shadow-sm text-blue-700 font-medium': isActive,
+      'shadow-sm text-white font-medium': isActive,
       'text-ink-gray-8': !isActive,
       [bgColor]: isActive,
       [hvColor]: !isActive,
-      'before:absolute before:start-0 before:top-1.5 before:bottom-1.5 before:w-[3px] before:rounded-full before:bg-blue-600':
+      'before:absolute before:start-0 before:top-1.5 before:bottom-1.5 before:w-[3px] before:rounded-full before:bg-[var(--hd-gold)]':
         isActive && isExpanded,
     }"
     @click="handleNavigation"
@@ -17,7 +17,7 @@
       <span
         class="shrink-0"
         :class="{
-          'text-blue-600': isActive,
+          'text-[var(--hd-gold)]': isActive,
           'text-ink-gray-9': !isActive,
           'icon-emoji': isMobileView,
         }"
@@ -29,7 +29,7 @@
       v-else
       class="shrink-0"
       :class="{
-        'text-blue-600': isActive,
+        'text-[var(--hd-gold)]': isActive,
         'text-ink-gray-7': !isActive,
         'icon-emoji': isMobileView,
       }"
@@ -72,8 +72,8 @@ const props = withDefaults(defineProps<P>(), {
   isActive: false,
   onClick: () => () => true,
   to: "",
-  bgColor: "bg-blue-50",
-  hvColor: "hover:bg-blue-50/60",
+  bgColor: "bg-[var(--hd-navy)]",
+  hvColor: "hover:bg-[rgba(14,33,72,0.06)]",
 });
 const router = useRouter();
 const { isMobileView } = useScreenSize();
