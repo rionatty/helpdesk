@@ -25,6 +25,7 @@
     <div class="flex overflow-hidden h-full w-full">
       <!-- Main Ticket Comm -->
       <section class="flex flex-col flex-1 w-full md:max-w-[calc(100%-382px)]">
+        <TicketStatusStepper />
         <div
           class="px-6 md:px-10 mt-6"
           v-if="outsideHourSettings.data?.show && !isDismissed"
@@ -107,12 +108,14 @@ import {
   onUnmounted,
   provide,
   ref,
+  watch,
 } from "vue";
 import { useRouter } from "vue-router";
 import { ITicket } from "./symbols";
 import TicketConversation from "./TicketConversation.vue";
 import TicketCustomerTemplateFields from "./TicketCustomerTemplateFields.vue";
 import TicketFeedback from "./TicketFeedback.vue";
+import TicketStatusStepper from "@/components/ticket/TicketStatusStepper.vue";
 const TicketTextEditor = defineAsyncComponent(
   () => import("./TicketTextEditor.vue")
 );
@@ -348,6 +351,20 @@ const showFeedback = computed(() => {
   );
   return hasAgentCommunication && isFeedbackMandatory;
 });
+
+const csatPromptKey = `csat_prompted_${props.ticketId}`;
+watch(
+  [() => ticket.data?.status, () => ticket.data?.feedback, showFeedback],
+  ([status, feedback, canPrompt]) => {
+    if (!status || !canPrompt || feedback) return;
+    if (getStatus(status)?.category !== "Resolved") return;
+    if (sessionStorage.getItem(csatPromptKey)) return;
+    sessionStorage.setItem(csatPromptKey, "1");
+    showFeedbackDialog.value = true;
+  },
+  { immediate: true }
+);
+
 const { startViewing, stopViewing } = useActiveViewers(props.ticketId);
 
 onMounted(() => {
