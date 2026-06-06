@@ -1,9 +1,18 @@
 <template>
-  <div class="overflow-y-auto h-full bg-customer-portal">
-    <div class="max-w-6xl mx-auto px-4 md:px-8 py-8 md:py-12 flex flex-col gap-8">
+  <div class="overflow-y-auto h-full bg-customer-portal flex flex-col">
+    <LayoutHeader>
+      <template #left-header>
+        <div class="text-lg font-medium text-ink-gray-9">
+          {{ __("Home") }}
+        </div>
+      </template>
+    </LayoutHeader>
+    <div
+      class="w-full max-w-[1280px] mx-auto px-4 md:px-8 lg:px-12 py-6 md:py-10 flex flex-col gap-8 flex-1"
+    >
       <!-- Hero — navy + gold brand -->
       <section
-        class="hd-brand-hero rounded-3xl p-6 md:p-10 flex flex-col md:flex-row items-center gap-6 animate-in-fade"
+        class="hd-brand-hero rounded-3xl p-6 md:px-10 md:py-9 flex flex-col md:flex-row items-center gap-6 md:gap-10 animate-in-fade"
       >
         <div class="flex-1 flex flex-col gap-4 max-w-xl">
           <h1
@@ -44,11 +53,11 @@
             <span class="hd-pill hd-pill-coral">{{ __("Official") }}</span>
           </div>
         </div>
-        <div class="hidden md:flex flex-1 items-center justify-center">
+        <div class="hidden md:flex shrink-0 items-center justify-center">
           <div
-            class="size-56 rounded-[2rem] bg-white/10 backdrop-blur-sm border border-white/15 flex items-center justify-center"
+            class="size-44 lg:size-52 rounded-[2rem] bg-gradient-to-br from-white/15 to-white/5 border border-white/15 flex items-center justify-center shadow-2xl"
           >
-            <LucideHeadphones class="size-24 text-[var(--hd-gold)]" />
+            <LucideHeadphones class="size-20 lg:size-24 text-[var(--hd-gold)]" />
           </div>
         </div>
       </section>
@@ -201,6 +210,7 @@
 import { ref } from "vue";
 import { createListResource, usePageMeta } from "frappe-ui";
 import { useRouter } from "vue-router";
+import { LayoutHeader } from "@/components";
 import { useConfigStore } from "@/stores/config";
 import { __ } from "@/translation";
 import LucideSearch from "~icons/lucide/search";
