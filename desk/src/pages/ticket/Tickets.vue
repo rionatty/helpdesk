@@ -90,6 +90,7 @@ import { __ } from "@/translation";
 import { View } from "@/types";
 import { getIcon, isCustomerPortal, shortDuration } from "@/utils";
 import {
+  Avatar,
   Badge,
   dayjs,
   FeatherIcon,
@@ -126,6 +127,22 @@ const listViewRef = ref(null);
 const showExportModal = ref(false);
 
 const { getStatus } = useTicketStatusStore();
+
+const STATUS_THEME: Record<string, string> = {
+  red: "red",
+  green: "green",
+  blue: "blue",
+  yellow: "yellow",
+  orange: "orange",
+  amber: "amber",
+  pink: "pink",
+  teal: "green",
+  cyan: "blue",
+  violet: "violet",
+  purple: "violet",
+  gray: "gray",
+  black: "gray",
+};
 
 const listSelections = ref(new Set());
 
@@ -172,13 +189,58 @@ const options = computed(() => ({
         const label = isCustomerPortal.value
           ? status?.["label_customer"]
           : status?.["label_agent"];
+        const colorKey = (status?.color || "gray").toLowerCase();
+        return h(Badge, {
+          label: label || item,
+          theme: STATUS_THEME[colorKey] || "gray",
+          variant: "subtle",
+        });
+      },
+    },
+    _assign: {
+      custom: ({ item }) => {
+        if (!item) {
+          return h(
+            "span",
+            { class: "text-ink-gray-4 text-sm" },
+            __("Unassigned")
+          );
+        }
+        try {
+          const users = JSON.parse(item);
+          if (!Array.isArray(users) || !users.length) {
+            return h(
+              "span",
+              { class: "text-ink-gray-4 text-sm" },
+              __("Unassigned")
+            );
+          }
+          return h(
+            "div",
+            { class: "flex items-center gap-2 min-w-0" },
+            [
+              h(Avatar, { label: users[0], size: "sm" }),
+              h(
+                "span",
+                { class: "truncate text-base text-ink-gray-8" },
+                users.length > 1
+                  ? `${users[0]} +${users.length - 1}`
+                  : users[0]
+              ),
+            ]
+          );
+        } catch (_) {
+          return h("span", { class: "text-ink-gray-4 text-sm" }, "—");
+        }
+      },
+    },
+    modified: {
+      custom: ({ item }) => {
+        if (!item) return h("span", { class: "text-ink-gray-4 text-sm" }, "—");
         return h(
-          "div",
-          { class: "flex items-center gap-1.5 justify-start w-full" },
-          [
-            h(IndicatorIcon, { class: status?.["parsed_color"] }),
-            h("span", { class: "truncate flex-1 text-base" }, label),
-          ]
+          "span",
+          { class: "text-base text-ink-gray-7" },
+          dayjs(item).fromNow()
         );
       },
     },
