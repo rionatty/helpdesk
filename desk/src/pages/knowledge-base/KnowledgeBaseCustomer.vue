@@ -35,6 +35,10 @@
             :autofocus="true"
           />
         </div>
+        <div class="flex items-center gap-1.5 text-sm text-ink-gray-5 mt-1">
+          <LucideClock class="size-3.5" />
+          <span>{{ __("We typically reply within a few hours.") }}</span>
+        </div>
       </section>
 
       <!-- Popular Articles -->

@@ -179,6 +179,17 @@ const routes = [
     },
   },
 
+  // Public status page
+  {
+    path: "/status",
+    name: "StatusPage",
+    component: () => import("@/pages/StatusPage.vue"),
+    meta: {
+      public: true,
+      auth: false,
+    },
+  },
+
   // Additonal routes
   {
     path: "/:pathMatch(.*)*",

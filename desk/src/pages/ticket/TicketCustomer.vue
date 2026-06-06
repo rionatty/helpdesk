@@ -27,6 +27,31 @@
       <section class="flex flex-col flex-1 w-full md:max-w-[calc(100%-382px)]">
         <TicketHeader />
         <TicketStatusStepper />
+        <div v-if="canReopen" class="px-4 md:px-10 pt-3">
+          <div
+            class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 px-4 py-3 rounded-lg border border-outline-amber-1 bg-surface-amber-1"
+          >
+            <div>
+              <div class="font-medium text-ink-gray-8">
+                {{ __("This ticket was closed recently") }}
+              </div>
+              <div class="text-sm text-ink-gray-6">
+                {{
+                  __(
+                    "Still need help? Reopen and we'll pick up where we left off."
+                  )
+                }}
+              </div>
+            </div>
+            <Button
+              :label="__('Reopen ticket')"
+              theme="gray"
+              variant="solid"
+              :loading="setValue.loading"
+              @click="reopenTicket"
+            />
+          </div>
+        </div>
         <div
           class="px-6 md:px-10 mt-6"
           v-if="outsideHourSettings.data?.show && !isDismissed"
@@ -128,6 +153,7 @@ import {
   Button,
   call,
   createResource,
+  dayjs,
   toast,
 } from "frappe-ui";
 import {
@@ -431,6 +457,26 @@ const breadcrumbs = computed(() => {
 });
 
 const showEditor = computed(() => ticket.data.status !== "Closed");
+
+const REOPEN_WINDOW_DAYS = 7;
+const canReopen = computed(() => {
+  if (ticket.data?.status !== "Closed") return false;
+  const closedAt = ticket.data.resolution_date || ticket.data.modified;
+  if (!closedAt) return false;
+  return dayjs(closedAt).isAfter(dayjs().subtract(REOPEN_WINDOW_DAYS, "day"));
+});
+
+function reopenTicket() {
+  setValue.submit(
+    { fieldname: "status", value: "Open" },
+    {
+      onSuccess: () => {
+        toast.success(__("Ticket reopened"));
+        ticket.reload();
+      },
+    }
+  );
+}
 
 // this handles whether the ticket was raised and then was closed without any reply from the agent.
 const { isFeedbackMandatory } = useConfigStore();
