@@ -1,7 +1,7 @@
 <template>
   <div
     v-if="visibleSteps.length"
-    class="px-6 md:px-10 pt-6"
+    class="px-4 md:px-10 pt-4 md:pt-6"
     role="group"
     :aria-label="__('Ticket progress')"
   >
@@ -27,9 +27,19 @@
               :class="i === currentIndex ? 'bg-white' : 'bg-ink-gray-4'"
             />
           </div>
-          <span class="text-sm font-medium" :class="labelClass(i)">
-            {{ __(step.label_customer || step.label_agent) }}
-          </span>
+          <div class="flex flex-col leading-tight">
+            <span class="text-sm font-medium" :class="labelClass(i)">
+              {{ __(step.label_customer || step.label_agent) }}
+            </span>
+            <Tooltip
+              v-if="stepTimestamp(step, i)"
+              :text="dateFormat(stepTimestamp(step, i)!, dateTooltipFormat)"
+            >
+              <span class="text-xs text-ink-gray-5 whitespace-nowrap">
+                {{ timeAgo(stepTimestamp(step, i)!) }}
+              </span>
+            </Tooltip>
+          </div>
         </div>
         <div
           v-if="i < visibleSteps.length - 1"
@@ -50,10 +60,12 @@
 
 <script setup lang="ts">
 import { computed, inject } from "vue";
+import { Tooltip } from "frappe-ui";
 import { ITicket } from "@/pages/ticket/symbols";
 import { useTicketStatusStore } from "@/stores/ticketStatus";
 import { HDTicketStatus } from "@/types/doctypes";
 import { __ } from "@/translation";
+import { dateFormat, dateTooltipFormat, timeAgo } from "@/utils";
 
 const ticket = inject(ITicket);
 const { statuses } = useTicketStatusStore();
@@ -109,5 +121,23 @@ function labelClass(i: number) {
   if (i === currentIndex.value) return "text-ink-gray-9";
   if (i < currentIndex.value) return "text-ink-gray-7";
   return "text-ink-gray-5";
+}
+
+function stepTimestamp(step: HDTicketStatus, i: number): string | undefined {
+  const d = ticket?.data;
+  if (!d || i > currentIndex.value) return undefined;
+  if (step.category === "Open" && i === 0) return d.creation;
+  if (step.category === "Paused") return d.first_responded_on || undefined;
+  if (step.category === "Resolved") {
+    const resolvedSteps = visibleSteps.value.filter(
+      (s) => s.category === "Resolved"
+    );
+    const isFirstResolved =
+      resolvedSteps[0]?.label_agent === step.label_agent;
+    if (isFirstResolved) return d.resolution_date || undefined;
+    if (i === currentIndex.value) return d.modified;
+    return undefined;
+  }
+  return undefined;
 }
 </script>

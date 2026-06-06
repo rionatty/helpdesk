@@ -108,6 +108,35 @@
           </template>
         </span>
       </div>
+      <!-- Other open tickets by the same customer -->
+      <div
+        v-if="otherOpenTickets.data && otherOpenTickets.data.length"
+        class="flex flex-col gap-2 mt-2 pt-3 border-t border-outline-gray-1"
+      >
+        <div class="text-sm font-medium text-ink-gray-7 mb-1">
+          {{ __("Your other open tickets") }}
+        </div>
+        <button
+          v-for="t in otherOpenTickets.data"
+          :key="t.name"
+          type="button"
+          class="text-start rounded-md border border-outline-gray-1 hover:border-outline-gray-3 px-3 py-2 transition-colors"
+          @click="openTicket(t.name)"
+        >
+          <div class="flex items-center justify-between gap-2">
+            <span class="text-xs text-ink-gray-5">#{{ t.name }}</span>
+            <Badge
+              v-if="t.status"
+              :label="t.status"
+              theme="gray"
+              variant="subtle"
+            />
+          </div>
+          <div class="text-sm text-ink-gray-8 truncate mt-0.5">
+            {{ t.subject }}
+          </div>
+        </button>
+      </div>
     </div>
   </div>
 </template>
@@ -116,12 +145,33 @@
 import { ITicket } from "@/pages/ticket/symbols";
 import { Field } from "@/types";
 import { dateFormat, dateTooltipFormat, formatTime } from "@/utils";
-import { Avatar, dayjs, Tooltip } from "frappe-ui";
+import { __ } from "@/translation";
+import { Avatar, Badge, createListResource, dayjs, Tooltip } from "frappe-ui";
 import { computed, inject } from "vue";
+import { useRouter } from "vue-router";
+
+const router = useRouter();
 
 const emit = defineEmits(["open"]);
 
 const ticket = inject(ITicket);
+
+const otherOpenTickets = createListResource({
+  doctype: "HD Ticket",
+  fields: ["name", "subject", "status"],
+  filters: computed(() => ({
+    raised_by: ticket.data?.raised_by,
+    status_category: ["!=", "Resolved"],
+    name: ["!=", ticket.data?.name],
+  })),
+  orderBy: "modified desc",
+  pageLength: 5,
+  auto: true,
+});
+
+function openTicket(name: string) {
+  router.push({ name: "TicketCustomer", params: { ticketId: name } });
+}
 
 const slaData = computed(() => {
   const firstResponse = firstResponseData();

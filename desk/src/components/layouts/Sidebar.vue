@@ -155,7 +155,7 @@
       v-model="showHelpModal"
       v-model:articles="articles"
       appName="helpdesk"
-      title="Frappe Helpdesk"
+      :title="config.brandName || 'Helpdesk'"
       :logo="logo"
       docsLink="https://docs.frappe.io/helpdesk"
       :afterSkip="(step: string) => capture('onboarding_step_skipped_' + step)"
@@ -176,6 +176,9 @@ import HDLogo from "@/assets/logos/HDLogo.vue";
 import { Section, SidebarLink } from "@/components";
 import Apps from "@/components/Apps.vue";
 import CP from "@/components/command-palette/CP.vue";
+import { useConfigStore } from "@/stores/config";
+
+const config = useConfigStore();
 import { FrappeCloudIcon, InviteCustomer } from "@/components/icons";
 import ShortcutsModal from "@/components/modals/ShortcutsModal.vue";
 import SettingsModal from "@/components/Settings/SettingsModal.vue";
@@ -635,7 +638,7 @@ const articles = ref([
     ],
   },
   {
-    title: __("Frappe Helpdesk Mobile"),
+    title: __("{0} Mobile", [config.brandName || "Helpdesk"]),
     opened: false,
     subArticles: [
       { name: "pwa-installation", title: __("Mobile App Installation") },

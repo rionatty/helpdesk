@@ -1,22 +1,30 @@
 <template>
-  <div v-if="ticket?.data" class="px-6 md:px-10 pt-6">
-    <div class="flex flex-wrap items-center gap-x-3 gap-y-2">
+  <div v-if="ticket?.data" class="px-4 md:px-10 pt-4 md:pt-6">
+    <div class="flex flex-col md:flex-row md:flex-wrap md:items-center gap-x-3 gap-y-2">
       <h1
-        class="text-xl md:text-2xl font-semibold text-ink-gray-9 leading-tight"
+        class="text-lg md:text-2xl font-semibold text-ink-gray-9 leading-tight"
       >
         {{ ticket.data.subject }}
       </h1>
-      <Badge
-        theme="gray"
-        variant="subtle"
-        :label="`#${ticket.data.name}`"
-      />
-      <Badge
-        v-if="ticket.data.priority"
-        :theme="priorityTheme"
-        variant="subtle"
-        :label="__(ticket.data.priority)"
-      />
+      <div class="flex flex-wrap items-center gap-2">
+        <Badge
+          theme="gray"
+          variant="subtle"
+          :label="`#${ticket.data.name}`"
+        />
+        <Badge
+          v-if="ticket.data.priority"
+          :theme="priorityTheme"
+          variant="subtle"
+          :label="__(ticket.data.priority)"
+        />
+        <Badge
+          v-if="ticket.data.ticket_type"
+          theme="gray"
+          variant="outline"
+          :label="ticket.data.ticket_type"
+        />
+      </div>
     </div>
     <div
       v-if="visibleSla.length"
