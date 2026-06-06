@@ -9,8 +9,23 @@
           <FeatherIcon name="info" class="size-3" />
         </Tooltip>
       </div>
-      <div class="w-max">
-        <TabButtons :buttons="chartTabs" v-model="currentTab" />
+      <div class="flex items-center gap-2">
+        <Tooltip :text="__('Export CSV')" placement="top">
+          <button
+            class="p-1 text-ink-gray-5 hover:text-ink-gray-8 rounded transition-colors"
+            :aria-label="__('Export CSV')"
+            @click="exportCsv"
+            :disabled="!chartConfig?.tickets?.length"
+            :class="{
+              'opacity-40 cursor-not-allowed': !chartConfig?.tickets?.length,
+            }"
+          >
+            <LucideDownload class="size-4" />
+          </button>
+        </Tooltip>
+        <div class="w-max">
+          <TabButtons :buttons="chartTabs" v-model="currentTab" />
+        </div>
       </div>
     </div>
     <div class="flex flex-col mt-5 grow overflow-auto hide-scrollbar">
@@ -167,7 +182,14 @@
 <script setup lang="ts">
 import { useView } from "@/composables/useView";
 import { __ } from "@/translation";
-import { Badge, createResource, FeatherIcon, TabButtons } from "frappe-ui";
+import { downloadCsv } from "@/utils";
+import {
+  Badge,
+  createResource,
+  FeatherIcon,
+  TabButtons,
+  Tooltip,
+} from "frappe-ui";
 import { computed, onMounted, ref, watch, type PropType } from "vue";
 import { useRouter } from "vue-router";
 import TimerIcon from "~icons/lucide/timer";
@@ -334,6 +356,29 @@ function getReasonColorClass(reason: {
   }
   return "";
 }
+
+const exportCsv = () => {
+  const rows = (chartConfig.value.tickets || []).map((t: PendingTicket) => [
+    t.name,
+    t.subject,
+    t.status,
+    t.priority,
+    t.agent_group || "",
+    t.reason?.text || "",
+  ]);
+  downloadCsv(
+    `pending-tickets-${currentTab.value}`,
+    [
+      __("ID"),
+      __("Subject"),
+      __("Status"),
+      __("Priority"),
+      __("Team"),
+      __("Reason"),
+    ],
+    rows
+  );
+};
 
 const goToTicket = (ticket: PendingTicket) => {
   router.push({

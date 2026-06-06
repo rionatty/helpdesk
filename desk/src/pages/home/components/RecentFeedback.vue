@@ -156,6 +156,20 @@
                 align="start"
                 class="!w-48"
               />
+              <Tooltip :text="__('Export CSV')" placement="top">
+                <button
+                  class="p-1 text-ink-gray-5 hover:text-ink-gray-8 rounded transition-colors"
+                  :aria-label="__('Export CSV')"
+                  @click="exportCsv"
+                  :disabled="chartConfig.totalFeedbacks === 0"
+                  :class="{
+                    'opacity-40 cursor-not-allowed':
+                      chartConfig.totalFeedbacks === 0,
+                  }"
+                >
+                  <LucideDownload class="size-4" />
+                </button>
+              </Tooltip>
             </div>
           </div>
           <div class="flex-1 flex flex-col min-h-0">
@@ -300,9 +314,10 @@ import {
   Dropdown,
   FeatherIcon,
   TabButtons,
+  Tooltip,
   ECharts,
 } from "frappe-ui";
-import { dataTheme } from "@/utils";
+import { dataTheme, downloadCsv } from "@/utils";
 import LucideStar from "~icons/lucide/star";
 import { useRouter } from "vue-router";
 import { dayjsLocal } from "frappe-ui";
@@ -621,6 +636,31 @@ const placeholderChartOptions = computed<EChartsOption>(() => {
     animation: false,
   };
 });
+
+const exportCsv = () => {
+  const rows = chartConfig.value.feedbacks.map((f: Feedback) => [
+    f.name,
+    f.subject,
+    f.star_rating,
+    f.feedback,
+    f.feedback_extra,
+    f.contact_name || f.contact,
+    f.modified,
+  ]);
+  downloadCsv(
+    `recent-feedback-${currentPeriod.value}`,
+    [
+      __("Ticket"),
+      __("Subject"),
+      __("Rating"),
+      __("Feedback"),
+      __("Comments"),
+      __("Contact"),
+      __("Modified"),
+    ],
+    rows
+  );
+};
 
 const redirectToSeeAllReviews = () => {
   const viewName = "STD-VIEW-ALL-FEEDBACK";

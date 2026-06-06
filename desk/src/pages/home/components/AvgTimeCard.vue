@@ -1,5 +1,10 @@
 <template>
-  <div class="w-full h-full overflow-hidden">
+  <div
+    class="w-full h-full overflow-hidden cursor-pointer hover:bg-surface-menu-bar transition-colors rounded"
+    role="button"
+    :aria-label="__('Open tickets for {0}', [title])"
+    @click="goToFilteredList"
+  >
     <CardBase
       :title="title"
       :text="chartData.average"
@@ -7,17 +12,32 @@
       :chartConfig="chartConfig"
       :currentDuration="currentDuration"
       @changeDuration="changeDuration"
-    />
+    >
+      <template #actions>
+        <Tooltip :text="__('Export CSV')" placement="top">
+          <button
+            class="p-1 text-ink-gray-5 hover:text-ink-gray-8 rounded transition-colors"
+            :aria-label="__('Export CSV')"
+            @click.stop="exportCsv"
+          >
+            <LucideDownload class="size-4" />
+          </button>
+        </Tooltip>
+      </template>
+    </CardBase>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref, type PropType } from "vue";
 import CardBase from "./CardBase.vue";
-import { createResource } from "frappe-ui";
-import { buildPercentageChange, formatTime } from "@/utils";
+import { createResource, dayjsLocal, Tooltip } from "frappe-ui";
+import { useRouter } from "vue-router";
+import { buildPercentageChange, downloadCsv, formatTime } from "@/utils";
 import { __ } from "@/translation";
 import { EChartsOption } from "echarts";
+
+const router = useRouter();
 
 interface AverageResponseData {
   percentage_change: number;
@@ -138,6 +158,36 @@ const resource = createResource({
 const changeDuration = (period: string) => {
   currentDuration.value = period;
   resource.submit();
+};
+
+function durationToDays(duration: string): number {
+  if (duration === __("Last week")) return 7;
+  if (duration === __("Last 3 months")) return 90;
+  return 30;
+}
+
+const goToFilteredList = () => {
+  const from = dayjsLocal()
+    .subtract(durationToDays(currentDuration.value), "day")
+    .format("YYYY-MM-DD HH:mm:ss");
+  router.push({
+    name: "TicketsAgent",
+    query: { filters: JSON.stringify({ creation: [">=", from] }) },
+  });
+};
+
+const exportCsv = () => {
+  const { dates, data } = chartData.value;
+  const rows = dates.map((d, i) => [d, data[i] ?? 0]);
+  const slug = props.title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+  downloadCsv(
+    `${slug}-${currentDuration.value.toLowerCase().replace(/\s+/g, "-")}`,
+    [__("Date"), __("Avg time (seconds)")],
+    rows as (string | number)[][]
+  );
 };
 
 onMounted(() => {

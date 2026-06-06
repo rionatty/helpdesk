@@ -1,5 +1,10 @@
 <template>
-  <div class="w-full h-full overflow-hidden">
+  <div
+    class="w-full h-full overflow-hidden cursor-pointer hover:bg-surface-menu-bar transition-colors rounded"
+    role="button"
+    :aria-label="__('Open my tickets list')"
+    @click="goToFilteredList"
+  >
     <CardBase
       :title="__('My Tickets')"
       :text="chartData.total"
@@ -7,17 +12,32 @@
       :chartConfig="chartConfig"
       :currentDuration="currentDuration"
       @changeDuration="changeDuration"
-    />
+    >
+      <template #actions>
+        <Tooltip :text="__('Export CSV')" placement="top">
+          <button
+            class="p-1 text-ink-gray-5 hover:text-ink-gray-8 rounded transition-colors"
+            :aria-label="__('Export CSV')"
+            @click.stop="exportCsv"
+          >
+            <LucideDownload class="size-4" />
+          </button>
+        </Tooltip>
+      </template>
+    </CardBase>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref, type PropType } from "vue";
 import CardBase from "./CardBase.vue";
-import { createResource } from "frappe-ui";
+import { createResource, dayjsLocal, Tooltip } from "frappe-ui";
+import { useRouter } from "vue-router";
 import { __ } from "@/translation";
 import { EChartsOption } from "echarts";
-import { buildPercentageChange } from "@/utils";
+import { buildPercentageChange, downloadCsv } from "@/utils";
+
+const router = useRouter();
 
 interface Data {
   percentage_change: number;
@@ -127,6 +147,37 @@ const getAgentTicketsResource = createResource({
 const changeDuration = (period: string) => {
   currentDuration.value = period;
   getAgentTicketsResource.submit();
+};
+
+function durationToDays(duration: string): number {
+  if (duration === __("Last week")) return 7;
+  if (duration === __("Last 3 months")) return 90;
+  return 30;
+}
+
+const goToFilteredList = () => {
+  const from = dayjsLocal()
+    .subtract(durationToDays(currentDuration.value), "day")
+    .format("YYYY-MM-DD HH:mm:ss");
+  const filters = {
+    _assign: ["LIKE", "%@me%"],
+    creation: [">=", from],
+  };
+  router.push({
+    name: "TicketsAgent",
+    query: { filters: JSON.stringify(filters) },
+  });
+};
+
+const exportCsv = () => {
+  const { dates, counts } = chartData.value;
+  const rows = dates.map((d, i) => [d, counts[i] ?? 0]);
+  const slug = currentDuration.value.toLowerCase().replace(/\s+/g, "-");
+  downloadCsv(
+    `my-tickets-${slug}`,
+    [__("Date"), __("Tickets")],
+    rows as (string | number)[][]
+  );
 };
 
 onMounted(() => {

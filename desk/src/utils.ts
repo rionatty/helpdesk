@@ -896,3 +896,33 @@ export function buildPercentageChange(value: number | null) {
         : "text-ink-gray-5",
   };
 }
+
+/**
+ * Trigger a browser CSV download for the given rows.
+ * Adds a UTF-8 BOM so Excel detects encoding correctly.
+ */
+export function downloadCsv(
+  filename: string,
+  headers: string[],
+  rows: (string | number | null | undefined)[][]
+) {
+  const escape = (v: string | number | null | undefined) => {
+    if (v === null || v === undefined) return "";
+    const s = String(v);
+    return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const csv = [headers, ...rows]
+    .map((row) => row.map(escape).join(","))
+    .join("\r\n");
+  const blob = new Blob(["﻿" + csv], {
+    type: "text/csv;charset=utf-8",
+  });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename.endsWith(".csv") ? filename : `${filename}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}

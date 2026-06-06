@@ -1,10 +1,13 @@
 <template>
   <div class="flex flex-col w-full h-full rounded-md p-4">
-    <slot name="title">
-      <div class="text-ink-gray-5 text-base mb-2">
-        {{ title }}
-      </div>
-    </slot>
+    <div class="mb-2 flex items-center justify-between gap-2">
+      <slot name="title">
+        <div class="text-ink-gray-5 text-base">
+          {{ title }}
+        </div>
+      </slot>
+      <slot name="actions" />
+    </div>
     <div class="flex flex-col gap-2 h-full w-full">
       <div class="flex items-end w-full gap-2">
         <div
@@ -20,6 +23,7 @@
           <Dropdown :options="durationOptions">
             <div
               class="flex items-center gap-0.5 text-ink-gray-5 hover:text-ink-gray-6 cursor-pointer shrink-0"
+              @click.stop
             >
               <div class="rtl:flex rtl:gap-1">
                 <span>vs</span> <span>{{ currentDuration.toLowerCase() }}</span>

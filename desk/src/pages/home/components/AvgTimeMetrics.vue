@@ -1,10 +1,24 @@
 <template>
-  <div class="flex flex-col rounded-md p-4 grow w-full h-full overflow-hidden">
+  <div
+    class="flex flex-col rounded-md p-4 grow w-full h-full overflow-hidden cursor-pointer hover:bg-surface-menu-bar transition-colors"
+    role="button"
+    :aria-label="__('Open tickets list')"
+    @click="goToFilteredList"
+  >
     <div class="flex items-center justify-between">
       <div class="text-lg font-semibold text-ink-gray-8">
         {{ __("Average Time Metrics") }}
       </div>
-      <div class="flex items-center gap-2">
+      <div class="flex items-center gap-2" @click.stop>
+        <Tooltip :text="__('Export CSV')" placement="top">
+          <button
+            class="p-1 text-ink-gray-5 hover:text-ink-gray-8 rounded transition-colors"
+            :aria-label="__('Export CSV')"
+            @click="exportCsv"
+          >
+            <LucideDownload class="size-4" />
+          </button>
+        </Tooltip>
         <Dropdown
           v-if="currentDuration !== 'custom_range'"
           :options="durationOptions"
@@ -143,15 +157,20 @@ import { computed, onMounted, ref, type PropType, nextTick } from "vue";
 import { EChartsOption } from "echarts";
 import {
   createResource,
+  dayjsLocal,
   Dropdown,
   DateRangePicker,
   Button,
   FeatherIcon,
   ECharts,
+  Tooltip,
 } from "frappe-ui";
-import { dataTheme, formatTime } from "@/utils";
+import { useRouter } from "vue-router";
+import { dataTheme, downloadCsv, formatTime } from "@/utils";
 import { __ } from "@/translation";
 import EmptyState from "@/components/EmptyState.vue";
+
+const router = useRouter();
 
 type MetricsData = {
   averages: {
@@ -363,6 +382,51 @@ const onDurationChange = (duration: string) => {
   customDateRange.value = undefined;
   currentDuration.value = duration;
   getAvgTimeMetricsResource.submit();
+};
+
+const exportCsv = () => {
+  const _data = getAvgTimeMetricsResource.fetched
+    ? getAvgTimeMetricsResource.data?.data
+    : props.data?.data || [];
+  const rows = (_data || []).map((r: [string, number, number]) => [
+    r[0],
+    r[1] ?? 0,
+    r[2] ?? 0,
+  ]);
+  downloadCsv(
+    `avg-time-metrics-${currentDuration.value}`,
+    [
+      __("Period"),
+      __("Avg first response (seconds)"),
+      __("Avg resolution (seconds)"),
+    ],
+    rows
+  );
+};
+
+const goToFilteredList = () => {
+  let from: string | undefined;
+  let to: string | undefined;
+  if (currentDuration.value === "custom_range" && customDateRange.value) {
+    const [f, t] = customDateRange.value.split(",");
+    from = `${f} 00:00:00`;
+    to = `${t} 23:59:59`;
+  } else {
+    const months =
+      currentDuration.value === "3m"
+        ? 3
+        : currentDuration.value === "1y"
+          ? 12
+          : 6;
+    from = dayjsLocal().subtract(months, "month").format("YYYY-MM-DD HH:mm:ss");
+  }
+  const filters: Record<string, any> = {
+    creation: to ? ["between", [from, to]] : [">=", from],
+  };
+  router.push({
+    name: "TicketsAgent",
+    query: { filters: JSON.stringify(filters) },
+  });
 };
 
 onMounted(() => {
