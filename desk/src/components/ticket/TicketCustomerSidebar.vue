@@ -78,13 +78,7 @@
         <span class="w-[96px] text-sm text-ink-gray-5">
           {{ __("Email updates") }}
         </span>
-        <Tooltip
-          :text="
-            isSubscribed
-              ? __('You\\'re subscribed to email updates')
-              : __('Email updates are muted')
-          "
-        >
+        <Tooltip :text="subscribeTooltip">
           <button
             type="button"
             class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors"
@@ -270,6 +264,12 @@ watch(
   { immediate: true }
 );
 
+const subscribeTooltip = computed(() =>
+  isSubscribed.value
+    ? __("Subscribed to email updates")
+    : __("Email updates are muted")
+);
+
 function toggleSubscribe() {
   isSubscribed.value = !isSubscribed.value;
   const name = ticket.data?.name;
@@ -281,7 +281,7 @@ function toggleSubscribe() {
   }
   toast.success(
     isSubscribed.value
-      ? __("You'll receive email updates for this ticket")
+      ? __("Email updates enabled for this ticket")
       : __("Email updates muted for this ticket")
   );
 }
