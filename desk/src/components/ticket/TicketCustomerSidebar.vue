@@ -1,64 +1,86 @@
 <template>
-  <div class="flex w-[382px] flex-col border-s gap-4">
-    <!-- Ticket ID -->
-    <div class="flex items-center justify-between border-b px-5 py-3">
-      <span class="cursor-copy text-lg font-semibold">Ticket details</span>
+  <div class="flex w-[382px] flex-col border-s">
+    <!-- Header -->
+    <div class="flex items-center justify-between border-b px-5 py-4">
+      <span class="text-lg font-semibold text-ink-gray-9">
+        {{ __("Ticket details") }}
+      </span>
     </div>
-    <!-- user info and sla info -->
-    <div class="flex flex-col gap-4 pt-0 px-5 py-3 border-b">
-      <!-- user info -->
-      <div class="flex gap-2">
+    <!-- Contact card -->
+    <div class="flex flex-col gap-4 px-5 py-4 border-b">
+      <div class="flex items-center gap-3">
         <Avatar
           size="2xl"
           :image="ticket.data.contact.image"
           :label="ticket.data.contact.name"
         />
-        <div class="flex items-center justify-between">
+        <div class="flex-1 min-w-0">
           <Tooltip :text="ticket.data.contact.name">
-            <div class="w-[242px] truncate text-2xl font-medium">
+            <div class="truncate text-lg font-semibold text-ink-gray-9">
               {{ ticket.data.contact.name }}
             </div>
           </Tooltip>
-          <div class="flex gap-1.5" v-if="!ticket.data.feedback_rating">
-            <Tooltip :text="ticket.data.contact.email_id">
-              <Button class="h-7 w-7" @click="emit('open')">
-                <template #icon>
-                  <EmailIcon class="h-4 w-4" />
-                </template>
-              </Button>
-            </Tooltip>
+          <div class="text-xs text-ink-gray-5 truncate">
+            {{ ticket.data.contact.email_id }}
           </div>
         </div>
+        <div v-if="!ticket.data.feedback_rating">
+          <Tooltip :text="__('Email contact')">
+            <Button class="h-7 w-7" @click="emit('open')">
+              <template #icon>
+                <EmailIcon class="h-4 w-4" />
+              </template>
+            </Button>
+          </Tooltip>
+        </div>
       </div>
-
-      <!-- Ticket Info -->
+    </div>
+    <!-- Overview section -->
+    <div class="px-5 py-4 border-b flex flex-col gap-3">
       <div
-        class="flex items-center text-base leading-5"
-        v-for="field in ticketBasicInfo"
+        class="text-xs font-semibold uppercase tracking-wide text-ink-gray-5"
       >
-        <span class="w-[126px] text-sm text-ink-gray-5">{{ field.label }}</span>
+        {{ __("Overview") }}
+      </div>
+      <div
+        v-for="field in ticketBasicInfo"
+        :key="field.label"
+        class="flex items-center gap-3 text-base"
+      >
+        <component
+          :is="iconFor(field.label)"
+          class="size-4 text-ink-gray-5 shrink-0"
+        />
+        <span class="w-[96px] text-sm text-ink-gray-5">{{ field.label }}</span>
         <span
-          class="text-base text-ink-gray-8 flex-1"
+          class="text-base text-ink-gray-8 flex-1 truncate"
           :class="!field.value && 'text-ink-gray-4'"
         >
           {{ field.value || "—" }}
         </span>
       </div>
-
-      <!-- sla info -->
+    </div>
+    <!-- SLA section -->
+    <div class="px-5 py-4 border-b flex flex-col gap-3">
+      <div
+        class="text-xs font-semibold uppercase tracking-wide text-ink-gray-5"
+      >
+        {{ __("SLA") }}
+      </div>
       <div
         v-for="data in slaData"
         :key="data.label"
-        class="flex items-center text-base"
+        class="flex items-center gap-3 text-base"
       >
-        <div class="w-[126px] text-ink-gray-5 text-sm">{{ data.title }}</div>
-        <div
-          class="break-words text-base text-ink-gray-8 flex items-center gap-2"
-        >
+        <component
+          :is="iconFor(data.title)"
+          class="size-4 text-ink-gray-5 shrink-0"
+        />
+        <div class="w-[96px] text-sm text-ink-gray-5">{{ data.title }}</div>
+        <div class="flex items-center gap-2 flex-1">
           <Tooltip :text="dateFormat(data.value, dateTooltipFormat)">
             <Badge :label="data.label" :theme="data.theme" variant="subtle" />
           </Tooltip>
-          <!-- SLA explanation icon -->
           <Tooltip
             v-if="
               dayjs(data.value).diff(dayjs(), 'day', true) > 4 &&
@@ -83,15 +105,24 @@
       class="border-b text-base text-ink-gray-5"
       :ticket="ticket.data"
     />
-    <div class="flex flex-col gap-4 pt-0 px-5 py-3 overflow-y-scroll">
+    <div class="flex flex-col gap-3 px-5 py-4 overflow-y-scroll">
       <div
-        class="flex items-center text-base leading-5"
+        class="text-xs font-semibold uppercase tracking-wide text-ink-gray-5"
+      >
+        {{ __("Details") }}
+      </div>
+      <div
         v-for="field in ticketAdditionalInfo"
         :key="field.fieldname"
+        class="flex items-center gap-3 text-base"
       >
-        <span class="w-[126px] text-sm text-ink-gray-5">{{ field.label }}</span>
+        <component
+          :is="iconFor(field.label)"
+          class="size-4 text-ink-gray-5 shrink-0"
+        />
+        <span class="w-[96px] text-sm text-ink-gray-5">{{ field.label }}</span>
         <span
-          class="text-base text-ink-gray-8 flex-1"
+          class="text-base text-ink-gray-8 flex-1 truncate"
           :class="!field.value && 'text-ink-gray-4'"
         >
           <template
@@ -171,6 +202,29 @@ const otherOpenTickets = createListResource({
 
 function openTicket(name: string) {
   router.push({ name: "TicketCustomer", params: { ticketId: name } });
+}
+
+import LucideHash from "~icons/lucide/hash";
+import LucideCircleDot from "~icons/lucide/circle-dot";
+import LucideFileText from "~icons/lucide/file-text";
+import LucideUsers from "~icons/lucide/users";
+import LucideZap from "~icons/lucide/zap";
+import LucideTimer from "~icons/lucide/timer";
+import LucideCheckCircle from "~icons/lucide/check-circle";
+import LucideInfo from "~icons/lucide/info";
+
+const ICON_MAP: Record<string, any> = {
+  "Ticket ID": LucideHash,
+  Status: LucideCircleDot,
+  Subject: LucideFileText,
+  Team: LucideUsers,
+  Priority: LucideZap,
+  "First Response": LucideTimer,
+  Resolution: LucideCheckCircle,
+};
+
+function iconFor(label: string): any {
+  return ICON_MAP[label] || LucideInfo;
 }
 
 const slaData = computed(() => {

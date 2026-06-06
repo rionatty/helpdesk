@@ -15,6 +15,22 @@
     <div
       class="flex flex-col gap-5 py-6 h-full flex-1 self-center overflow-auto mx-auto w-full max-w-4xl px-5"
     >
+      <!-- Customer-side hero -->
+      <div
+        v-if="isCustomerPortal"
+        class="flex flex-col gap-2 mt-2 animate-in-fade"
+      >
+        <h1 class="text-2xl md:text-3xl font-semibold text-ink-gray-9 leading-tight">
+          {{ __("How can we help?") }}
+        </h1>
+        <p class="text-base text-ink-gray-6">
+          {{
+            __(
+              "Tell us what's going on. We'll typically reply within a few hours."
+            )
+          }}
+        </p>
+      </div>
       <!-- custom fields descriptions -->
       <div v-if="Boolean(template.data?.about)" class="">
         <div class="prose-f" v-html="sanitize(template.data.about)" />

@@ -5,44 +5,58 @@
     {{ __("Activity") }}
   </div>
   <div class="overflow-auto px-6 md:px-10 grow">
-    <div
-      v-for="(c, i) in communications"
-      :id="c.name"
-      :key="c.name"
-      class="flex items-between justify-center gap-4 relative"
-      :class="i === 0 && 'mt-4'"
-    >
+    <template v-for="(item, i) in itemsWithDividers" :key="item.key">
       <div
-        class="w-full activity grid grid-cols-[30px_minmax(auto,_1fr)] gap-2 sm:gap-4 h-full"
+        v-if="item.type === 'divider'"
+        class="flex items-center gap-3 my-4 animate-in-soft"
+      >
+        <div class="flex-1 h-px bg-outline-gray-1" />
+        <span
+          class="text-xs font-medium uppercase tracking-wide text-ink-gray-5"
+        >
+          {{ dayLabel(item.date) }}
+        </span>
+        <div class="flex-1 h-px bg-outline-gray-1" />
+      </div>
+      <div
+        v-else
+        :id="item.name"
+        class="flex items-between justify-center gap-4 relative animate-in-fade"
+        :class="i === 0 && 'mt-4'"
       >
         <div
-          class="relative flex justify-center after:absolute after:start-[50%] after:top-3 after:-z-10 after:border-s after:border-outline-gray-1"
-          :class="[
-            i != communications.length - 1 ? 'after:h-full' : 'after:h-5',
-          ]"
+          class="w-full activity grid grid-cols-[30px_minmax(auto,_1fr)] gap-2 sm:gap-4 h-full"
         >
-          <Avatar
-            size="lg"
-            :label="c.user.name"
-            :image="c.user.image"
-            class="mt-1.5 relative"
+          <div
+            class="relative flex justify-center after:absolute after:start-[50%] after:top-3 after:-z-10 after:border-s after:border-outline-gray-1"
+            :class="[
+              !item.isLast ? 'after:h-full' : 'after:h-5',
+            ]"
+          >
+            <Avatar
+              size="lg"
+              :label="item.user.name"
+              :image="item.user.image"
+              class="mt-1.5 relative"
+            />
+          </div>
+          <TicketCommunication
+            :content="item.content"
+            :date="item.creation"
+            :user="item.user"
+            :sender-image="item.sender"
+            :cc="item.cc || ''"
+            :bcc="item.bcc || ''"
+            :attachments="item.attachments"
+            :from-customer="item.fromCustomer"
+            :is-self="item.isSelf"
           />
         </div>
-        <TicketCommunication
-          :content="c.content"
-          :date="c.creation"
-          :user="c.user"
-          :sender-image="c.sender"
-          :cc="c.cc || ''"
-          :bcc="c.bcc || ''"
-          :attachments="c.attachments"
-          :from-customer="isFromCustomer(c)"
-        />
       </div>
-    </div>
+    </template>
     <div
       v-if="showWaitingPanel"
-      class="grid grid-cols-[30px_minmax(auto,_1fr)] gap-2 sm:gap-4 my-2"
+      class="grid grid-cols-[30px_minmax(auto,_1fr)] gap-2 sm:gap-4 my-2 animate-in-fade"
     >
       <div class="flex justify-center pt-1">
         <div
@@ -68,11 +82,14 @@
 <script setup lang="ts">
 import { dateFormat, dateTooltipFormat, formatTime, isElementInViewport } from "@/utils";
 import { __ } from "@/translation";
+import { useAuthStore } from "@/stores/auth";
 import { Avatar, dayjs } from "frappe-ui";
 import { computed, inject, nextTick, watch } from "vue";
 import { useRoute } from "vue-router";
 import TicketCommunication from "./TicketCommunication.vue";
 import { ITicket } from "./symbols";
+
+const authStore = useAuthStore();
 
 interface P {
   focus?: string;
@@ -95,6 +112,38 @@ function isFromCustomer(c: any): boolean {
   if (!raisedBy) return true;
   return c.sender === raisedBy;
 }
+
+function dayLabel(d: string): string {
+  const day = dayjs(d).startOf("day");
+  const today = dayjs().startOf("day");
+  const diff = today.diff(day, "day");
+  if (diff === 0) return __("Today");
+  if (diff === 1) return __("Yesterday");
+  if (diff < 7) return day.format("dddd");
+  return day.format("MMM D, YYYY");
+}
+
+const itemsWithDividers = computed(() => {
+  const out: any[] = [];
+  let lastDay: string | null = null;
+  const arr = communications.value;
+  arr.forEach((c: any, i: number) => {
+    const day = dayjs(c.creation).format("YYYY-MM-DD");
+    if (day !== lastDay) {
+      out.push({ type: "divider", date: c.creation, key: `d-${day}` });
+      lastDay = day;
+    }
+    out.push({
+      type: "message",
+      ...c,
+      key: c.name,
+      isLast: i === arr.length - 1,
+      fromCustomer: isFromCustomer(c),
+      isSelf: c.sender === authStore.userId,
+    });
+  });
+  return out;
+});
 
 const hasAgentReply = computed(() =>
   communications.value.some((c: any) => !isFromCustomer(c))

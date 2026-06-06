@@ -45,6 +45,17 @@
         />
       </Tooltip>
     </div>
+    <div
+      v-if="lastActivity"
+      class="flex items-center gap-1.5 text-xs text-ink-gray-5 mt-2"
+    >
+      <Tooltip :text="dateFormat(lastActivity, dateTooltipFormat)">
+        <span class="flex items-center gap-1.5">
+          <LucideHistory class="size-3.5" />
+          {{ __("Last activity") }} {{ timeAgo(lastActivity) }}
+        </span>
+      </Tooltip>
+    </div>
   </div>
 </template>
 
@@ -53,7 +64,7 @@ import { computed, inject } from "vue";
 import { Badge, dayjs, Tooltip } from "frappe-ui";
 import { ITicket } from "@/pages/ticket/symbols";
 import { __ } from "@/translation";
-import { dateFormat, dateTooltipFormat, formatTime } from "@/utils";
+import { dateFormat, dateTooltipFormat, formatTime, timeAgo } from "@/utils";
 
 const ticket = inject(ITicket);
 
@@ -134,5 +145,16 @@ const visibleSla = computed<SlaChip[]>(() => {
     buildSla("First Response", t.first_responded_on, t.response_by, t.creation),
     buildSla("Resolution", t.resolution_date, t.resolution_by, t.creation),
   ].filter((s) => s.show);
+});
+
+const lastActivity = computed<string | undefined>(() => {
+  const t = ticket?.data;
+  if (!t) return undefined;
+  const latestComm = (t.communications || []).reduce(
+    (max: string | null, c: any) =>
+      !max || dayjs(c.creation).isAfter(dayjs(max)) ? c.creation : max,
+    null as string | null
+  );
+  return latestComm || t.modified || t.creation;
 });
 </script>

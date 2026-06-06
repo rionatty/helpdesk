@@ -7,7 +7,14 @@
       <div class="flex items-center gap-0.5">
         <UserAvatar v-bind="user" size="lg" expand strong :hide-avatar="true" />
         <Badge
-          v-if="!fromCustomer"
+          v-if="isSelf"
+          class="ms-2"
+          theme="gray"
+          variant="subtle"
+          :label="__('You')"
+        />
+        <Badge
+          v-else-if="!fromCustomer"
           class="ms-2"
           theme="blue"
           variant="subtle"
@@ -56,6 +63,7 @@ interface P {
   bcc?: string;
   attachments?: Attachment[];
   fromCustomer?: boolean;
+  isSelf?: boolean;
 }
 
 const props = withDefaults(defineProps<P>(), {
@@ -63,6 +71,7 @@ const props = withDefaults(defineProps<P>(), {
   bcc: () => "",
   attachments: () => [],
   fromCustomer: true,
+  isSelf: false,
 });
 
 const bubbleClass = computed(() =>
