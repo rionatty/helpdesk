@@ -86,9 +86,9 @@ body {
 /* ============================================================= */
 html:not([data-theme="dark"]) {
   /* Refined cool surfaces — desaturated blue reads premium */
-  --surface-menu-bar: #eef2f9;
-  --hd-bg: #f4f7fc;
-  --hd-bg-veil: #e9eff8;
+  --surface-menu-bar: #e8eef8;
+  --hd-bg: #eef3fb;
+  --hd-bg-veil: #e3ebf7;
 
   /* Slate-tinted shadow ramp (rgb 15 23 42 = slate-900).        */
   /* Layered + low-opacity is the hallmark of executive UIs.     */

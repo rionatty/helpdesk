@@ -1,20 +1,24 @@
 <template>
   <div
-    class="-all flex py-[7px] mx-2 h-7.5 cursor-pointer items-center rounded ps-2 pe-2 text-ink-gray-8 duration-300 ease-in-out"
+    class="relative -all flex py-[7px] mx-2 h-7.5 cursor-pointer items-center rounded-lg ps-2 pe-2 duration-300 ease-in-out"
     :class="{
       'w-auto': isExpanded,
       'w-8': !isExpanded,
-      'shadow-sm': isActive,
+      'shadow-sm text-blue-700 font-medium': isActive,
+      'text-ink-gray-8': !isActive,
       [bgColor]: isActive,
       [hvColor]: !isActive,
+      'before:absolute before:start-0 before:top-1.5 before:bottom-1.5 before:w-[3px] before:rounded-full before:bg-blue-600':
+        isActive && isExpanded,
     }"
     @click="handleNavigation"
   >
     <Tooltip :text="__(label)" v-if="!isExpanded">
       <span
-        class="shrink-0 text-ink-gray-7"
+        class="shrink-0"
         :class="{
-          'text-ink-gray-9': !isExpanded,
+          'text-blue-600': isActive,
+          'text-ink-gray-9': !isActive,
           'icon-emoji': isMobileView,
         }"
       >
@@ -23,9 +27,10 @@
     </Tooltip>
     <span
       v-else
-      class="shrink-0 text-ink-gray-7"
+      class="shrink-0"
       :class="{
-        'text-ink-gray-9': !isExpanded,
+        'text-blue-600': isActive,
+        'text-ink-gray-7': !isActive,
         'icon-emoji': isMobileView,
       }"
     >
@@ -67,8 +72,8 @@ const props = withDefaults(defineProps<P>(), {
   isActive: false,
   onClick: () => () => true,
   to: "",
-  bgColor: "bg-surface-selected",
-  hvColor: "hover:bg-surface-gray-2",
+  bgColor: "bg-blue-50",
+  hvColor: "hover:bg-blue-50/60",
 });
 const router = useRouter();
 const { isMobileView } = useScreenSize();
