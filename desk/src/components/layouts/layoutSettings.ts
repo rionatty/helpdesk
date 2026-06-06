@@ -47,6 +47,11 @@ export const agentPortalSidebarOptions = [
 
 export const customerPortalSidebarOptions = [
   {
+    label: __("Home"),
+    icon: LucideHome,
+    to: "CustomerHome",
+  },
+  {
     label: __("Tickets"),
     icon: LucideTicket,
     to: "TicketsCustomer",

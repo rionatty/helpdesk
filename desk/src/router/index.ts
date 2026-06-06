@@ -179,6 +179,16 @@ const routes = [
     },
   },
 
+  // Customer portal landing
+  {
+    path: "/welcome",
+    name: "CustomerHome",
+    component: () => import("@/pages/CustomerHome.vue"),
+    meta: {
+      public: true,
+      auth: true,
+    },
+  },
   // Public status page
   {
     path: "/status",
