@@ -32,7 +32,7 @@
       v-if="isCustomerPortal"
       class="px-5 pt-5 pb-2 animate-in-fade"
     >
-      <h1 class="text-2xl font-semibold text-ink-gray-9 leading-tight">
+      <h1 class="executive-heading text-2xl text-ink-gray-9 leading-tight">
         {{ __("Your tickets") }}
       </h1>
       <p class="text-sm text-ink-gray-6 mt-1">

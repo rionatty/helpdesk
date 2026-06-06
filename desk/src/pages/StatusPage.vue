@@ -10,7 +10,7 @@
             {{ __("All systems operational") }}
           </span>
         </div>
-        <h1 class="text-2xl md:text-3xl font-semibold text-ink-gray-9">
+        <h1 class="executive-heading text-2xl md:text-3xl text-ink-gray-9">
           {{ brandName }} {{ __("status") }}
         </h1>
         <div class="text-sm text-ink-gray-5">
@@ -19,9 +19,8 @@
         </div>
       </header>
 
-      <section
-        class="rounded-lg border border-outline-gray-2 bg-surface-white overflow-hidden"
-      >
+      <section class="executive-card overflow-hidden">
+
         <div
           v-for="(svc, i) in services"
           :key="svc.name"

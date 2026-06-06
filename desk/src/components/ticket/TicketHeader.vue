@@ -5,7 +5,7 @@
   >
     <div class="flex flex-col md:flex-row md:flex-wrap md:items-center gap-x-3 gap-y-2">
       <h1
-        class="text-lg md:text-2xl font-semibold text-ink-gray-9 leading-tight"
+        class="executive-heading text-lg md:text-2xl text-ink-gray-9 leading-tight"
       >
         {{ ticket.data.subject }}
       </h1>

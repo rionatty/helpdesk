@@ -7,11 +7,11 @@
       >
         <div class="flex-1 flex flex-col gap-4 max-w-xl">
           <h1
-            class="text-3xl md:text-4xl font-bold text-blue-700 leading-tight"
+            class="executive-heading text-3xl md:text-[2.5rem] text-ink-gray-9 leading-[1.1]"
           >
             {{ __("Hi there! How can we help you?") }}
           </h1>
-          <p class="text-base text-ink-gray-6">
+          <p class="text-lg text-ink-gray-6 leading-relaxed">
             {{
               __(
                 "Find answers, solve problems, and get the support you need."
@@ -19,7 +19,7 @@
             }}
           </p>
           <form
-            class="flex items-stretch gap-2 rounded-xl border border-outline-gray-2 bg-surface-white shadow-sm overflow-hidden mt-2"
+            class="flex items-stretch gap-2 rounded-2xl border border-outline-gray-2 bg-surface-white shadow-md overflow-hidden mt-2 focus-within:border-blue-400 focus-within:shadow-lg transition-all"
             @submit.prevent="onSearch"
           >
             <div class="flex items-center px-3 text-ink-gray-5">
@@ -41,9 +41,9 @@
         </div>
         <div class="hidden md:flex flex-1 items-center justify-center">
           <div
-            class="size-64 rounded-3xl bg-gradient-to-br from-surface-blue-1 via-surface-white to-surface-white border border-outline-gray-1 flex items-center justify-center"
+            class="size-64 rounded-[2rem] bg-gradient-to-br from-blue-50 via-surface-white to-blue-50/40 border border-outline-gray-1 shadow-lg flex items-center justify-center"
           >
-            <LucideHeadphones class="size-24 text-blue-600" />
+            <LucideHeadphones class="size-24 text-blue-600/90" />
           </div>
         </div>
       </section>
@@ -54,10 +54,10 @@
           v-for="card in actionCards"
           :key="card.label"
           :to="card.to"
-          class="group flex flex-col gap-3 rounded-xl border border-outline-gray-2 bg-surface-white px-5 py-5 hover:shadow-md hover:border-outline-gray-3 transition-all"
+          class="executive-card executive-card-hover group flex flex-col gap-4 px-5 py-5"
         >
           <div
-            class="size-12 rounded-full flex items-center justify-center"
+            class="size-12 rounded-2xl flex items-center justify-center ring-1 ring-inset ring-black/5"
             :class="card.iconBg"
           >
             <component :is="card.icon" class="size-6" :class="card.iconColor" />
@@ -82,10 +82,8 @@
       <!-- Popular Articles + Need more help -->
       <section class="grid grid-cols-1 lg:grid-cols-5 gap-4">
         <!-- Popular articles -->
-        <div
-          class="lg:col-span-3 rounded-xl border border-outline-gray-2 bg-surface-white p-5 flex flex-col gap-3"
-        >
-          <div class="text-lg font-semibold text-ink-gray-9">
+        <div class="executive-card lg:col-span-3 p-6 flex flex-col gap-3">
+          <div class="executive-heading text-lg text-ink-gray-9">
             {{ __("Popular Articles") }}
           </div>
           <div v-if="popularArticles.loading" class="text-sm text-ink-gray-5">
@@ -122,11 +120,9 @@
         </div>
 
         <!-- Need more help -->
-        <div
-          class="lg:col-span-2 rounded-xl border border-outline-gray-2 bg-surface-white p-5 flex flex-col gap-3"
-        >
+        <div class="executive-card lg:col-span-2 p-6 flex flex-col gap-3">
           <div>
-            <div class="text-lg font-semibold text-ink-gray-9">
+            <div class="executive-heading text-lg text-ink-gray-9">
               {{ __("Need more help?") }}
             </div>
             <p class="text-sm text-ink-gray-6 mt-0.5">
@@ -142,7 +138,7 @@
               v-for="opt in helpOptions"
               :key="opt.label"
               type="button"
-              class="flex items-center gap-3 rounded-lg border border-outline-gray-1 px-3 py-3 text-start hover:border-outline-gray-3 hover:shadow-sm transition-all"
+              class="flex items-center gap-3 rounded-xl border border-outline-gray-1 px-3 py-3 text-start hover:border-blue-300 hover:bg-blue-50/40 hover:shadow-sm transition-all"
               @click="opt.onClick"
             >
               <div

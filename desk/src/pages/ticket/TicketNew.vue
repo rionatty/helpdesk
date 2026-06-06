@@ -23,7 +23,7 @@
         v-if="isCustomerPortal"
         class="flex flex-col gap-2 mt-2 animate-in-fade"
       >
-        <h1 class="text-2xl md:text-3xl font-semibold text-ink-gray-9 leading-tight">
+        <h1 class="executive-heading text-2xl md:text-3xl text-ink-gray-9 leading-tight">
           {{ __("How can we help?") }}
         </h1>
         <p class="text-base text-ink-gray-6">

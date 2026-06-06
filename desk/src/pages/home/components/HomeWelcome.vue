@@ -1,6 +1,6 @@
 <template>
   <div
-    class="rounded-2xl px-5 py-4 mb-4 border border-outline-gray-2 bg-gradient-to-br from-surface-gray-1 via-surface-white to-surface-white shadow-sm animate-in-fade"
+    class="executive-card rounded-2xl px-6 py-5 mb-5 bg-gradient-to-br from-blue-50/60 via-surface-white to-surface-white animate-in-fade"
   >
     <div
       class="flex items-start md:items-center justify-between gap-4 flex-col md:flex-row"
@@ -13,7 +13,9 @@
           class="ring-2 ring-offset-2 ring-outline-gray-2"
         />
         <div>
-          <div class="text-2xl font-semibold text-ink-gray-9 leading-tight">
+          <div
+            class="executive-heading text-2xl text-ink-gray-9 leading-tight"
+          >
             {{ greeting }}, {{ firstName }}
           </div>
           <div class="text-sm text-ink-gray-6 mt-1">

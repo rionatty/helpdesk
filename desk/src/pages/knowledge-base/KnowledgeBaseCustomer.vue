@@ -16,7 +16,7 @@
       <section
         class="flex flex-col items-center text-center gap-3 py-6 md:py-10 animate-in-fade"
       >
-        <h1 class="text-2xl md:text-3xl font-semibold text-ink-gray-9">
+        <h1 class="executive-heading text-2xl md:text-3xl text-ink-gray-9">
           {{ __("How can we help?") }}
         </h1>
         <p class="text-base text-ink-gray-6 max-w-xl">
