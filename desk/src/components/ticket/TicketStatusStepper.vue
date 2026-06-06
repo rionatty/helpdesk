@@ -74,10 +74,34 @@ const currentIndex = computed(() => {
   );
 });
 
+const RING_COLOR: Record<string, string> = {
+  Green: "ring-green-300",
+  Blue: "ring-blue-300",
+  Red: "ring-red-300",
+  Orange: "ring-orange-300",
+  Amber: "ring-amber-300",
+  Yellow: "ring-yellow-300",
+  Cyan: "ring-cyan-300",
+  Teal: "ring-teal-300",
+  Violet: "ring-violet-300",
+  Purple: "ring-purple-300",
+  Pink: "ring-pink-300",
+  Gray: "ring-gray-300",
+  Black: "ring-ink-gray-4",
+};
+
+const activeRingClass = computed(() => {
+  const step = visibleSteps.value[currentIndex.value];
+  const key = step?.color
+    ? step.color.charAt(0).toUpperCase() + step.color.slice(1).toLowerCase()
+    : "";
+  return RING_COLOR[key] || "ring-ink-gray-3";
+});
+
 function circleClass(_step: HDTicketStatus, i: number) {
   if (i < currentIndex.value) return "bg-surface-gray-7 text-white";
   if (i === currentIndex.value)
-    return "bg-ink-gray-9 text-white ring-2 ring-offset-2 ring-ink-gray-3";
+    return `bg-ink-gray-9 text-white ring-2 ring-offset-2 ${activeRingClass.value}`;
   return "bg-surface-gray-2 text-ink-gray-5";
 }
 

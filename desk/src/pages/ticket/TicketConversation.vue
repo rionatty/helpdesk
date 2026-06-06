@@ -2,7 +2,7 @@
   <div
     class="mx-6 md:mx-10 md:my-2 flex items-center justify-between text-lg font-medium mb-4 !mt-6 md:h-8 md:text-xl md:font-semibold md:text-ink-gray-8"
   >
-    Activity
+    {{ __("Activity") }}
   </div>
   <div class="overflow-auto px-6 md:px-10 grow">
     <div
@@ -36,15 +36,39 @@
           :cc="c.cc || ''"
           :bcc="c.bcc || ''"
           :attachments="c.attachments"
+          :from-customer="isFromCustomer(c)"
         />
+      </div>
+    </div>
+    <div
+      v-if="showWaitingPanel"
+      class="grid grid-cols-[30px_minmax(auto,_1fr)] gap-2 sm:gap-4 my-2"
+    >
+      <div class="flex justify-center pt-1">
+        <div
+          class="flex items-center justify-center size-7 rounded-full bg-surface-amber-2 text-amber-700"
+        >
+          <LucideClock class="size-4" />
+        </div>
+      </div>
+      <div
+        class="flex-1 rounded-md border border-outline-amber-1 bg-surface-amber-1 px-4 py-3"
+      >
+        <div class="font-medium text-ink-gray-8">
+          {{ __("We've received your ticket") }}
+        </div>
+        <div class="text-sm text-ink-gray-6 mt-0.5">
+          {{ waitingText }}
+        </div>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { isElementInViewport } from "@/utils";
-import { Avatar } from "frappe-ui";
+import { dateFormat, dateTooltipFormat, formatTime, isElementInViewport } from "@/utils";
+import { __ } from "@/translation";
+import { Avatar, dayjs } from "frappe-ui";
 import { computed, inject, nextTick, watch } from "vue";
 import { useRoute } from "vue-router";
 import TicketCommunication from "./TicketCommunication.vue";
@@ -64,6 +88,35 @@ const communications = computed(() => {
   return _communications.sort(
     (a, b) => new Date(a.creation) - new Date(b.creation)
   );
+});
+
+function isFromCustomer(c: any): boolean {
+  const raisedBy = ticket.data?.raised_by;
+  if (!raisedBy) return true;
+  return c.sender === raisedBy;
+}
+
+const hasAgentReply = computed(() =>
+  communications.value.some((c: any) => !isFromCustomer(c))
+);
+
+const showWaitingPanel = computed(
+  () =>
+    communications.value.length > 0 &&
+    !hasAgentReply.value &&
+    ticket.data?.status !== "Closed"
+);
+
+const waitingText = computed(() => {
+  const responseBy = ticket.data?.response_by;
+  if (!responseBy) return __("A support agent will reply shortly.");
+  const due = dayjs(responseBy);
+  if (due.isBefore(dayjs())) {
+    return __("A support agent will reply shortly.");
+  }
+  const human = formatTime(due.diff(dayjs(), "s"));
+  const exact = dateFormat(responseBy, dateTooltipFormat);
+  return __("Expected first reply within {0} (by {1}).", [human, exact]);
 });
 
 function scroll(id: string) {

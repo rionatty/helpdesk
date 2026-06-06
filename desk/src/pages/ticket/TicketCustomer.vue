@@ -25,6 +25,7 @@
     <div class="flex overflow-hidden h-full w-full">
       <!-- Main Ticket Comm -->
       <section class="flex flex-col flex-1 w-full md:max-w-[calc(100%-382px)]">
+        <TicketHeader />
         <TicketStatusStepper />
         <div
           class="px-6 md:px-10 mt-6"
@@ -116,6 +117,7 @@ import TicketConversation from "./TicketConversation.vue";
 import TicketCustomerTemplateFields from "./TicketCustomerTemplateFields.vue";
 import TicketFeedback from "./TicketFeedback.vue";
 import TicketStatusStepper from "@/components/ticket/TicketStatusStepper.vue";
+import TicketHeader from "@/components/ticket/TicketHeader.vue";
 const TicketTextEditor = defineAsyncComponent(
   () => import("./TicketTextEditor.vue")
 );
