@@ -229,9 +229,14 @@ html:not([data-theme="dark"]) .hover\:shadow-lg:hover {
   border: 1px solid;
 }
 .hd-pill-gold {
+  color: var(--hd-gold);
+  border-color: rgba(252, 197, 2, 0.7);
+  background-color: rgba(252, 197, 2, 0.12);
+}
+.hd-brand-hero .hd-pill-gold {
   color: #ffd60a;
-  border-color: rgba(252, 197, 2, 0.5);
-  background-color: rgba(252, 197, 2, 0.08);
+  border-color: rgba(252, 197, 2, 0.55);
+  background-color: rgba(252, 197, 2, 0.1);
 }
 .hd-pill-emerald {
   color: #34d399;
@@ -244,15 +249,21 @@ html:not([data-theme="dark"]) .hover\:shadow-lg:hover {
   background-color: rgba(251, 113, 133, 0.08);
 }
 .hd-pill-sky {
+  color: #0369a1;
+  border-color: rgba(56, 189, 248, 0.7);
+  background-color: rgba(56, 189, 248, 0.12);
+}
+.hd-brand-hero .hd-pill-sky {
   color: #38bdf8;
-  border-color: rgba(56, 189, 248, 0.5);
-  background-color: rgba(56, 189, 248, 0.08);
+  border-color: rgba(56, 189, 248, 0.55);
+  background-color: rgba(56, 189, 248, 0.1);
 }
 
 /* ===== Colorful action card — vivid top strip + gradient icon bg ===== */
 .hd-color-card {
   position: relative;
-  overflow: hidden;
+  border-radius: 16px;
+  isolation: isolate;
 }
 .hd-color-card::before {
   content: "";
@@ -260,7 +271,10 @@ html:not([data-theme="dark"]) .hover\:shadow-lg:hover {
   top: 0;
   inset-inline: 0;
   height: 4px;
+  border-top-left-radius: 16px;
+  border-top-right-radius: 16px;
   background: var(--hd-card-accent, #3b82f6);
+  z-index: 1;
 }
 .hd-color-card[data-accent="blue"] {
   --hd-card-accent: linear-gradient(90deg, #3b82f6, #06b6d4);
@@ -338,7 +352,8 @@ html:not([data-theme="dark"]) .hover\:shadow-lg:hover {
 
 /* Sidebar — subtle navy gradient (every page picks this up) */
 html:not([data-theme="dark"]) .hd-sidebar-bg {
-  background-image: linear-gradient(180deg, #e4ebf7 0%, #d9e2f0 50%, #d3dded 100%);
+  background-color: #dde6f3;
+  background-image: linear-gradient(180deg, #dde6f3 0%, #ccd9ec 100%);
 }
 
 /* Subtle zebra rhythm on table list views — barely-there blue cool tint */

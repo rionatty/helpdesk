@@ -2,13 +2,37 @@
   <div class="overflow-y-auto h-full bg-customer-portal flex flex-col">
     <LayoutHeader>
       <template #left-header>
-        <div class="text-lg font-medium text-ink-gray-9">
-          {{ __("Home") }}
+        <div class="flex items-center gap-2">
+          <LucideHome class="size-5 text-ink-gray-7" />
+          <div class="text-lg font-medium text-ink-gray-9">
+            {{ __("Home") }}
+          </div>
+        </div>
+      </template>
+      <template #right-header>
+        <div class="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            :aria-label="__('Search the knowledge base')"
+            @click="router.push({ name: 'CustomerKnowledgeBase' })"
+          >
+            <template #prefix><LucideSearch class="size-4" /></template>
+            <span class="hidden md:inline">{{ __("Search") }}</span>
+          </Button>
+          <Button
+            variant="subtle"
+            theme="blue"
+            :aria-label="__('Get help — open a new ticket')"
+            @click="router.push({ name: 'TicketNew' })"
+          >
+            <template #prefix><LucideHelpCircle class="size-4" /></template>
+            <span class="hidden md:inline">{{ __("Get Help") }}</span>
+          </Button>
         </div>
       </template>
     </LayoutHeader>
     <div
-      class="w-full max-w-[1280px] mx-auto px-4 md:px-8 lg:px-12 py-6 md:py-10 flex flex-col gap-8 flex-1"
+      class="w-full max-w-screen-2xl mx-auto px-4 md:px-6 lg:px-8 py-6 md:py-8 flex flex-col gap-6 md:gap-8 flex-1"
     >
       <!-- Hero — navy + gold brand -->
       <section
@@ -28,7 +52,7 @@
             }}
           </p>
           <form
-            class="flex items-stretch gap-2 rounded-2xl bg-white shadow-md overflow-hidden mt-2 focus-within:ring-2 focus-within:ring-[var(--hd-gold)] transition-all"
+            class="flex items-stretch gap-2 rounded-2xl bg-white shadow-md overflow-hidden focus-within:ring-2 focus-within:ring-[var(--hd-gold)] transition-all"
             @submit.prevent="onSearch"
           >
             <div class="flex items-center px-3 text-ink-gray-5">
@@ -42,12 +66,12 @@
             />
             <button
               type="submit"
-              class="hd-gold-solid px-5 transition-colors"
+              class="hd-gold-solid px-5 transition-colors rounded-r-2xl"
             >
               {{ __("Search") }}
             </button>
           </form>
-          <div class="flex flex-wrap gap-2 mt-2">
+          <div class="flex flex-wrap gap-2 mt-1">
             <span class="hd-pill hd-pill-gold">{{ __("Secure") }}</span>
             <span class="hd-pill hd-pill-emerald">{{ __("Fast") }}</span>
             <span class="hd-pill hd-pill-coral">{{ __("Official") }}</span>
@@ -55,7 +79,7 @@
         </div>
         <div class="hidden md:flex shrink-0 items-center justify-center">
           <div
-            class="size-44 lg:size-52 rounded-[2rem] bg-gradient-to-br from-white/15 to-white/5 border border-white/15 flex items-center justify-center shadow-2xl"
+            class="size-40 lg:size-48 rounded-[2rem] bg-gradient-to-br from-white/25 to-white/10 border border-white/25 flex items-center justify-center shadow-2xl ring-1 ring-inset ring-white/20"
           >
             <LucideHeadphones class="size-20 lg:size-24 text-[var(--hd-gold)]" />
           </div>
@@ -107,9 +131,12 @@
           </div>
           <div
             v-else-if="!popularArticles.data?.length"
-            class="text-sm text-ink-gray-5"
+            class="flex flex-col items-center justify-center gap-2 py-8 text-center"
           >
-            {{ __("No published articles yet.") }}
+            <LucideInbox class="size-8 text-ink-gray-4" />
+            <p class="text-sm text-ink-gray-5">
+              {{ __("No published articles yet.") }}
+            </p>
           </div>
           <RouterLink
             v-for="a in popularArticles.data"
@@ -179,12 +206,12 @@
 
       <!-- Trust badges -->
       <section
-        class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2 pt-6 border-t border-outline-gray-1"
+        class="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 pt-6 mt-2 border-t border-outline-gray-1"
       >
         <div
           v-for="t in trustBadges"
           :key="t.label"
-          class="flex items-start gap-3"
+          class="flex flex-col md:flex-row items-center md:items-start text-center md:text-start gap-2 md:gap-3"
         >
           <div
             class="size-10 rounded-full flex items-center justify-center shrink-0 shadow-sm ring-1 ring-inset ring-white/40"
@@ -208,13 +235,16 @@
 
 <script setup lang="ts">
 import { ref } from "vue";
-import { createListResource, usePageMeta } from "frappe-ui";
+import { Button, createListResource, usePageMeta } from "frappe-ui";
 import { useRouter } from "vue-router";
 import { LayoutHeader } from "@/components";
 import { useConfigStore } from "@/stores/config";
 import { __ } from "@/translation";
 import LucideSearch from "~icons/lucide/search";
 import LucideHeadphones from "~icons/lucide/headphones";
+import LucideHome from "~icons/lucide/home";
+import LucideHelpCircle from "~icons/lucide/help-circle";
+import LucideInbox from "~icons/lucide/inbox";
 import LucideChevronRight from "~icons/lucide/chevron-right";
 import LucideFileText from "~icons/lucide/file-text";
 import LucideBookOpen from "~icons/lucide/book-open";

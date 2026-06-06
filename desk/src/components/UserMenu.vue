@@ -2,10 +2,10 @@
   <Dropdown :options="options">
     <template #default="{ open }">
       <button
-        class="flex h-12 items-center rounded-md py-2 duration-300 ease-in-out"
+        class="flex h-10 items-center justify-center rounded-md py-1.5 duration-300 ease-in-out"
         :class="
           !sidebarStore.isExpanded
-            ? 'w-auto px-0'
+            ? 'w-auto px-1.5'
             : open
             ? 'w-full px-2 bg-surface-white shadow-sm'
             : 'w-full px-2 hover:bg-surface-gray-3'

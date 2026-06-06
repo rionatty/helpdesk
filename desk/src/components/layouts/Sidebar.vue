@@ -6,7 +6,7 @@
       'max-width': width,
     }"
   >
-    <div :class="isExpanded ? 'mx-0 p-2' : 'm-2'">
+    <div class="px-2 py-2">
       <UserMenu :options="profileSettings" />
     </div>
     <SidebarLink
@@ -15,7 +15,7 @@
       :icon="LucideSearch"
       :on-click="() => openCommandPalette()"
       :is-expanded="isExpanded"
-      class="mt-1.5"
+      class="mt-0.5"
     >
       <template #right>
         <span class="flex items-center gap-0.5 font-medium text-ink-gray-5">

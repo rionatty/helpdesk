@@ -4,9 +4,24 @@
   >
     <LayoutHeader>
       <template #left-header>
-        <div class="text-lg font-medium text-ink-gray-9">
-          {{ __("Knowledge Base") }}
+        <div class="flex items-center gap-2">
+          <LucideBookOpen class="size-5 text-ink-gray-7" />
+          <div class="text-lg font-medium text-ink-gray-9">
+            {{ __("Knowledge Base") }}
+          </div>
         </div>
+      </template>
+      <template #right-header>
+        <RouterLink
+          :to="{ name: 'TicketNew' }"
+          class="inline-flex"
+          :aria-label="__('Still need help? Open a new ticket')"
+        >
+          <Button variant="subtle" theme="blue">
+            <template #prefix><LucideMessageCircle class="size-4" /></template>
+            <span class="hidden md:inline">{{ __("Still need help?") }}</span>
+          </Button>
+        </RouterLink>
       </template>
     </LayoutHeader>
     <div
@@ -85,7 +100,8 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
-import { createListResource, usePageMeta } from "frappe-ui";
+import { Button, createListResource, usePageMeta } from "frappe-ui";
+import { RouterLink } from "vue-router";
 
 import { LayoutHeader } from "@/components";
 import CategoryFolderContainer from "@/components/knowledge-base/CategoryFolderContainer.vue";

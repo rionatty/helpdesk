@@ -1,6 +1,6 @@
 <template>
   <div
-    class="relative -all flex py-[7px] mx-2 h-7.5 cursor-pointer items-center rounded-lg ps-2 pe-2 duration-300 ease-in-out"
+    class="relative -all flex py-[5px] mx-2 h-7 cursor-pointer items-center rounded-lg ps-2 pe-2 duration-300 ease-in-out"
     :class="{
       'w-auto': isExpanded,
       'w-8': !isExpanded,
@@ -8,7 +8,7 @@
       'text-ink-gray-8': !isActive,
       [bgColor]: isActive,
       [hvColor]: !isActive,
-      'before:absolute before:start-0 before:top-1.5 before:bottom-1.5 before:w-[3px] before:rounded-full before:bg-[var(--hd-gold)]':
+      'before:absolute before:start-0 before:top-1 before:bottom-1 before:w-[3px] before:rounded-full before:bg-[var(--hd-gold)]':
         isActive && isExpanded,
     }"
     @click="handleNavigation"
