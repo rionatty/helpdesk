@@ -1,5 +1,7 @@
 <template>
-  <div class="p-4 md:p-5 md:pb-10 md:px-10 w-full overflow-scroll items-center relative">
+  <div
+    class="p-4 md:p-5 md:pb-10 md:px-10 w-full overflow-scroll items-center relative bg-customer-portal"
+  >
     <LayoutHeader>
       <template #left-header>
         <div class="text-lg font-medium text-ink-gray-9">

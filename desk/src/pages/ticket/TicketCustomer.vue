@@ -1,5 +1,5 @@
 <template>
-  <div v-if="ticket.data" class="flex flex-col">
+  <div v-if="ticket.data" class="flex flex-col bg-customer-portal">
     <LayoutHeader>
       <template #left-header>
         <Breadcrumbs :items="breadcrumbs" class="-ms-0.5" />
@@ -26,6 +26,51 @@
       <!-- Main Ticket Comm -->
       <section class="flex flex-col flex-1 w-full md:max-w-[calc(100%-382px)]">
         <TicketHeader />
+        <div
+          class="px-4 md:px-10 pt-2 flex flex-wrap items-center gap-1"
+        >
+          <Button
+            size="sm"
+            variant="ghost"
+            theme="gray"
+            :label="__('Follow-up')"
+            @click="startFollowUp"
+          >
+            <template #prefix>
+              <LucideReply class="size-3.5" />
+            </template>
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            theme="gray"
+            :label="
+              ticket.data?.priority === 'Urgent'
+                ? __('Marked urgent')
+                : __('Mark as urgent')
+            "
+            :disabled="
+              ticket.data?.priority === 'Urgent' ||
+              ticket.data?.status === 'Closed'
+            "
+            @click="markUrgent"
+          >
+            <template #prefix>
+              <LucideAlertTriangle class="size-3.5" />
+            </template>
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            theme="gray"
+            :label="__('Copy link')"
+            @click="copyLink"
+          >
+            <template #prefix>
+              <LucideLink class="size-3.5" />
+            </template>
+          </Button>
+        </div>
         <TicketStatusStepper />
         <div v-if="canReopen" class="px-4 md:px-10 pt-3">
           <div
@@ -115,6 +160,20 @@
               (file: any) => uploadFunction(file, 'HD Ticket', props.ticketId)
             "
           >
+            <template #bottom-left>
+              <Tooltip :text="__('Paste image from clipboard')">
+                <Button
+                  theme="gray"
+                  variant="ghost"
+                  @click="pasteFromClipboard"
+                  :loading="isPasting"
+                >
+                  <template #icon>
+                    <LucideClipboardPaste class="size-4" />
+                  </template>
+                </Button>
+              </Tooltip>
+            </template>
             <template #bottom-right>
               <Button
                 :label="__('Send')"
@@ -155,6 +214,7 @@ import {
   createResource,
   dayjs,
   toast,
+  Tooltip,
 } from "frappe-ui";
 import {
   computed,
@@ -223,6 +283,77 @@ const { isMobileView } = useScreenSize();
 const { $dialog, $socket } = globalStore();
 const isDismissed = ref(false);
 const isDragging = ref(false);
+const isPasting = ref(false);
+
+function startFollowUp() {
+  isExpanded.value = true;
+  setTimeout(() => {
+    applyCannedReply(__("Just following up on this — any update?"));
+  }, 50);
+}
+
+function markUrgent() {
+  if (ticket.data?.priority === "Urgent") return;
+  setValue.submit(
+    { fieldname: "priority", value: "Urgent" },
+    {
+      onSuccess: () => {
+        toast.success(__("Marked as urgent — we'll prioritize this."));
+        ticket.reload();
+      },
+    }
+  );
+}
+
+async function copyLink() {
+  try {
+    await navigator.clipboard.writeText(window.location.href);
+    toast.success(__("Link copied to clipboard"));
+  } catch (_) {
+    toast.error(__("Could not copy link"));
+  }
+}
+
+async function pasteFromClipboard() {
+  if (!navigator.clipboard || !navigator.clipboard.read) {
+    toast.error(
+      __("Your browser does not support clipboard images — drag a file instead.")
+    );
+    return;
+  }
+  isPasting.value = true;
+  try {
+    const items = await navigator.clipboard.read();
+    for (const item of items) {
+      for (const type of item.types) {
+        if (type.startsWith("image/")) {
+          const blob = await item.getType(type);
+          const ext = type.split("/")[1] || "png";
+          const file = new File(
+            [blob],
+            `screenshot-${Date.now()}.${ext}`,
+            { type }
+          );
+          const result = await uploadFunction(
+            file,
+            "HD Ticket",
+            props.ticketId
+          );
+          if (result) {
+            attachments.value = [...attachments.value, result];
+            toast.success(__("Screenshot attached"));
+          }
+          return;
+        }
+      }
+    }
+    toast.error(__("No image found in clipboard"));
+  } catch (_) {
+    toast.error(__("Could not read clipboard. Grant permission and try again."));
+  } finally {
+    isPasting.value = false;
+  }
+}
 
 const cannedReplies = computed(() => [
   {

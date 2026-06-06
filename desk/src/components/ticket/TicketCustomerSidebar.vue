@@ -59,6 +59,46 @@
           {{ field.value || "—" }}
         </span>
       </div>
+      <!-- Attachment count -->
+      <div
+        v-if="attachmentCount > 0"
+        class="flex items-center gap-3 text-base"
+      >
+        <LucidePaperclip class="size-4 text-ink-gray-5 shrink-0" />
+        <span class="w-[96px] text-sm text-ink-gray-5">
+          {{ __("Attachments") }}
+        </span>
+        <span class="text-base text-ink-gray-8 flex-1">
+          {{ attachmentCount }}
+        </span>
+      </div>
+      <!-- Subscribe toggle -->
+      <div class="flex items-center gap-3 text-base">
+        <LucideBell class="size-4 text-ink-gray-5 shrink-0" />
+        <span class="w-[96px] text-sm text-ink-gray-5">
+          {{ __("Email updates") }}
+        </span>
+        <Tooltip
+          :text="
+            isSubscribed
+              ? __('You\\'re subscribed to email updates')
+              : __('Email updates are muted')
+          "
+        >
+          <button
+            type="button"
+            class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors"
+            :class="isSubscribed ? 'bg-green-500' : 'bg-surface-gray-4'"
+            @click="toggleSubscribe"
+            :aria-pressed="isSubscribed"
+          >
+            <span
+              class="inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform shadow-sm"
+              :class="isSubscribed ? 'translate-x-5' : 'translate-x-1'"
+            />
+          </button>
+        </Tooltip>
+      </div>
     </div>
     <!-- SLA section -->
     <div class="px-5 py-4 border-b flex flex-col gap-3">
@@ -177,8 +217,15 @@ import { ITicket } from "@/pages/ticket/symbols";
 import { Field } from "@/types";
 import { dateFormat, dateTooltipFormat, formatTime } from "@/utils";
 import { __ } from "@/translation";
-import { Avatar, Badge, createListResource, dayjs, Tooltip } from "frappe-ui";
-import { computed, inject } from "vue";
+import {
+  Avatar,
+  Badge,
+  createListResource,
+  dayjs,
+  toast,
+  Tooltip,
+} from "frappe-ui";
+import { computed, inject, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 
 const router = useRouter();
@@ -204,6 +251,41 @@ function openTicket(name: string) {
   router.push({ name: "TicketCustomer", params: { ticketId: name } });
 }
 
+const attachmentCount = computed(() => {
+  const comms = ticket.data?.communications || [];
+  return comms.reduce(
+    (total: number, c: any) => total + (c.attachments?.length || 0),
+    0
+  );
+});
+
+const isSubscribed = ref(true);
+watch(
+  () => ticket.data?.name,
+  (name) => {
+    if (!name) return;
+    const stored = localStorage.getItem(`helpdesk:subscribed:${name}`);
+    isSubscribed.value = stored === null ? true : stored === "1";
+  },
+  { immediate: true }
+);
+
+function toggleSubscribe() {
+  isSubscribed.value = !isSubscribed.value;
+  const name = ticket.data?.name;
+  if (name) {
+    localStorage.setItem(
+      `helpdesk:subscribed:${name}`,
+      isSubscribed.value ? "1" : "0"
+    );
+  }
+  toast.success(
+    isSubscribed.value
+      ? __("You'll receive email updates for this ticket")
+      : __("Email updates muted for this ticket")
+  );
+}
+
 import LucideHash from "~icons/lucide/hash";
 import LucideCircleDot from "~icons/lucide/circle-dot";
 import LucideFileText from "~icons/lucide/file-text";
@@ -212,6 +294,8 @@ import LucideZap from "~icons/lucide/zap";
 import LucideTimer from "~icons/lucide/timer";
 import LucideCheckCircle from "~icons/lucide/check-circle";
 import LucideInfo from "~icons/lucide/info";
+import LucidePaperclip from "~icons/lucide/paperclip";
+import LucideBell from "~icons/lucide/bell";
 
 const ICON_MAP: Record<string, any> = {
   "Ticket ID": LucideHash,

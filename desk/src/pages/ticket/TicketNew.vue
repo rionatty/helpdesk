@@ -1,5 +1,8 @@
 <template>
-  <div class="flex flex-col overflow-y-auto">
+  <div
+    class="flex flex-col overflow-y-auto"
+    :class="isCustomerPortal && 'bg-customer-portal'"
+  >
     <LayoutHeader>
       <template #left-header>
         <Breadcrumbs :items="breadcrumbs" />
@@ -286,16 +289,38 @@ const ticket = createResource({
     }
   },
   onSuccess: (data) => {
-    router.push({
-      name: isCustomerPortal.value ? "TicketCustomer" : "TicketAgent",
-      params: {
-        ticketId: data.name,
-      },
-    });
     if (isManager) {
       updateOnboardingStep("create_first_ticket", true, false, () =>
         localStorage.setItem("firstTicket", data.name)
       );
+    }
+    if (isCustomerPortal.value) {
+      $dialog({
+        title: __("Ticket received"),
+        message: __(
+          "Thanks — your ticket #{0} is in our queue. A support agent will reply shortly.",
+          [data.name]
+        ),
+        actions: [
+          {
+            label: __("View ticket"),
+            variant: "solid",
+            theme: "gray",
+            onClick: (close: Function) => {
+              close();
+              router.push({
+                name: "TicketCustomer",
+                params: { ticketId: data.name },
+              });
+            },
+          },
+        ],
+      });
+    } else {
+      router.push({
+        name: "TicketAgent",
+        params: { ticketId: data.name },
+      });
     }
   },
 });

@@ -28,6 +28,21 @@
         </RouterLink>
       </template>
     </LayoutHeader>
+    <div
+      v-if="isCustomerPortal"
+      class="px-5 pt-5 pb-2 animate-in-fade"
+    >
+      <h1 class="text-2xl font-semibold text-ink-gray-9 leading-tight">
+        {{ __("Your tickets") }}
+      </h1>
+      <p class="text-sm text-ink-gray-6 mt-1">
+        {{
+          __(
+            "Every support request in one place. Use the Create button to open a new one."
+          )
+        }}
+      </p>
+    </div>
     <ListViewBuilder
       ref="listViewRef"
       :options="options"

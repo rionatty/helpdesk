@@ -50,6 +50,15 @@
   animation: hd-fade-in-soft 220ms ease-out both;
 }
 
+/* Soft brand-aware tint at the top of customer pages — fades to surface-white */
+.bg-customer-portal {
+  background-image: linear-gradient(
+    to bottom,
+    color-mix(in srgb, var(--surface-blue-1) 50%, var(--surface-white)) 0%,
+    var(--surface-white) 280px
+  );
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-in-fade,
   .animate-in-soft {
