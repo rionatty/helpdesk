@@ -336,6 +336,19 @@ html:not([data-theme="dark"]) .hover\:shadow-lg:hover {
   );
 }
 
+/* Sidebar — subtle navy gradient (every page picks this up) */
+html:not([data-theme="dark"]) .hd-sidebar-bg {
+  background-image: linear-gradient(180deg, #e4ebf7 0%, #d9e2f0 50%, #d3dded 100%);
+}
+
+/* Subtle zebra rhythm on table list views — barely-there blue cool tint */
+html:not([data-theme="dark"]) tbody tr:nth-child(even) > td {
+  background-color: rgba(59, 130, 246, 0.025);
+}
+html:not([data-theme="dark"]) tbody tr:hover > td {
+  background-color: rgba(59, 130, 246, 0.06);
+}
+
 .hd-icon-blue {
   background: linear-gradient(135deg, #3b82f6, #06b6d4);
 }

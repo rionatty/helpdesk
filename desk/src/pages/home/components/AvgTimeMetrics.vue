@@ -6,7 +6,14 @@
     @click="goToFilteredList"
   >
     <div class="flex items-center justify-between">
-      <div class="text-lg font-semibold text-ink-gray-8">
+      <div
+        class="flex items-center gap-2 text-lg font-semibold text-ink-gray-8"
+      >
+        <div
+          class="size-7 rounded-lg hd-icon-emerald flex items-center justify-center shadow-sm ring-1 ring-inset ring-white/40"
+        >
+          <LucideClock class="size-4 text-white" />
+        </div>
         {{ __("Average Time Metrics") }}
       </div>
       <div class="flex items-center gap-2" @click.stop>

@@ -4,6 +4,11 @@
       <div
         class="flex items-center gap-2 text-lg font-semibold text-ink-gray-8"
       >
+        <div
+          class="size-7 rounded-lg hd-icon-amber flex items-center justify-center shadow-sm ring-1 ring-inset ring-white/40"
+        >
+          <LucideAlertTriangle class="size-4 text-white" />
+        </div>
         {{ currentTitle }}
         <Tooltip :text="tooltipText" placement="top">
           <FeatherIcon name="info" class="size-3" />

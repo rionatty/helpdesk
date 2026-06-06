@@ -36,12 +36,12 @@
             'radial-gradient(ellipse at center, var(--surface-white) 10%, color-mix(in srgb, var(--surface-white) 90%, transparent) 25%, transparent 70%)',
         }"
       />
-      <!-- Icon in soft tinted circle -->
+      <!-- Icon in vibrant gradient circle — gives empty states a touch of brand -->
       <div
         v-if="icon"
-        class="flex items-center justify-center size-14 rounded-full bg-gradient-to-br from-surface-gray-1 to-surface-gray-2"
+        class="flex items-center justify-center size-14 rounded-full bg-gradient-to-br from-blue-100 via-violet-100 to-amber-100 ring-1 ring-inset ring-white/60 shadow-sm"
       >
-        <component :is="icon" class="size-6 text-ink-gray-6" />
+        <component :is="icon" class="size-6 text-blue-700" />
       </div>
       <!-- title -->
       <div class="flex flex-col items-center justify-center gap-1">
