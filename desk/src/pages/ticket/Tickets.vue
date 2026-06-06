@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div :class="isCustomerPortal && 'bg-customer-portal min-h-full flex flex-col'">
     <LayoutHeader>
       <template #left-header>
         <ViewBreadcrumbs
@@ -17,8 +17,8 @@
         >
           <Button
             class="rtl:flex-row-reverse"
-            label="Create"
-            theme="gray"
+            :label="__('Create')"
+            :theme="isCustomerPortal ? 'blue' : 'gray'"
             variant="solid"
           >
             <template #prefix>
@@ -30,18 +30,27 @@
     </LayoutHeader>
     <div
       v-if="isCustomerPortal"
-      class="px-5 pt-5 pb-2 animate-in-fade"
+      class="animate-in-fade px-4 md:px-8 pt-6 pb-4 max-w-screen-2xl mx-auto w-full"
     >
-      <h1 class="executive-heading text-2xl text-ink-gray-9 leading-tight">
-        {{ __("Your tickets") }}
-      </h1>
-      <p class="text-sm text-ink-gray-6 mt-1">
-        {{
-          __(
-            "Every support request in one place. Use the Create button to open a new one."
-          )
-        }}
-      </p>
+      <div class="flex items-center gap-3">
+        <div
+          class="size-12 rounded-2xl hd-icon-blue flex items-center justify-center shadow-md ring-1 ring-inset ring-white/40 shrink-0"
+        >
+          <LucideTicket class="size-6 text-white" />
+        </div>
+        <div>
+          <h1 class="executive-heading text-2xl text-ink-gray-9 leading-tight">
+            {{ __("Your tickets") }}
+          </h1>
+          <p class="text-sm text-ink-gray-6 mt-0.5">
+            {{
+              __(
+                "Every support request in one place. Use the Create button to open a new one."
+              )
+            }}
+          </p>
+        </div>
+      </div>
     </div>
     <ListViewBuilder
       ref="listViewRef"
