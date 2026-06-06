@@ -1,5 +1,8 @@
 <template>
-  <div v-if="ticket?.data" class="px-4 md:px-10 pt-4 md:pt-6">
+  <div
+    v-if="ticket?.data"
+    class="px-4 md:px-10 pt-4 md:pt-6 animate-in-fade"
+  >
     <div class="flex flex-col md:flex-row md:flex-wrap md:items-center gap-x-3 gap-y-2">
       <h1
         class="text-lg md:text-2xl font-semibold text-ink-gray-9 leading-tight"

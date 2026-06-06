@@ -72,23 +72,30 @@
         class="flex flex-col p-1 pt-4 md:p-4 md:ps-3 mx-auto max-w-[1500px] w-full grow relative h-full"
       >
         <div class="grow pb-12">
-          <div
-            v-if="!agentDashboard.loading && layout.length > 0"
-            class="text-xl font-semibold text-ink-gray-8 ps-2"
-          >
-            {{ __("Hey") }}, {{ userName }}
-          </div>
+          <HomeWelcome v-if="!agentDashboard.loading" />
           <div
             v-if="!agentDashboard.loading && layout.length === 0"
             class="absolute top-1/2 start-1/2 transform -translate-x-1/2 rtl:translate-x-1/2 -translate-y-1/2"
           >
-            <div class="flex flex-col items-center justify-center gap-1">
-              <FeatherIcon name="layout" class="size-12 text-ink-gray-4" />
-              <div class="text-lg font-medium text-ink-gray-8">
-                {{ __("No charts added") }}
+            <div
+              class="flex flex-col items-center justify-center gap-3 max-w-md text-center"
+            >
+              <div
+                class="flex items-center justify-center size-16 rounded-full bg-gradient-to-br from-surface-blue-1 to-surface-blue-2"
+              >
+                <FeatherIcon name="layout" class="size-7 text-blue-600" />
               </div>
-              <div class="text-p-base text-ink-gray-6">
-                {{ __("Add charts to get started") }}
+              <div class="flex flex-col gap-1">
+                <div class="text-lg font-semibold text-ink-gray-9">
+                  {{ __("Build your dashboard") }}
+                </div>
+                <div class="text-p-base text-ink-gray-6">
+                  {{
+                    __(
+                      "Add charts and tiles that matter to your day. Use the New button above to start."
+                    )
+                  }}
+                </div>
               </div>
             </div>
           </div>
@@ -157,6 +164,7 @@ import {
 import { storeToRefs } from "pinia";
 import { computed, ref } from "vue";
 import ChartItem from "./components/ChartItem.vue";
+import HomeWelcome from "./components/HomeWelcome.vue";
 
 type Layout = {
   x: number;

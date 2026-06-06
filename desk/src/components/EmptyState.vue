@@ -22,10 +22,10 @@
   </div>
   <div
     v-else
-    class="flex h-full items-center justify-center absolute inset-x-0 top-0 pointer-events-none"
+    class="flex h-full items-center justify-center absolute inset-x-0 top-0 pointer-events-none animate-in-soft"
   >
     <div
-      class="flex flex-col items-center gap-2 text-xl font-medium text-ink-gray-4 w-9/12 md:w-4/12"
+      class="flex flex-col items-center gap-3 text-xl font-medium text-ink-gray-4 w-9/12 md:w-4/12"
     >
       <!-- overlay variant (for charts) -->
       <div
@@ -36,15 +36,20 @@
             'radial-gradient(ellipse at center, var(--surface-white) 10%, color-mix(in srgb, var(--surface-white) 90%, transparent) 25%, transparent 70%)',
         }"
       />
-      <!-- Icon -->
-      <component v-if="icon" :is="icon" class="h-10 w-10" />
+      <!-- Icon in soft tinted circle -->
+      <div
+        v-if="icon"
+        class="flex items-center justify-center size-14 rounded-full bg-gradient-to-br from-surface-gray-1 to-surface-gray-2"
+      >
+        <component :is="icon" class="size-6 text-ink-gray-6" />
+      </div>
       <!-- title -->
-      <div class="flex flex-col items-center justify-center gap-0.5">
+      <div class="flex flex-col items-center justify-center gap-1">
         <span
           :class="{
-            'text-sm font-medium text-ink-gray-8': text === 'sm',
-            'text-base font-medium text-ink-gray-8': text === 'md' || !text,
-            'text-lg font-medium text-ink-gray-8': text === 'lg',
+            'text-sm font-semibold text-ink-gray-8': text === 'sm',
+            'text-base font-semibold text-ink-gray-8': text === 'md' || !text,
+            'text-lg font-semibold text-ink-gray-8': text === 'lg',
           }"
         >
           {{ __(title) }}
@@ -52,9 +57,10 @@
         <span
           v-if="descriptionText"
           :class="{
-            'text-center text-xs text-ink-gray-6 mt-1': text === 'sm',
-            'text-center text-sm text-ink-gray-6 mt-1': text === 'md' || !text,
-            'text-center text-base text-ink-gray-6 mt-1': text === 'lg',
+            'text-center text-xs text-ink-gray-6 max-w-xs': text === 'sm',
+            'text-center text-sm text-ink-gray-6 max-w-xs':
+              text === 'md' || !text,
+            'text-center text-base text-ink-gray-6 max-w-xs': text === 'lg',
           }"
         >
           {{ __(descriptionText) }}

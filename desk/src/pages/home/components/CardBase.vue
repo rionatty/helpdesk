@@ -1,5 +1,7 @@
 <template>
-  <div class="flex flex-col w-full h-full rounded-md p-4">
+  <div
+    class="flex flex-col w-full h-full rounded-md p-4 transition-shadow duration-200 hover:shadow-sm"
+  >
     <div class="mb-2 flex items-center justify-between gap-2">
       <slot name="title">
         <div class="text-ink-gray-5 text-base">

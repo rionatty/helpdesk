@@ -12,7 +12,7 @@
     >
       <!-- Hero -->
       <section
-        class="flex flex-col items-center text-center gap-3 py-6 md:py-10"
+        class="flex flex-col items-center text-center gap-3 py-6 md:py-10 animate-in-fade"
       >
         <h1 class="text-2xl md:text-3xl font-semibold text-ink-gray-9">
           {{ __("How can we help?") }}
