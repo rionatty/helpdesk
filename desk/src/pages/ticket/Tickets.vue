@@ -144,6 +144,32 @@ const STATUS_THEME: Record<string, string> = {
   black: "gray",
 };
 
+const STATUS_PILL: Record<string, string> = {
+  red: "bg-gradient-to-r from-red-500 to-rose-500 text-white",
+  green: "bg-gradient-to-r from-emerald-500 to-teal-500 text-white",
+  blue: "bg-gradient-to-r from-blue-500 to-cyan-500 text-white",
+  yellow: "bg-gradient-to-r from-yellow-400 to-amber-500 text-white",
+  orange: "bg-gradient-to-r from-orange-500 to-amber-500 text-white",
+  amber: "bg-gradient-to-r from-amber-400 to-orange-500 text-white",
+  pink: "bg-gradient-to-r from-pink-500 to-rose-500 text-white",
+  teal: "bg-gradient-to-r from-teal-500 to-cyan-500 text-white",
+  cyan: "bg-gradient-to-r from-cyan-500 to-sky-500 text-white",
+  violet: "bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white",
+  purple: "bg-gradient-to-r from-purple-500 to-fuchsia-500 text-white",
+  gray: "bg-gradient-to-r from-slate-500 to-slate-600 text-white",
+  black: "bg-gradient-to-r from-slate-700 to-slate-800 text-white",
+};
+
+const PRIORITY_PILL: Record<string, string> = {
+  Urgent: "bg-gradient-to-r from-red-500 to-rose-500 text-white",
+  High: "bg-gradient-to-r from-orange-500 to-amber-500 text-white",
+  Medium: "bg-gradient-to-r from-blue-500 to-cyan-500 text-white",
+  Low: "bg-gradient-to-r from-slate-400 to-slate-500 text-white",
+};
+
+const PILL_CLASS =
+  "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold shadow-sm";
+
 const listSelections = ref(new Set());
 
 const showBulkReplyModal = ref(false);
@@ -190,11 +216,35 @@ const options = computed(() => ({
           ? status?.["label_customer"]
           : status?.["label_agent"];
         const colorKey = (status?.color || "gray").toLowerCase();
-        return h(Badge, {
-          label: label || item,
-          theme: STATUS_THEME[colorKey] || "gray",
-          variant: "subtle",
-        });
+        const cls = STATUS_PILL[colorKey] || STATUS_PILL.gray;
+        return h(
+          "span",
+          { class: `${PILL_CLASS} ${cls}` },
+          label || item
+        );
+      },
+    },
+    priority: {
+      custom: ({ item }) => {
+        if (!item) return h("span", { class: "text-ink-gray-4 text-sm" }, "—");
+        const cls = PRIORITY_PILL[item] || PRIORITY_PILL.Low;
+        return h(
+          "span",
+          { class: `${PILL_CLASS} ${cls}` },
+          item
+        );
+      },
+    },
+    name: {
+      custom: ({ item }) => {
+        return h(
+          "span",
+          {
+            class:
+              "inline-flex items-center font-mono text-xs font-semibold text-blue-700 px-2 py-1 rounded-md bg-blue-50 ring-1 ring-inset ring-blue-200",
+          },
+          `#${item}`
+        );
       },
     },
     _assign: {
