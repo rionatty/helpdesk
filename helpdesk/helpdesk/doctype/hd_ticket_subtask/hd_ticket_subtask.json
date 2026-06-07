@@ -12,6 +12,7 @@
   "column_break_main",
   "assigned_to",
   "hours_spent",
+  "due_date",
   "section_break_desc",
   "description"
  ],
@@ -62,6 +63,12 @@
    "label": "Hours Spent",
    "non_negative": 1,
    "precision": "2"
+  },
+  {
+   "fieldname": "due_date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Due Date"
   },
   {
    "fieldname": "section_break_desc",

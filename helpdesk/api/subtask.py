@@ -37,7 +37,15 @@ def get_subtasks(ticket: str) -> list:
 	rows = frappe.get_all(
 		"HD Ticket Subtask",
 		filters={"ticket": ticket},
-		fields=["name", "subject", "status", "hours_spent", "assigned_to", "description"],
+		fields=[
+			"name",
+			"subject",
+			"status",
+			"hours_spent",
+			"assigned_to",
+			"description",
+			"due_date",
+		],
 		order_by="creation asc",
 	)
 	if rows:
@@ -66,17 +74,28 @@ def get_summary(ticket: str) -> dict:
 	rows = frappe.get_all(
 		"HD Ticket Subtask",
 		filters={"ticket": ticket},
-		fields=["status", "hours_spent"],
+		fields=["status", "hours_spent", "due_date"],
 	)
 	total = len(rows)
 	done = len([r for r in rows if r.status == "Done"])
 	hours_spent = sum([(r.hours_spent or 0) for r in rows])
 	estimated_hours = frappe.db.get_value("HD Ticket", ticket, "estimated_hours") or 0
+	today = frappe.utils.getdate()
+	overdue = len(
+		[
+			r
+			for r in rows
+			if r.status != "Done"
+			and r.due_date
+			and frappe.utils.getdate(r.due_date) < today
+		]
+	)
 	return {
 		"total": total,
 		"done": done,
 		"in_progress": len([r for r in rows if r.status == "In Progress"]),
 		"todo": len([r for r in rows if r.status == "To Do"]),
+		"overdue": overdue,
 		"hours_spent": hours_spent,
 		"estimated_hours": estimated_hours,
 		"progress": round((done / total) * 100) if total else 0,
@@ -111,6 +130,7 @@ def update_subtask(
 	hours_spent: float | None = None,
 	assigned_to: str | None = None,
 	description: str | None = None,
+	due_date: str | None = None,
 ) -> bool:
 	"""Update fields on a subtask. Agents only."""
 	_assert_agent()
@@ -128,6 +148,8 @@ def update_subtask(
 		doc.assigned_to = assigned_to or None
 	if description is not None:
 		doc.description = description
+	if due_date is not None:
+		doc.due_date = due_date or None
 	doc.save(ignore_permissions=True)
 	return True
 

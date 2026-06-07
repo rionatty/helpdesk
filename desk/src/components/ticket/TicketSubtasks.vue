@@ -25,18 +25,50 @@
     </div>
 
     <div class="p-4 flex flex-col gap-3">
-      <!-- Progress bar -->
-      <div v-if="summary.total" class="flex flex-col gap-1">
-        <div class="h-2.5 w-full rounded-full bg-surface-gray-3 overflow-hidden">
+      <!-- Progress bar — segmented by status, animated -->
+      <div v-if="summary.total" class="flex flex-col gap-1.5">
+        <div
+          class="flex h-2.5 w-full rounded-full bg-surface-gray-2 overflow-hidden"
+        >
           <div
-            class="h-full rounded-full bg-gradient-to-r from-violet-500 to-blue-500 transition-all"
-            :style="{ width: summary.progress + '%' }"
+            class="h-full bg-gradient-to-r from-violet-500 to-blue-500 transition-[width] duration-500 ease-out"
+            :style="{ width: pct(summary.done) }"
+          />
+          <div
+            class="h-full bg-blue-300 transition-[width] duration-500 ease-out"
+            :style="{ width: pct(summary.in_progress) }"
           />
         </div>
-        <div class="flex items-center justify-between text-xs text-ink-gray-6">
-          <span class="font-medium">{{ summary.progress }}% {{ __("complete") }}</span>
-          <span v-if="editable && summary.hours_spent">
-            {{ formatHours(summary.hours_spent) }} {{ __("logged") }}
+        <div class="flex items-center justify-between text-xs">
+          <span class="font-medium text-ink-gray-7">
+            {{ summary.progress }}% {{ __("complete") }}
+          </span>
+          <div class="flex items-center gap-2.5">
+            <span
+              v-if="summary.overdue"
+              class="inline-flex items-center gap-1 text-ink-red-3 font-medium"
+            >
+              <LucideAlertTriangle class="size-3" />
+              {{ summary.overdue }} {{ __("overdue") }}
+            </span>
+            <span v-if="editable && summary.hours_spent" class="text-ink-gray-6">
+              {{ formatHours(summary.hours_spent) }} {{ __("logged") }}
+            </span>
+          </div>
+        </div>
+        <!-- Legend -->
+        <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-ink-gray-5">
+          <span class="flex items-center gap-1">
+            <span class="size-2 rounded-full bg-violet-500" />
+            {{ summary.done }} {{ __("done") }}
+          </span>
+          <span v-if="summary.in_progress" class="flex items-center gap-1">
+            <span class="size-2 rounded-full bg-blue-300" />
+            {{ summary.in_progress }} {{ __("in progress") }}
+          </span>
+          <span v-if="summary.todo" class="flex items-center gap-1">
+            <span class="size-2 rounded-full bg-surface-gray-4" />
+            {{ summary.todo }} {{ __("to do") }}
           </span>
         </div>
       </div>
@@ -84,13 +116,26 @@
             </button>
           </div>
 
-          <!-- Read-only assignee line -->
+          <!-- Read-only assignee + due date line -->
           <div
-            v-if="!editable && t.assigned_to"
-            class="flex items-center gap-1.5 ps-6 text-xs text-ink-gray-6"
+            v-if="!editable && (t.assigned_to || t.due_date)"
+            class="flex flex-wrap items-center gap-x-3 gap-y-1 ps-6 text-xs"
           >
-            <Avatar size="xs" :label="t.assigned_to_name || t.assigned_to" />
-            <span>{{ t.assigned_to_name || t.assigned_to }}</span>
+            <span
+              v-if="t.assigned_to"
+              class="flex items-center gap-1.5 text-ink-gray-6"
+            >
+              <Avatar size="xs" :label="t.assigned_to_name || t.assigned_to" />
+              {{ t.assigned_to_name || t.assigned_to }}
+            </span>
+            <span
+              v-if="t.due_date"
+              class="flex items-center gap-1"
+              :class="isOverdue(t) ? 'text-ink-red-3 font-medium' : 'text-ink-gray-6'"
+            >
+              <LucideCalendarClock class="size-3.5" />
+              {{ dueLabel(t) }}
+            </span>
           </div>
 
           <!-- Agent controls -->
@@ -138,6 +183,24 @@
                 "
               />
               <span class="text-xs text-ink-gray-5">{{ __("hrs") }}</span>
+            </div>
+            <div class="flex items-center gap-1">
+              <LucideCalendarClock
+                class="size-3.5"
+                :class="isOverdue(t) ? 'text-ink-red-3' : 'text-ink-gray-5'"
+              />
+              <input
+                type="date"
+                :value="t.due_date || ''"
+                class="text-xs rounded-md border bg-surface-white px-2 py-1 focus:outline-none focus:border-blue-400"
+                :class="
+                  isOverdue(t)
+                    ? 'border-red-300 text-ink-red-3'
+                    : 'border-outline-gray-2 text-ink-gray-7'
+                "
+                :aria-label="__('Due date')"
+                @change="(e) => patchSubtask(t.name, { due_date: e.target.value })"
+              />
             </div>
           </div>
         </div>
@@ -216,7 +279,15 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
-import { Avatar, Badge, Button, createListResource, createResource, toast } from "frappe-ui";
+import {
+  Avatar,
+  Badge,
+  Button,
+  createListResource,
+  createResource,
+  dayjs,
+  toast,
+} from "frappe-ui";
 import { __ } from "@/translation";
 import LucideTrash2 from "~icons/lucide/trash-2";
 import LucideClock from "~icons/lucide/clock";
@@ -225,6 +296,8 @@ import LucideListTodo from "~icons/lucide/list-todo";
 import LucideCircle from "~icons/lucide/circle";
 import LucideCircleDot from "~icons/lucide/circle-dot";
 import LucideCheckCircle2 from "~icons/lucide/check-circle-2";
+import LucideCalendarClock from "~icons/lucide/calendar-clock";
+import LucideAlertTriangle from "~icons/lucide/alert-triangle";
 
 interface P {
   ticketId: string;
@@ -251,11 +324,33 @@ const summary = computed(
     summaryRes.data || {
       total: 0,
       done: 0,
+      in_progress: 0,
+      todo: 0,
+      overdue: 0,
       progress: 0,
       hours_spent: 0,
       estimated_hours: 0,
     }
 );
+
+// % of the bar a given status count should occupy.
+function pct(count: number) {
+  const total = summary.value.total || 0;
+  return total ? `${Math.round((count / total) * 100)}%` : "0%";
+}
+
+interface SubtaskRow {
+  status: string;
+  due_date?: string | null;
+}
+function isOverdue(t: SubtaskRow) {
+  if (!t.due_date || t.status === "Done") return false;
+  return dayjs(t.due_date).isBefore(dayjs().startOf("day"));
+}
+function dueLabel(t: SubtaskRow) {
+  const date = dayjs(t.due_date).format("MMM D");
+  return isOverdue(t) ? __("Overdue · {0}", [date]) : __("Due {0}", [date]);
+}
 
 // Agents for the assignee picker — only fetched in the agent (editable)
 // context, since customers don't have read access to HD Agent.
