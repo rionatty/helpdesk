@@ -21,19 +21,37 @@
       <!-- Customer-side hero -->
       <div
         v-if="isCustomerPortal"
-        class="flex flex-col gap-2 mt-2 animate-in-fade"
+        class="hd-brand-hero rounded-2xl px-6 py-6 md:px-8 flex items-center gap-4 mt-1 animate-in-fade"
       >
-        <h1 class="executive-heading text-2xl md:text-3xl text-ink-gray-9 leading-tight">
-          {{ __("How can we help?") }}
-        </h1>
-        <p class="text-base text-ink-gray-6">
-          {{
-            __(
-              "Tell us what's going on. We'll typically reply within a few hours."
-            )
-          }}
-        </p>
+        <div
+          class="hidden sm:flex size-12 rounded-2xl bg-white/10 border border-white/15 items-center justify-center shrink-0"
+        >
+          <lucide-life-buoy class="size-7 text-[var(--hd-gold)]" />
+        </div>
+        <div>
+          <h1
+            class="executive-heading text-2xl md:text-3xl text-white leading-tight"
+          >
+            {{ __("Hi there! How can we help you?") }}
+          </h1>
+          <p class="text-sm hd-on-navy-soft mt-1">
+            {{
+              __(
+                "Tell us what's going on. We'll typically reply within a few hours."
+              )
+            }}
+          </p>
+        </div>
       </div>
+
+      <!-- Form wrapper: elevated card on the customer portal -->
+      <div
+        :class="
+          isCustomerPortal
+            ? 'executive-card bg-surface-white p-5 md:p-7 flex flex-col gap-5 animate-in-fade'
+            : 'flex flex-col gap-5'
+        "
+      >
       <!-- custom fields descriptions -->
       <div v-if="Boolean(template.data?.about)" class="">
         <div class="prose-f" v-html="sanitize(template.data.about)" />
@@ -78,14 +96,15 @@
         :class="(subject.length >= 2 || description.length) && 'gap-5'"
       >
         <div class="flex flex-col gap-2">
-          <span class="block text-sm text-ink-gray-6">
+          <span class="block text-sm font-medium text-ink-gray-7">
             {{ __("Subject") }}
-            <span class="place-self-center text-red-500"> * </span>
+            <span class="text-red-500"> * </span>
           </span>
           <FormControl
             v-model="subject"
             type="text"
-            :placeholder="__('A short description')"
+            size="lg"
+            :placeholder="__('e.g. Unable to log in to my account')"
             maxlength="140"
           />
         </div>
@@ -95,34 +114,41 @@
           class="shadow"
         />
         <div v-if="isCustomerPortal">
-          <h4
+          <div
             v-show="subject.length <= 2 && description.length === 0"
-            class="text-p-sm text-ink-gray-4 ms-1"
+            class="flex items-center gap-2 rounded-lg border border-dashed border-outline-gray-2 px-3 py-2.5 text-sm text-ink-gray-5"
           >
-            {{ __("Please enter a subject to continue") }}
-          </h4>
+            <lucide-arrow-up class="size-4 shrink-0" />
+            {{ __("Enter a subject above to describe your issue") }}
+          </div>
           <TicketTextEditor
             v-show="subject.length > 2 || description.length > 0"
             ref="editor"
             v-model:attachments="attachments"
             v-model:content="description"
-            :placeholder="__('Detailed explanation')"
+            :placeholder="__('Describe your issue in detail…')"
             expand
             :uploadFunction="(file:any)=>uploadFunction(file)"
           >
             <template #bottom-right>
               <Button
-                :label="__('Submit')"
-                theme="gray"
+                :label="__('Submit ticket')"
+                theme="blue"
                 variant="solid"
                 :disabled="
                   $refs.editor.editor.isEmpty || ticket.loading || !subject
                 "
+                :loading="ticket.loading"
                 @click="() => ticket.submit()"
-              />
+              >
+                <template #prefix>
+                  <lucide-send class="size-4" />
+                </template>
+              </Button>
             </template>
           </TicketTextEditor>
         </div>
+      </div>
       </div>
 
       <!-- for agent portal -->
