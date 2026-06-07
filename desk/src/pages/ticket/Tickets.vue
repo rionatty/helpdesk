@@ -52,17 +52,33 @@
         </div>
       </div>
     </div>
-    <ListViewBuilder
-      ref="listViewRef"
-      :options="options"
-      @row-click="
-        (row) =>
-          $router.push({
-            name: isCustomerPortal ? 'TicketCustomer' : 'TicketAgent',
-            params: { ticketId: row },
-          })
+    <div
+      :class="
+        isCustomerPortal
+          ? 'flex-1 flex flex-col min-h-0 w-full max-w-screen-2xl mx-auto px-4 md:px-8 pb-6'
+          : 'contents'
       "
-    />
+    >
+      <div
+        :class="
+          isCustomerPortal
+            ? 'executive-card flex-1 flex flex-col min-h-0 overflow-hidden !bg-surface-white'
+            : 'contents'
+        "
+      >
+        <ListViewBuilder
+          ref="listViewRef"
+          :options="options"
+          @row-click="
+            (row) =>
+              $router.push({
+                name: isCustomerPortal ? 'TicketCustomer' : 'TicketAgent',
+                params: { ticketId: row },
+              })
+          "
+        />
+      </div>
+    </div>
     <ExportModal
       v-model="showExportModal"
       :rowCount="$refs.listViewRef?.list?.data?.total_count ?? 0"
