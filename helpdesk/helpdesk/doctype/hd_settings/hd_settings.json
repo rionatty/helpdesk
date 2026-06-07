@@ -52,6 +52,9 @@
   "brand_name",
   "brand_logo",
   "favicon",
+  "customer_portal_section",
+  "support_email",
+  "support_hours",
   "images_column",
   "misc_tab",
   "setup_section",
@@ -467,6 +470,24 @@
    "fieldname": "brand_name",
    "fieldtype": "Data",
    "label": "Name"
+  },
+  {
+   "fieldname": "customer_portal_section",
+   "fieldtype": "Section Break",
+   "label": "Customer Portal"
+  },
+  {
+   "description": "Shown on the customer portal Home page as the \"Email support\" contact option. Leave blank to hide it.",
+   "fieldname": "support_email",
+   "fieldtype": "Data",
+   "label": "Support Email",
+   "options": "Email"
+  },
+  {
+   "description": "Shown on the customer portal Home page, e.g. \"Mon–Fri, 9:00 AM – 6:00 PM\". Leave blank to hide it.",
+   "fieldname": "support_hours",
+   "fieldtype": "Data",
+   "label": "Business Hours"
   },
   {
    "description": "Appears next to the title in your browser tab. Recommended size is minimum 32x32 px in PNG or ICO",

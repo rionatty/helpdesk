@@ -110,8 +110,24 @@
           >
           </Alert>
         </div>
-        <!-- show for only mobile -->
-        <TicketCustomerTemplateFields v-if="isMobileView" />
+        <!-- Mobile: full ticket details (SLA, subtasks, updates, other tickets)
+             in a collapsible panel — desktop shows them in the sidebar. -->
+        <details v-if="isMobileView" class="group border-b">
+          <summary
+            class="flex items-center justify-between gap-2 px-4 py-3 cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden"
+          >
+            <span
+              class="flex items-center gap-2 text-sm font-semibold text-ink-gray-8"
+            >
+              <LucideClipboardList class="size-4 text-ink-gray-6" />
+              {{ __("Ticket details") }}
+            </span>
+            <LucideChevronDown
+              class="size-4 text-ink-gray-5 transition-transform group-open:rotate-180"
+            />
+          </summary>
+          <TicketCustomerSidebar @open="isExpanded = true" />
+        </details>
 
         <TicketConversation class="grow" />
         <div v-if="showEditor" class="px-5 pt-2 pb-1">
@@ -233,7 +249,6 @@ import {
 import { useRouter } from "vue-router";
 import { ITicket } from "./symbols";
 import TicketConversation from "./TicketConversation.vue";
-import TicketCustomerTemplateFields from "./TicketCustomerTemplateFields.vue";
 import TicketFeedback from "./TicketFeedback.vue";
 import TicketStatusStepper from "@/components/ticket/TicketStatusStepper.vue";
 import TicketHeader from "@/components/ticket/TicketHeader.vue";

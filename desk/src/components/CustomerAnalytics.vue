@@ -102,6 +102,7 @@
 import { computed } from "vue";
 import { createListResource, dayjs, ECharts } from "frappe-ui";
 import { useAuthStore } from "@/stores/auth";
+import { useTicketStatusStore } from "@/stores/ticketStatus";
 import { dataTheme, formatTime } from "@/utils";
 import { __ } from "@/translation";
 import type { EChartsOption } from "echarts";
@@ -121,6 +122,7 @@ interface TicketRow {
 }
 
 const authStore = useAuthStore();
+const { getStatus } = useTicketStatusStore();
 
 const resource = createListResource({
   doctype: "HD Ticket",
@@ -219,7 +221,10 @@ const statusOption = computed<EChartsOption>(() => {
   void dataTheme.value;
   const map: Record<string, number> = {};
   tickets.value.forEach((t) => {
-    const s = t.status || __("Unknown");
+    const s =
+      (t.status && getStatus(t.status)?.label_customer) ||
+      t.status ||
+      __("Unknown");
     map[s] = (map[s] || 0) + 1;
   });
   const data = Object.entries(map).map(([name, value], i) => ({

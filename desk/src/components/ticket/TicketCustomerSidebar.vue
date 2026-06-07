@@ -1,5 +1,5 @@
 <template>
-  <div class="flex w-[382px] flex-col border-s hd-chrome-bg">
+  <div class="flex w-full md:w-[382px] flex-col md:border-s hd-chrome-bg">
     <!-- Header -->
     <div
       class="flex items-center gap-2 border-b px-5 py-4 bg-gradient-to-r from-blue-100/60 to-blue-50/40 shadow-sm"
@@ -59,7 +59,9 @@
           :is="iconFor(field.label)"
           class="size-4 text-ink-gray-5 shrink-0"
         />
-        <span class="w-[96px] text-sm font-medium text-ink-gray-7">{{ field.label }}</span>
+        <span class="w-[96px] text-sm font-medium text-ink-gray-7">{{
+          __(field.label)
+        }}</span>
         <span
           class="text-base text-ink-gray-8 flex-1 truncate"
           :class="!field.value && 'text-ink-gray-4'"
@@ -119,7 +121,9 @@
           :is="iconFor(data.title)"
           class="size-4 text-ink-gray-5 shrink-0"
         />
-        <div class="w-[96px] text-sm font-medium text-ink-gray-7">{{ data.title }}</div>
+        <div class="w-[96px] text-sm font-medium text-ink-gray-7">
+          {{ __(data.title) }}
+        </div>
         <div class="flex items-center gap-2 flex-1">
           <Tooltip :text="dateFormat(data.value, dateTooltipFormat)">
             <span
@@ -159,7 +163,7 @@
       class="border-b text-base text-ink-gray-5"
       :ticket="ticket.data"
     />
-    <div class="flex flex-col gap-3 px-5 py-4 overflow-y-scroll">
+    <div class="flex flex-col gap-3 px-5 py-4 md:overflow-y-scroll">
       <div
         class="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-violet-700 px-3 py-2 -mx-3 rounded-md bg-violet-50"
       >
@@ -175,7 +179,9 @@
           :is="iconFor(field.label)"
           class="size-4 text-ink-gray-5 shrink-0"
         />
-        <span class="w-[96px] text-sm font-medium text-ink-gray-7">{{ field.label }}</span>
+        <span class="w-[96px] text-sm font-medium text-ink-gray-7">{{
+          __(field.label)
+        }}</span>
         <span
           class="text-base text-ink-gray-8 flex-1 truncate"
           :class="!field.value && 'text-ink-gray-4'"
@@ -360,9 +366,9 @@ function firstResponseData() {
     dayjs().isBefore(dayjs(ticket.data.response_by))
   ) {
     firstResponse = {
-      label: `Due in ${formatTime(
-        dayjs(ticket.data.response_by).diff(dayjs(), "s")
-      )}`,
+      label: __("Due in {0}", [
+        formatTime(dayjs(ticket.data.response_by).diff(dayjs(), "s")),
+      ]),
       color: "orange",
     };
   } else if (
@@ -371,17 +377,19 @@ function firstResponseData() {
     )
   ) {
     firstResponse = {
-      label: `Fulfilled in ${formatTime(
-        dayjs(ticket.data.first_responded_on).diff(
-          dayjs(ticket.data.creation),
-          "s"
-        )
-      )}`,
+      label: __("Fulfilled in {0}", [
+        formatTime(
+          dayjs(ticket.data.first_responded_on).diff(
+            dayjs(ticket.data.creation),
+            "s"
+          )
+        ),
+      ]),
       color: "green",
     };
   } else {
     firstResponse = {
-      label: "Failed",
+      label: __("Failed"),
       color: "red",
     };
   }
@@ -395,21 +403,20 @@ function resolutionData() {
     dayjs().isBefore(ticket.data.resolution_by)
   ) {
     resolution = {
-      label: `Due in ${formatTime(
-        dayjs(ticket.data.resolution_by).diff(dayjs(), "s")
-      )}`,
+      label: __("Due in {0}", [
+        formatTime(dayjs(ticket.data.resolution_by).diff(dayjs(), "s")),
+      ]),
       color: "orange",
     };
   } else if (ticket.data.agreement_status === "Fulfilled") {
     resolution = {
-      label: `Fulfilled in ${formatTime(
-        dayjs(ticket.data.resolution_time, "s")
-      )}`,
+      // resolution_time is already a duration in seconds — format it directly.
+      label: __("Fulfilled in {0}", [formatTime(ticket.data.resolution_time)]),
       color: "green",
     };
   } else {
     resolution = {
-      label: "Failed",
+      label: __("Failed"),
       color: "red",
     };
   }

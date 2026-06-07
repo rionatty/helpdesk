@@ -15,6 +15,8 @@ def get_config():
         "assign_within_team",
         "disable_saved_replies_global_scope",
         "enable_comment_reactions",
+        "support_email",
+        "support_hours",
     ]
     res = frappe.get_value(doctype="HD Settings", fieldname=fields, as_dict=True)
 

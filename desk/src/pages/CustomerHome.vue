@@ -176,7 +176,7 @@
                   <span
                     v-if="t.status"
                     class="text-[10px] uppercase tracking-wide text-ink-gray-6 shrink-0"
-                  >{{ t.status }}</span>
+                  >{{ customerStatus(t.status) }}</span>
                 </RouterLink>
               </li>
               <li
@@ -305,10 +305,10 @@
               </div>
               <div class="flex-1 min-w-0">
                 <div class="text-sm font-semibold text-ink-gray-8">
-                  {{ __(opt.label) }}
+                  {{ opt.label }}
                 </div>
                 <div class="text-xs text-ink-gray-5 truncate">
-                  {{ __(opt.description) }}
+                  {{ opt.description }}
                 </div>
               </div>
               <LucideChevronRight class="size-4 text-ink-gray-4 shrink-0" />
@@ -347,7 +347,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { computed } from "vue";
 import {
   Avatar,
   Button,
@@ -361,9 +361,9 @@ import { LayoutHeader } from "@/components";
 import CustomerAnalytics from "@/components/CustomerAnalytics.vue";
 import { useConfigStore } from "@/stores/config";
 import { useAuthStore } from "@/stores/auth";
+import { useTicketStatusStore } from "@/stores/ticketStatus";
 import { __ } from "@/translation";
 import LucideSearch from "~icons/lucide/search";
-import LucideHeadphones from "~icons/lucide/headphones";
 import LucideHome from "~icons/lucide/home";
 import LucideHelpCircle from "~icons/lucide/help-circle";
 import LucideInbox from "~icons/lucide/inbox";
@@ -387,7 +387,12 @@ import LucideHistory from "~icons/lucide/history";
 const router = useRouter();
 const config = useConfigStore();
 const authStore = useAuthStore();
-const searchQuery = ref("");
+const { getStatus } = useTicketStatusStore();
+
+// Show the customer-facing status label, not the internal agent label.
+function customerStatus(status: string) {
+  return getStatus(status)?.label_customer || status;
+}
 
 const firstName = computed(() => {
   const n = authStore.userName || "";
@@ -464,13 +469,6 @@ const openTicketsCount = computed(() => openTickets.data ?? 0);
 const totalTicketsCount = computed(() => totalTickets.data ?? 0);
 const resolvedThisMonthCount = computed(() => resolvedThisMonth.data ?? 0);
 
-function onSearch() {
-  router.push({
-    name: "CustomerKnowledgeBase",
-    query: searchQuery.value ? { q: searchQuery.value } : undefined,
-  });
-}
-
 const actionCards = [
   {
     label: "Knowledge Base",
@@ -514,33 +512,43 @@ const actionCards = [
   },
 ];
 
-const helpOptions = [
-  {
-    label: "Submit a ticket",
-    description: "Open a ticket and our team will reply soon.",
-    icon: LucideMessageCircle,
-    iconBg: "hd-icon-indigo",
-    onClick: () => router.push({ name: "TicketNew" }),
-  },
-  {
-    label: "Email support",
-    description: "Send us an email and we'll get back to you.",
-    icon: LucideMail,
-    iconBg: "hd-icon-rose",
-    onClick: () => {
-      window.location.href = `mailto:support@example.com?subject=${encodeURIComponent(
-        "Help request"
-      )}`;
+// Email support + business hours are admin-configurable (HD Settings →
+// Branding → Customer Portal). Each option only appears once it's been set.
+const helpOptions = computed(() => {
+  const opts: Array<Record<string, any>> = [
+    {
+      label: __("Submit a ticket"),
+      description: __("Open a ticket and our team will reply soon."),
+      icon: LucideMessageCircle,
+      iconBg: "hd-icon-indigo",
+      onClick: () => router.push({ name: "TicketNew" }),
     },
-  },
-  {
-    label: "Business hours",
-    description: "Mon–Fri, 9:00 AM – 6:00 PM (your local time).",
-    icon: LucideClock,
-    iconBg: "hd-icon-emerald",
-    onClick: () => router.push({ name: "StatusPage" }),
-  },
-];
+  ];
+  if (config.supportEmail) {
+    const email = config.supportEmail;
+    opts.push({
+      label: __("Email support"),
+      description: email,
+      icon: LucideMail,
+      iconBg: "hd-icon-rose",
+      onClick: () => {
+        window.location.href = `mailto:${email}?subject=${encodeURIComponent(
+          __("Help request")
+        )}`;
+      },
+    });
+  }
+  if (config.supportHours) {
+    opts.push({
+      label: __("Business hours"),
+      description: config.supportHours,
+      icon: LucideClock,
+      iconBg: "hd-icon-emerald",
+      onClick: () => router.push({ name: "StatusPage" }),
+    });
+  }
+  return opts;
+});
 
 const trustBadges = [
   {

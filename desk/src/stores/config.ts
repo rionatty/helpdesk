@@ -13,6 +13,8 @@ export const useConfigStore = defineStore("config", () => {
   const brandName = computed(() => config.value.brand_name);
   const brandLogo = computed(() => config.value.brand_logo);
   const favicon = computed(() => config.value.favicon);
+  const supportEmail = computed(() => config.value.support_email);
+  const supportHours = computed(() => config.value.support_hours);
 
   const teamRestrictionApplied = computed(
     () => !!parseInt(config.value.restrict_tickets_by_agent_group)
@@ -43,6 +45,8 @@ export const useConfigStore = defineStore("config", () => {
     brandName,
     brandLogo,
     favicon,
+    supportEmail,
+    supportHours,
     config,
     preferKnowledgeBase,
     skipEmailWorkflow,
