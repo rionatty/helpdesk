@@ -5,26 +5,26 @@
   >
     <div class="flex flex-col md:flex-row md:flex-wrap md:items-center gap-x-3 gap-y-2">
       <h1
-        class="executive-heading text-lg md:text-2xl text-blue-900 font-bold leading-tight"
+        class="executive-heading text-2xl md:text-3xl text-ink-gray-9 font-bold leading-tight"
       >
         {{ ticket.data.subject }}
       </h1>
       <div class="flex flex-wrap items-center gap-2">
-        <Badge
-          theme="gray"
-          variant="subtle"
-          :label="`#${ticket.data.name}`"
-        />
+        <span
+          class="inline-flex items-center font-mono text-xs font-bold text-blue-700 px-2 py-1 rounded-md bg-blue-50 ring-1 ring-inset ring-blue-200"
+        >
+          #{{ ticket.data.name }}
+        </span>
         <Badge
           v-if="ticket.data.priority"
           :theme="priorityTheme"
-          variant="subtle"
+          variant="solid"
           :label="__(ticket.data.priority)"
         />
         <Badge
           v-if="ticket.data.ticket_type"
           theme="gray"
-          variant="outline"
+          variant="subtle"
           :label="ticket.data.ticket_type"
         />
       </div>
@@ -38,19 +38,13 @@
         :key="sla.title"
         :text="sla.tooltip"
       >
-        <span
-          :class="[
-            'inline-flex',
-            sla.theme === 'green' && '[&_*]:!text-green-900',
-            sla.theme === 'orange' && '[&_*]:!text-amber-900',
-          ]"
+        <div
+          class="inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-semibold shadow-sm"
+          :class="slaPillClass(sla.theme)"
         >
-          <Badge
-            :theme="sla.theme"
-            variant="subtle"
-            :label="`${__(sla.title)}: ${sla.label}`"
-          />
-        </span>
+          <component :is="slaIcon(sla.title)" class="size-4 shrink-0" />
+          <span>{{ __(sla.title) }}: {{ sla.label }}</span>
+        </div>
       </Tooltip>
     </div>
     <div
@@ -73,6 +67,8 @@ import { Badge, dayjs, Tooltip } from "frappe-ui";
 import { ITicket } from "@/pages/ticket/symbols";
 import { __ } from "@/translation";
 import { dateFormat, dateTooltipFormat, formatTime, timeAgo } from "@/utils";
+import LucideTimer from "~icons/lucide/timer";
+import LucideCheckCircle2 from "~icons/lucide/check-circle-2";
 
 const ticket = inject(ITicket);
 
@@ -86,6 +82,19 @@ const PRIORITY_THEME: Record<string, string> = {
 const priorityTheme = computed(
   () => PRIORITY_THEME[ticket?.data?.priority || ""] || "gray"
 );
+
+const SLA_PILL: Record<string, string> = {
+  green: "bg-green-50 border-green-300 text-green-800",
+  orange: "bg-amber-50 border-amber-300 text-amber-800",
+  red: "bg-red-50 border-red-300 text-red-700",
+  gray: "bg-surface-gray-2 border-outline-gray-2 text-ink-gray-7",
+};
+function slaPillClass(theme: string) {
+  return SLA_PILL[theme] || SLA_PILL.gray;
+}
+function slaIcon(title: string) {
+  return title === "First Response" ? LucideTimer : LucideCheckCircle2;
+}
 
 interface SlaChip {
   title: string;

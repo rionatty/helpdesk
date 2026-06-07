@@ -43,8 +43,8 @@
         </div>
         <div
           v-if="i < visibleSteps.length - 1"
-          class="h-px flex-1 mx-3 min-w-4"
-          :class="i < currentIndex ? 'bg-surface-gray-7' : 'bg-outline-gray-2'"
+          class="h-0.5 flex-1 mx-3 min-w-4 rounded-full"
+          :class="i < currentIndex ? 'bg-green-500' : 'bg-outline-gray-2'"
           aria-hidden="true"
         />
       </li>
@@ -111,14 +111,14 @@ const activeRingClass = computed(() => {
 });
 
 function circleClass(_step: HDTicketStatus, i: number) {
-  if (i < currentIndex.value) return "bg-surface-gray-7 text-white";
+  if (i < currentIndex.value) return "bg-green-600 text-white";
   if (i === currentIndex.value)
-    return `bg-ink-gray-9 text-white ring-2 ring-offset-2 ${activeRingClass.value}`;
-  return "bg-surface-gray-2 text-ink-gray-5";
+    return `bg-blue-600 text-white ring-2 ring-offset-2 ${activeRingClass.value}`;
+  return "bg-surface-white border-2 border-outline-gray-3 text-ink-gray-5";
 }
 
 function labelClass(i: number) {
-  if (i === currentIndex.value) return "text-ink-gray-9";
+  if (i === currentIndex.value) return "text-ink-gray-9 font-bold";
   if (i < currentIndex.value) return "text-ink-gray-8 font-semibold";
   return "text-ink-gray-6 font-medium";
 }

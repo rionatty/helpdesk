@@ -11,9 +11,9 @@
         />
         <Button
           v-if="ticket.data.status !== 'Closed'"
-          :label="__('Close')"
+          :label="__('Close ticket')"
           theme="blue"
-          variant="subtle"
+          variant="solid"
           @click="handleClose()"
         >
           <template #prefix>
@@ -31,7 +31,7 @@
         >
           <Button
             size="sm"
-            variant="subtle"
+            variant="outline"
             theme="blue"
             :label="__('Follow-up')"
             @click="startFollowUp"
@@ -42,7 +42,7 @@
           </Button>
           <Button
             size="sm"
-            variant="subtle"
+            variant="outline"
             :theme="ticket.data?.priority === 'Urgent' ? 'green' : 'red'"
             :label="
               ticket.data?.priority === 'Urgent'
@@ -61,7 +61,7 @@
           </Button>
           <Button
             size="sm"
-            variant="subtle"
+            variant="outline"
             theme="gray"
             :label="__('Copy link')"
             @click="copyLink"
