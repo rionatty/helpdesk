@@ -5,7 +5,7 @@
   >
     <div class="flex flex-col md:flex-row md:flex-wrap md:items-center gap-x-3 gap-y-2">
       <h1
-        class="executive-heading text-lg md:text-2xl text-ink-gray-9 leading-tight"
+        class="executive-heading text-lg md:text-2xl text-blue-900 font-bold leading-tight"
       >
         {{ ticket.data.subject }}
       </h1>
@@ -38,16 +38,24 @@
         :key="sla.title"
         :text="sla.tooltip"
       >
-        <Badge
-          :theme="sla.theme"
-          variant="subtle"
-          :label="`${__(sla.title)}: ${sla.label}`"
-        />
+        <span
+          :class="[
+            'inline-flex',
+            sla.theme === 'green' && '[&_*]:!text-green-900',
+            sla.theme === 'orange' && '[&_*]:!text-amber-900',
+          ]"
+        >
+          <Badge
+            :theme="sla.theme"
+            variant="subtle"
+            :label="`${__(sla.title)}: ${sla.label}`"
+          />
+        </span>
       </Tooltip>
     </div>
     <div
       v-if="lastActivity"
-      class="flex items-center gap-1.5 text-xs text-ink-gray-5 mt-2"
+      class="flex items-center gap-1.5 text-xs text-ink-gray-7 font-medium mt-2"
     >
       <Tooltip :text="dateFormat(lastActivity, dateTooltipFormat)">
         <span class="flex items-center gap-1.5">

@@ -29,32 +29,36 @@
     >
       <!-- Hero -->
       <section
-        class="flex flex-col items-center text-center gap-3 py-6 md:py-10 animate-in-fade"
+        class="bg-customer-portal pt-6 flex flex-col items-center text-center gap-3 py-6 md:py-10 animate-in-fade"
       >
-        <h1 class="executive-heading text-2xl md:text-3xl text-ink-gray-9">
-          {{ __("How can we help?") }}
-        </h1>
-        <p class="text-base text-ink-gray-6 max-w-xl">
-          {{
-            __(
-              "Search the knowledge base or browse by topic. Can't find what you need? Open a ticket and we'll help."
-            )
-          }}
-        </p>
-        <div class="w-full max-w-xl mt-2">
-          <SearchPopover
-            :popoverClass="[
-              'max-w-[310px] md:max-w-[640px] !top-1 md:min-w-[640px]',
-            ]"
-            v-model="query"
-            :placeholder="__('Search articles, e.g. \'reset password\'…')"
-            size="md"
-            :autofocus="true"
-          />
-        </div>
-        <div class="flex items-center gap-1.5 text-sm text-ink-gray-5 mt-1">
-          <LucideClock class="size-3.5" />
-          <span>{{ __("We typically reply within a few hours.") }}</span>
+        <div
+          class="max-w-2xl mx-auto bg-surface-white rounded-2xl shadow-sm border border-outline-gray-1 p-6 flex flex-col items-center gap-3 w-full"
+        >
+          <h1 class="executive-heading text-2xl md:text-3xl text-ink-gray-9">
+            {{ __("How can we help?") }}
+          </h1>
+          <p class="text-base text-ink-gray-6 max-w-xl">
+            {{
+              __(
+                "Search the knowledge base or browse by topic. Can't find what you need? Open a ticket and we'll help."
+              )
+            }}
+          </p>
+          <div class="w-full max-w-xl mt-2">
+            <SearchPopover
+              :popoverClass="[
+                'max-w-[310px] md:max-w-[640px] !top-1 md:min-w-[640px]',
+              ]"
+              v-model="query"
+              :placeholder="__('Search articles, e.g. \'reset password\'…')"
+              size="md"
+              :autofocus="true"
+            />
+          </div>
+          <div class="flex items-center gap-1.5 text-sm text-ink-gray-5 mt-1">
+            <LucideClock class="size-3.5" />
+            <span>{{ __("We typically reply within a few hours.") }}</span>
+          </div>
         </div>
       </section>
 

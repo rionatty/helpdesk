@@ -36,7 +36,7 @@
     >
       <!-- Hero — navy + gold brand -->
       <section
-        class="hd-brand-hero rounded-3xl p-6 md:px-10 md:py-9 flex flex-col md:flex-row items-center gap-6 md:gap-10 animate-in-fade"
+        class="hd-brand-hero rounded-3xl p-6 md:px-10 md:py-9 mt-4 flex flex-col md:flex-row items-center gap-6 md:gap-10 animate-in-fade"
       >
         <div class="flex-1 flex flex-col gap-4 max-w-xl">
           <h1
@@ -52,7 +52,7 @@
             }}
           </p>
           <form
-            class="flex items-stretch gap-2 rounded-2xl bg-white shadow-md overflow-hidden focus-within:ring-2 focus-within:ring-[var(--hd-gold)] transition-all"
+            class="flex items-stretch gap-2 rounded-2xl bg-surface-white shadow-md overflow-hidden focus-within:ring-2 focus-within:ring-[var(--hd-gold)] transition-all"
             @submit.prevent="onSearch"
           >
             <div class="flex items-center px-3 text-ink-gray-5">
@@ -82,6 +82,122 @@
             class="size-40 lg:size-48 rounded-[2rem] bg-gradient-to-br from-white/25 to-white/10 border border-white/25 flex items-center justify-center shadow-2xl ring-1 ring-inset ring-white/20"
           >
             <LucideHeadphones class="size-20 lg:size-24 text-[var(--hd-gold)]" />
+          </div>
+        </div>
+      </section>
+
+      <!-- Customer dashboard stats -->
+      <section class="px-4 md:px-8 mt-6">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div
+            class="executive-card executive-card-hover hd-color-card group flex flex-col gap-3 px-5 py-5 pt-6"
+            data-accent="blue"
+          >
+            <div
+              class="size-12 rounded-2xl flex items-center justify-center shadow-md ring-1 ring-inset ring-white/40 hd-icon-blue"
+            >
+              <LucideCheckCircle class="size-6 text-white" />
+            </div>
+            <div>
+              <div class="text-2xl font-bold text-ink-gray-9">
+                {{ openTicketsCount }}
+              </div>
+              <div class="text-sm font-medium text-ink-gray-8">
+                {{ __("Open Tickets") }}
+              </div>
+              <div class="text-xs text-ink-gray-6">
+                {{ __("Awaiting your attention") }}
+              </div>
+            </div>
+          </div>
+          <div
+            class="executive-card executive-card-hover hd-color-card group flex flex-col gap-3 px-5 py-5 pt-6"
+            data-accent="emerald"
+          >
+            <div
+              class="size-12 rounded-2xl flex items-center justify-center shadow-md ring-1 ring-inset ring-white/40 hd-icon-emerald"
+            >
+              <LucideCheckCheck class="size-6 text-white" />
+            </div>
+            <div>
+              <div class="text-2xl font-bold text-ink-gray-9">
+                {{ resolvedThisMonthCount }}
+              </div>
+              <div class="text-sm font-medium text-ink-gray-8">
+                {{ __("Resolved This Month") }}
+              </div>
+              <div class="text-xs text-ink-gray-6">
+                {{ __("Last 30 days") }}
+              </div>
+            </div>
+          </div>
+          <div
+            class="executive-card executive-card-hover hd-color-card group flex flex-col gap-3 px-5 py-5 pt-6"
+            data-accent="amber"
+          >
+            <div
+              class="size-12 rounded-2xl flex items-center justify-center shadow-md ring-1 ring-inset ring-white/40 hd-icon-amber"
+            >
+              <LucideTicket class="size-6 text-white" />
+            </div>
+            <div>
+              <div class="text-2xl font-bold text-ink-gray-9">
+                {{ totalTicketsCount }}
+              </div>
+              <div class="text-sm font-medium text-ink-gray-8">
+                {{ __("Total Tickets") }}
+              </div>
+              <div class="text-xs text-ink-gray-6">
+                {{ __("All-time count") }}
+              </div>
+            </div>
+          </div>
+          <div
+            class="executive-card executive-card-hover hd-color-card group flex flex-col gap-3 px-5 py-5 pt-6"
+            data-accent="rose"
+          >
+            <div class="flex items-center gap-3">
+              <div
+                class="size-12 rounded-2xl flex items-center justify-center shadow-md ring-1 ring-inset ring-white/40 hd-icon-rose"
+              >
+                <LucideHistory class="size-6 text-white" />
+              </div>
+              <div class="text-sm font-semibold text-ink-gray-8">
+                {{ __("Recent Activity") }}
+              </div>
+            </div>
+            <ul class="flex flex-col divide-y divide-outline-gray-1">
+              <li
+                v-for="t in recentTickets.data || []"
+                :key="t.name"
+                class="py-1.5"
+              >
+                <RouterLink
+                  :to="`/my-tickets/${t.name}`"
+                  class="flex items-center justify-between gap-2 hover:bg-surface-menu-bar rounded px-1 py-0.5"
+                >
+                  <span
+                    class="truncate text-xs text-ink-gray-8 font-medium"
+                  >#{{ t.name }} {{ t.subject || __("(no subject)") }}</span>
+                  <span
+                    v-if="t.status"
+                    class="text-[10px] uppercase tracking-wide text-ink-gray-6 shrink-0"
+                  >{{ t.status }}</span>
+                </RouterLink>
+              </li>
+              <li
+                v-if="recentTickets.loading"
+                class="py-2 text-xs text-ink-gray-5"
+              >
+                {{ __("Loading…") }}
+              </li>
+              <li
+                v-else-if="(recentTickets.data || []).length === 0"
+                class="py-2 text-xs text-ink-gray-5"
+              >
+                {{ __("No recent tickets") }}
+              </li>
+            </ul>
           </div>
         </div>
       </section>
@@ -234,11 +350,17 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
-import { Button, createListResource, usePageMeta } from "frappe-ui";
+import { ref, computed } from "vue";
+import {
+  Button,
+  createListResource,
+  createResource,
+  usePageMeta,
+} from "frappe-ui";
 import { useRouter } from "vue-router";
 import { LayoutHeader } from "@/components";
 import { useConfigStore } from "@/stores/config";
+import { useAuthStore } from "@/stores/auth";
 import { __ } from "@/translation";
 import LucideSearch from "~icons/lucide/search";
 import LucideHeadphones from "~icons/lucide/headphones";
@@ -257,9 +379,13 @@ import LucideClock from "~icons/lucide/clock";
 import LucideShield from "~icons/lucide/shield";
 import LucideUsers from "~icons/lucide/users";
 import LucideStar from "~icons/lucide/star";
+import LucideCheckCircle from "~icons/lucide/check-circle";
+import LucideCheckCheck from "~icons/lucide/check-check";
+import LucideHistory from "~icons/lucide/history";
 
 const router = useRouter();
 const config = useConfigStore();
+const authStore = useAuthStore();
 const searchQuery = ref("");
 
 const popularArticles = createListResource({
@@ -270,6 +396,58 @@ const popularArticles = createListResource({
   pageLength: 5,
   auto: true,
 });
+
+const myEmail = computed(() => authStore.userId);
+
+// Reliable integer counts via frappe.client.get_count (not list totalCount,
+// which is unreliable in frappe-ui beta and underreports with pageLength:1).
+const openTickets = createResource({
+  url: "frappe.client.get_count",
+  makeParams: () => ({
+    doctype: "HD Ticket",
+    filters: {
+      raised_by: myEmail.value,
+      status_category: ["!=", "Resolved"],
+    },
+  }),
+  auto: true,
+});
+const totalTickets = createResource({
+  url: "frappe.client.get_count",
+  makeParams: () => ({
+    doctype: "HD Ticket",
+    filters: { raised_by: myEmail.value },
+  }),
+  auto: true,
+});
+const thirtyDaysAgo = computed(() => {
+  const d = new Date();
+  d.setDate(d.getDate() - 30);
+  return d.toISOString().split("T")[0];
+});
+const resolvedThisMonth = createResource({
+  url: "frappe.client.get_count",
+  makeParams: () => ({
+    doctype: "HD Ticket",
+    filters: {
+      raised_by: myEmail.value,
+      status_category: "Resolved",
+      resolution_date: [">=", thirtyDaysAgo.value],
+    },
+  }),
+  auto: true,
+});
+const recentTickets = createListResource({
+  doctype: "HD Ticket",
+  fields: ["name", "subject", "status", "modified"],
+  filters: computed(() => ({ raised_by: myEmail.value })),
+  orderBy: "modified desc",
+  pageLength: 5,
+  auto: true,
+});
+const openTicketsCount = computed(() => openTickets.data ?? 0);
+const totalTicketsCount = computed(() => totalTickets.data ?? 0);
+const resolvedThisMonthCount = computed(() => resolvedThisMonth.data ?? 0);
 
 function onSearch() {
   router.push({

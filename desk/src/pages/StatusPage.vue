@@ -1,5 +1,6 @@
 <template>
-  <div class="min-h-full bg-surface-menu-bar">
+  <div class="min-h-full bg-customer-portal">
+    <LayoutHeader />
     <div class="max-w-3xl mx-auto px-4 py-10 md:py-16 flex flex-col gap-6">
       <header class="flex flex-col items-center text-center gap-3">
         <div
@@ -60,6 +61,7 @@ import { computed } from "vue";
 import { usePageMeta, dayjs } from "frappe-ui";
 import { useConfigStore } from "@/stores/config";
 import { __ } from "@/translation";
+import { LayoutHeader } from "@/components";
 
 const config = useConfigStore();
 

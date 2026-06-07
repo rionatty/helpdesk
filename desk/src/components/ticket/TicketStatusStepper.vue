@@ -119,8 +119,8 @@ function circleClass(_step: HDTicketStatus, i: number) {
 
 function labelClass(i: number) {
   if (i === currentIndex.value) return "text-ink-gray-9";
-  if (i < currentIndex.value) return "text-ink-gray-7";
-  return "text-ink-gray-5";
+  if (i < currentIndex.value) return "text-ink-gray-8 font-semibold";
+  return "text-ink-gray-6 font-medium";
 }
 
 function stepTimestamp(step: HDTicketStatus, i: number): string | undefined {

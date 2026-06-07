@@ -1,8 +1,8 @@
 <template>
-  <div class="flex w-[382px] flex-col border-s bg-surface-white">
+  <div class="flex w-[382px] flex-col border-s hd-chrome-bg">
     <!-- Header -->
     <div
-      class="flex items-center gap-2 border-b px-5 py-4 bg-gradient-to-r from-blue-50/60 to-transparent"
+      class="flex items-center gap-2 border-b px-5 py-4 bg-gradient-to-r from-blue-100/60 to-blue-50/40 shadow-sm"
     >
       <div
         class="size-7 rounded-lg hd-icon-blue flex items-center justify-center shadow-sm ring-1 ring-inset ring-white/40"
@@ -27,7 +27,7 @@
               {{ ticket.data.contact.name }}
             </div>
           </Tooltip>
-          <div class="text-xs text-ink-gray-5 truncate">
+          <div class="text-xs text-ink-gray-6 font-medium truncate">
             {{ ticket.data.contact.email_id }}
           </div>
         </div>
@@ -45,7 +45,7 @@
     <!-- Overview section -->
     <div class="px-5 py-4 border-b flex flex-col gap-3">
       <div
-        class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-blue-700"
+        class="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-blue-700 px-3 py-2 -mx-3 rounded-md bg-blue-50"
       >
         <span class="h-3 w-1 rounded-full bg-blue-500" />
         {{ __("Overview") }}
@@ -59,7 +59,7 @@
           :is="iconFor(field.label)"
           class="size-4 text-ink-gray-5 shrink-0"
         />
-        <span class="w-[96px] text-sm text-ink-gray-5">{{ field.label }}</span>
+        <span class="w-[96px] text-sm font-medium text-ink-gray-7">{{ field.label }}</span>
         <span
           class="text-base text-ink-gray-8 flex-1 truncate"
           :class="!field.value && 'text-ink-gray-4'"
@@ -73,7 +73,7 @@
         class="flex items-center gap-3 text-base"
       >
         <LucidePaperclip class="size-4 text-ink-gray-5 shrink-0" />
-        <span class="w-[96px] text-sm text-ink-gray-5">
+        <span class="w-[96px] text-sm font-medium text-ink-gray-7">
           {{ __("Attachments") }}
         </span>
         <span class="text-base text-ink-gray-8 flex-1">
@@ -83,7 +83,7 @@
       <!-- Subscribe toggle -->
       <div class="flex items-center gap-3 text-base">
         <LucideBell class="size-4 text-ink-gray-5 shrink-0" />
-        <span class="w-[96px] text-sm text-ink-gray-5">
+        <span class="w-[96px] text-sm font-medium text-ink-gray-7">
           {{ __("Email updates") }}
         </span>
         <Tooltip :text="subscribeTooltip">
@@ -105,7 +105,7 @@
     <!-- SLA section -->
     <div class="px-5 py-4 border-b flex flex-col gap-3">
       <div
-        class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-amber-700"
+        class="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-amber-700 px-3 py-2 -mx-3 rounded-md bg-amber-50"
       >
         <span class="h-3 w-1 rounded-full bg-amber-500" />
         {{ __("SLA") }}
@@ -119,10 +119,17 @@
           :is="iconFor(data.title)"
           class="size-4 text-ink-gray-5 shrink-0"
         />
-        <div class="w-[96px] text-sm text-ink-gray-5">{{ data.title }}</div>
+        <div class="w-[96px] text-sm font-medium text-ink-gray-7">{{ data.title }}</div>
         <div class="flex items-center gap-2 flex-1">
           <Tooltip :text="dateFormat(data.value, dateTooltipFormat)">
-            <Badge :label="data.label" :theme="data.theme" variant="subtle" />
+            <span
+              :class="[
+                data.theme === 'green' && '[&_*]:!text-green-900',
+                data.theme === 'orange' && '[&_*]:!text-amber-900',
+              ]"
+            >
+              <Badge :label="data.label" :theme="data.theme" variant="subtle" />
+            </span>
           </Tooltip>
           <Tooltip
             v-if="
@@ -150,7 +157,7 @@
     />
     <div class="flex flex-col gap-3 px-5 py-4 overflow-y-scroll">
       <div
-        class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-violet-700"
+        class="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-violet-700 px-3 py-2 -mx-3 rounded-md bg-violet-50"
       >
         <span class="h-3 w-1 rounded-full bg-violet-500" />
         {{ __("Details") }}
@@ -164,7 +171,7 @@
           :is="iconFor(field.label)"
           class="size-4 text-ink-gray-5 shrink-0"
         />
-        <span class="w-[96px] text-sm text-ink-gray-5">{{ field.label }}</span>
+        <span class="w-[96px] text-sm font-medium text-ink-gray-7">{{ field.label }}</span>
         <span
           class="text-base text-ink-gray-8 flex-1 truncate"
           :class="!field.value && 'text-ink-gray-4'"

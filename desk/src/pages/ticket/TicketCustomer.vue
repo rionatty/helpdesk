@@ -12,8 +12,8 @@
         <Button
           v-if="ticket.data.status !== 'Closed'"
           :label="__('Close')"
-          theme="gray"
-          variant="solid"
+          theme="blue"
+          variant="subtle"
           @click="handleClose()"
         >
           <template #prefix>
@@ -90,8 +90,8 @@
             </div>
             <Button
               :label="__('Reopen ticket')"
-              theme="gray"
-              variant="solid"
+              theme="blue"
+              variant="outline"
               :loading="setValue.loading"
               @click="reopenTicket"
             />

@@ -86,7 +86,7 @@ body {
 /* ============================================================= */
 html:not([data-theme="dark"]) {
   /* Refined cool surfaces — desaturated blue reads premium */
-  --surface-menu-bar: #e9ecf4;
+  --surface-menu-bar: #dde6f3;
   --hd-bg: #f3f4f8;
   --hd-bg-veil: #e6e9f1;
 
@@ -114,6 +114,19 @@ html:not([data-theme="dark"]) {
   /* Hairline border tuned for white cards on tinted canvas */
   --hd-hairline: rgba(15, 23, 42, 0.07);
   --hd-hairline-strong: rgba(15, 23, 42, 0.11);
+}
+
+html:not([data-theme="dark"]) .hd-chrome-bg {
+  background: linear-gradient(180deg, #dde6f3 0%, #ccd9ec 100%);
+}
+html:not([data-theme="dark"]) .hd-chrome-bg-h {
+  background: linear-gradient(90deg, #dde6f3 0%, #ccd9ec 100%);
+}
+/* Dark-mode fallback — chrome elements use the standard dark menu surface
+   so the ribbon/sidebars don't render transparent when dark theme is on. */
+[data-theme="dark"] .hd-chrome-bg,
+[data-theme="dark"] .hd-chrome-bg-h {
+  background: var(--surface-menu-bar);
 }
 
 html:not([data-theme="dark"]) body {

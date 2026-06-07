@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div class="bg-customer-portal">
     <LayoutHeader>
       <template #left-header>
         <div class="flex gap-2 items-center crumbs max-w-[50vw]">
@@ -33,8 +33,8 @@
     >
       <!-- article Info -->
       <div
-        class="flex flex-col gap-3 p-4 w-full"
-        :class="editable && 'border rounded-lg overflow-hidden'"
+        class="flex flex-col gap-3 p-6 w-full bg-surface-white rounded-xl shadow-sm border border-outline-gray-1"
+        :class="editable && 'overflow-hidden'"
       >
         <!-- Top Element -->
         <div class="flex flex-col gap-3">

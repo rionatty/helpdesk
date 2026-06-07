@@ -10,13 +10,13 @@
         v-if="item.type === 'divider'"
         class="flex items-center gap-3 my-4 animate-in-soft"
       >
-        <div class="flex-1 h-px bg-outline-gray-1" />
+        <div class="flex-1 h-px bg-outline-gray-2" />
         <span
-          class="text-xs font-medium uppercase tracking-wide text-ink-gray-5"
+          class="text-xs font-semibold uppercase tracking-wide text-ink-gray-7 bg-white px-2"
         >
           {{ dayLabel(item.date) }}
         </span>
-        <div class="flex-1 h-px bg-outline-gray-1" />
+        <div class="flex-1 h-px bg-outline-gray-2" />
       </div>
       <div
         v-else
@@ -60,7 +60,7 @@
     >
       <div class="flex justify-center pt-1">
         <div
-          class="flex items-center justify-center size-7 rounded-full bg-surface-amber-2 text-amber-700"
+          class="flex items-center justify-center size-7 rounded-full bg-amber-500/20 text-amber-700 font-bold"
         >
           <LucideClock class="size-4" />
         </div>
@@ -68,13 +68,23 @@
       <div
         class="flex-1 rounded-md border border-outline-amber-1 bg-surface-amber-1 px-4 py-3"
       >
-        <div class="font-medium text-ink-gray-8">
+        <div class="font-bold text-amber-900">
           {{ __("We've received your ticket") }}
         </div>
         <div class="text-sm text-ink-gray-6 mt-0.5">
           {{ waitingText }}
         </div>
       </div>
+    </div>
+    <div
+      v-if="!communications || communications.length === 0"
+      class="flex flex-col items-center justify-center h-full text-center py-12"
+    >
+      <LucideMessageSquare class="size-12 text-ink-gray-4 mb-3" />
+      <p class="text-ink-gray-6 font-medium">{{ __("No messages yet") }}</p>
+      <p class="text-sm text-ink-gray-5 mt-1">
+        {{ __("Your reply will appear here") }}
+      </p>
     </div>
   </div>
 </template>
@@ -88,6 +98,7 @@ import { computed, inject, nextTick, watch } from "vue";
 import { useRoute } from "vue-router";
 import TicketCommunication from "./TicketCommunication.vue";
 import { ITicket } from "./symbols";
+import LucideMessageSquare from "~icons/lucide/message-square";
 
 const authStore = useAuthStore();
 

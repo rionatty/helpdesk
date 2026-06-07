@@ -30,7 +30,7 @@
     </LayoutHeader>
     <div
       v-if="isCustomerPortal"
-      class="animate-in-fade px-4 md:px-8 pt-6 pb-4 max-w-screen-2xl mx-auto w-full"
+      class="animate-in-fade px-4 md:px-8 pt-6 pb-4 mt-2 max-w-screen-2xl mx-auto w-full"
     >
       <div class="flex items-center gap-3">
         <div
@@ -62,7 +62,7 @@
       <div
         :class="
           isCustomerPortal
-            ? 'executive-card flex-1 flex flex-col min-h-0 overflow-hidden !bg-surface-white'
+            ? 'executive-card flex-1 flex flex-col min-h-0 overflow-hidden bg-surface-white'
             : 'contents'
         "
       >
