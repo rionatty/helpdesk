@@ -1,7 +1,14 @@
 <template>
-  <div class="flex w-[382px] flex-col border-s">
+  <div class="flex w-[382px] flex-col border-s bg-surface-white">
     <!-- Header -->
-    <div class="flex items-center justify-between border-b px-5 py-4">
+    <div
+      class="flex items-center gap-2 border-b px-5 py-4 bg-gradient-to-r from-blue-50/60 to-transparent"
+    >
+      <div
+        class="size-7 rounded-lg hd-icon-blue flex items-center justify-center shadow-sm ring-1 ring-inset ring-white/40"
+      >
+        <LucideClipboardList class="size-4 text-white" />
+      </div>
       <span class="text-lg font-semibold text-ink-gray-9">
         {{ __("Ticket details") }}
       </span>
@@ -38,8 +45,9 @@
     <!-- Overview section -->
     <div class="px-5 py-4 border-b flex flex-col gap-3">
       <div
-        class="text-xs font-semibold uppercase tracking-wide text-ink-gray-5"
+        class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-blue-700"
       >
+        <span class="h-3 w-1 rounded-full bg-blue-500" />
         {{ __("Overview") }}
       </div>
       <div
@@ -97,8 +105,9 @@
     <!-- SLA section -->
     <div class="px-5 py-4 border-b flex flex-col gap-3">
       <div
-        class="text-xs font-semibold uppercase tracking-wide text-ink-gray-5"
+        class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-amber-700"
       >
+        <span class="h-3 w-1 rounded-full bg-amber-500" />
         {{ __("SLA") }}
       </div>
       <div
@@ -141,8 +150,9 @@
     />
     <div class="flex flex-col gap-3 px-5 py-4 overflow-y-scroll">
       <div
-        class="text-xs font-semibold uppercase tracking-wide text-ink-gray-5"
+        class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-violet-700"
       >
+        <span class="h-3 w-1 rounded-full bg-violet-500" />
         {{ __("Details") }}
       </div>
       <div
@@ -296,6 +306,7 @@ import LucideCheckCircle from "~icons/lucide/check-circle";
 import LucideInfo from "~icons/lucide/info";
 import LucidePaperclip from "~icons/lucide/paperclip";
 import LucideBell from "~icons/lucide/bell";
+import LucideClipboardList from "~icons/lucide/clipboard-list";
 
 const ICON_MAP: Record<string, any> = {
   "Ticket ID": LucideHash,

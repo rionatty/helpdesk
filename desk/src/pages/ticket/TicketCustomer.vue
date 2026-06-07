@@ -27,12 +27,12 @@
       <section class="flex flex-col flex-1 w-full md:max-w-[calc(100%-382px)]">
         <TicketHeader />
         <div
-          class="px-4 md:px-10 pt-2 flex flex-wrap items-center gap-1"
+          class="px-4 md:px-10 pt-3 flex flex-wrap items-center gap-2"
         >
           <Button
             size="sm"
-            variant="ghost"
-            theme="gray"
+            variant="subtle"
+            theme="blue"
             :label="__('Follow-up')"
             @click="startFollowUp"
           >
@@ -42,8 +42,8 @@
           </Button>
           <Button
             size="sm"
-            variant="ghost"
-            theme="gray"
+            variant="subtle"
+            :theme="ticket.data?.priority === 'Urgent' ? 'green' : 'red'"
             :label="
               ticket.data?.priority === 'Urgent'
                 ? __('Marked urgent')
@@ -61,7 +61,7 @@
           </Button>
           <Button
             size="sm"
-            variant="ghost"
+            variant="subtle"
             theme="gray"
             :label="__('Copy link')"
             @click="copyLink"
@@ -132,7 +132,7 @@
           />
         </div>
         <div
-          class="w-full p-5 relative"
+          class="w-full px-4 md:px-10 pb-5 pt-2 relative"
           @keydown.ctrl.enter.capture.stop="sendEmail"
           @keydown.meta.enter.capture.stop="sendEmail"
           @dragover.prevent="onDragOver"
@@ -141,19 +141,23 @@
         >
           <div
             v-if="isDragging"
-            class="absolute inset-2 z-10 bg-surface-blue-1/80 border-2 border-dashed border-blue-400 rounded-md flex items-center justify-center pointer-events-none"
+            class="absolute inset-3 z-10 bg-surface-blue-1/80 border-2 border-dashed border-blue-400 rounded-xl flex items-center justify-center pointer-events-none"
           >
             <div class="text-base text-blue-700 font-medium">
               {{ __("Drop to attach") }}
             </div>
           </div>
+          <div
+            v-if="showEditor"
+            class="rounded-2xl border border-outline-gray-2 bg-surface-white shadow-md p-2 transition-shadow focus-within:shadow-lg focus-within:border-blue-300"
+          >
           <TicketTextEditor
             v-if="showEditor"
             ref="editor"
             v-model:attachments="attachments"
             v-model:content="editorContent"
             v-model:expand="isExpanded"
-            :placeholder="__('Type a message')"
+            :placeholder="__('Type your reply…')"
             autofocus
             @clear="() => (isExpanded = false)"
             :uploadFunction="
@@ -177,7 +181,7 @@
             <template #bottom-right>
               <Button
                 :label="__('Send')"
-                theme="gray"
+                theme="blue"
                 variant="solid"
                 :disabled="$refs.editor?.editor.isEmpty || send.loading"
                 :loading="send.loading"
@@ -185,6 +189,7 @@
               />
             </template>
           </TicketTextEditor>
+          </div>
         </div>
       </section>
       <!-- Ticket Sidebar only for desktop view-->
