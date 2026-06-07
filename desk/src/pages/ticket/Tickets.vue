@@ -12,13 +12,14 @@
       </template>
       <template #right-header>
         <RouterLink
+          v-if="!isCustomerPortal"
           class="inline-flex"
-          :to="{ name: isCustomerPortal ? 'TicketNew' : 'TicketAgentNew' }"
+          :to="{ name: 'TicketAgentNew' }"
         >
           <Button
             class="rtl:flex-row-reverse"
             :label="__('Create')"
-            :theme="isCustomerPortal ? 'blue' : 'gray'"
+            theme="gray"
             variant="solid"
           >
             <template #prefix>
@@ -32,24 +33,38 @@
       v-if="isCustomerPortal"
       class="animate-in-fade px-4 md:px-8 pt-6 pb-4 mt-2 max-w-screen-2xl mx-auto w-full"
     >
-      <div class="flex items-center gap-3">
-        <div
-          class="size-12 rounded-2xl hd-icon-blue flex items-center justify-center shadow-md ring-1 ring-inset ring-white/40 shrink-0"
+      <div class="flex items-center justify-between gap-3">
+        <div class="flex items-center gap-3 min-w-0">
+          <div
+            class="size-12 rounded-2xl hd-icon-blue flex items-center justify-center shadow-md ring-1 ring-inset ring-white/40 shrink-0"
+          >
+            <LucideTicket class="size-6 text-white" />
+          </div>
+          <div class="min-w-0">
+            <h1
+              class="executive-heading text-2xl text-ink-gray-9 leading-tight"
+            >
+              {{ __("Your tickets") }}
+            </h1>
+            <p class="text-sm text-ink-gray-6 mt-0.5">
+              {{
+                __(
+                  "Every support request in one place. Use the Create button to open a new one."
+                )
+              }}
+            </p>
+          </div>
+        </div>
+        <RouterLink
+          :to="{ name: 'TicketNew' }"
+          class="inline-flex shrink-0"
         >
-          <LucideTicket class="size-6 text-white" />
-        </div>
-        <div>
-          <h1 class="executive-heading text-2xl text-ink-gray-9 leading-tight">
-            {{ __("Your tickets") }}
-          </h1>
-          <p class="text-sm text-ink-gray-6 mt-0.5">
-            {{
-              __(
-                "Every support request in one place. Use the Create button to open a new one."
-              )
-            }}
-          </p>
-        </div>
+          <Button :label="__('Create')" theme="blue" variant="solid">
+            <template #prefix>
+              <LucidePlus class="h-4 w-4" />
+            </template>
+          </Button>
+        </RouterLink>
       </div>
     </div>
     <div
