@@ -21,30 +21,25 @@
       <div
         v-else
         :id="item.name"
-        class="flex items-between justify-center gap-4 relative animate-in-fade"
+        class="animate-in-fade mb-4"
         :class="i === 0 && 'mt-4'"
       >
+        <!-- Chat row: customer messages lean right, support left -->
         <div
-          class="w-full activity grid grid-cols-[30px_minmax(auto,_1fr)] gap-2 sm:gap-4 h-full"
+          class="flex items-end gap-2 sm:gap-3"
+          :class="item.fromCustomer ? 'flex-row-reverse' : ''"
         >
-          <div
-            class="relative flex justify-center after:absolute after:start-[50%] after:top-3 after:-z-10 after:border-s after:border-outline-gray-1"
-            :class="[
-              !item.isLast ? 'after:h-full' : 'after:h-5',
-            ]"
-          >
-            <Avatar
-              size="lg"
-              :label="item.user.name"
-              :image="item.user.image"
-              class="mt-1.5 relative"
-            />
-          </div>
+          <Avatar
+            size="lg"
+            :label="item.user.name"
+            :image="item.user.image"
+            class="shrink-0 mb-1"
+          />
           <TicketCommunication
+            class="max-w-[85%] sm:max-w-[78%]"
             :content="item.content"
             :date="item.creation"
             :user="item.user"
-            :sender-image="item.sender"
             :cc="item.cc || ''"
             :bcc="item.bcc || ''"
             :attachments="item.attachments"

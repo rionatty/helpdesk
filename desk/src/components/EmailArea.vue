@@ -2,7 +2,12 @@
   <div
     :id="`communication-${name}`"
     v-bind="$attrs"
-    class="grow cursor-pointer bg-surface-white rounded-md text-base leading-6 transition-all duration-300 ease-in-out border border-outline-gray-2"
+    class="grow cursor-pointer rounded-md text-base leading-6 transition-all duration-300 ease-in-out border border-l-4"
+    :class="
+      fromCustomer
+        ? 'bg-blue-50 border-blue-300'
+        : 'bg-violet-50 border-violet-300'
+    "
   >
     <div
       class="flex items-center justify-between gap-2"
@@ -156,6 +161,12 @@ const ticket = inject(TicketSymbol)!;
 const auth = storeToRefs(useAuthStore());
 
 const { isMobileView } = useScreenSize();
+
+// Customer emails (sender = ticket's raised_by) render blue; agent emails violet.
+const fromCustomer = computed(() => {
+  const raisedBy = ticket?.value?.doc?.raised_by;
+  return raisedBy ? sender.name === raisedBy : false;
+});
 
 const showSplitModal = ref(false);
 
