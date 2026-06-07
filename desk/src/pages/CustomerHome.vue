@@ -34,55 +34,49 @@
     <div
       class="w-full max-w-screen-2xl mx-auto px-4 md:px-6 lg:px-8 py-6 md:py-8 flex flex-col gap-6 md:gap-8 flex-1"
     >
-      <!-- Hero — navy + gold brand -->
+      <!-- Greeting bar — navy + gold brand -->
       <section
-        class="hd-brand-hero rounded-3xl p-6 md:px-10 md:py-9 mt-4 flex flex-col md:flex-row items-center gap-6 md:gap-10 animate-in-fade"
+        class="hd-brand-hero rounded-2xl px-6 py-5 md:px-8 mt-4 flex flex-col md:flex-row md:items-center justify-between gap-4 animate-in-fade"
       >
-        <div class="flex-1 flex flex-col gap-4 max-w-xl">
-          <h1
-            class="executive-heading text-3xl md:text-[2.5rem] text-white leading-[1.1]"
-          >
-            {{ __("Hi there! How can we help you?") }}
-          </h1>
-          <p class="text-lg hd-on-navy-soft leading-relaxed">
-            {{
-              __(
-                "Find answers, solve problems, and get the support you need."
-              )
-            }}
-          </p>
-          <form
-            class="flex items-stretch gap-2 rounded-2xl bg-surface-white shadow-md overflow-hidden focus-within:ring-2 focus-within:ring-[var(--hd-gold)] transition-all"
-            @submit.prevent="onSearch"
-          >
-            <div class="flex items-center px-3 text-ink-gray-5">
-              <LucideSearch class="size-4" />
+        <div class="flex items-center gap-3">
+          <Avatar
+            size="2xl"
+            :label="authStore.userName"
+            :image="authStore.userImage"
+            class="ring-2 ring-offset-2 ring-[var(--hd-gold)]/40"
+          />
+          <div>
+            <div class="executive-heading text-2xl text-white leading-tight">
+              {{ greeting }}, {{ firstName }}
             </div>
-            <input
-              v-model="searchQuery"
-              type="search"
-              :placeholder="__('Search for articles, topics, or keywords…')"
-              class="flex-1 bg-transparent outline-none text-base text-ink-gray-9 placeholder:text-ink-gray-4 py-3"
-            />
-            <button
-              type="submit"
-              class="hd-gold-solid px-5 transition-colors rounded-r-2xl"
-            >
-              {{ __("Search") }}
-            </button>
-          </form>
-          <div class="flex flex-wrap gap-2 mt-1">
-            <span class="hd-pill hd-pill-gold">{{ __("Secure") }}</span>
-            <span class="hd-pill hd-pill-emerald">{{ __("Fast") }}</span>
-            <span class="hd-pill hd-pill-coral">{{ __("Official") }}</span>
+            <div class="text-sm hd-on-navy-soft mt-1">
+              {{ todayLabel }} · {{ brandName }}
+            </div>
           </div>
         </div>
-        <div class="hidden md:flex shrink-0 items-center justify-center">
+        <div class="flex items-center gap-2 flex-wrap">
           <div
-            class="size-40 lg:size-48 rounded-[2rem] bg-gradient-to-br from-white/25 to-white/10 border border-white/25 flex items-center justify-center shadow-2xl ring-1 ring-inset ring-white/20"
+            class="flex items-center gap-2 px-3 py-2 rounded-lg border border-white/15 bg-white/10"
           >
-            <LucideHeadphones class="size-20 lg:size-24 text-[var(--hd-gold)]" />
+            <div
+              class="size-8 rounded-full bg-[var(--hd-gold)]/15 flex items-center justify-center"
+            >
+              <LucideTicket class="size-4 text-[var(--hd-gold)]" />
+            </div>
+            <div class="leading-tight">
+              <div class="text-lg font-semibold text-white">
+                {{ openTicketsCount }}
+              </div>
+              <div class="text-xs hd-on-navy-muted">{{ __("Open tickets") }}</div>
+            </div>
           </div>
+          <RouterLink
+            :to="{ name: 'TicketNew' }"
+            class="hd-gold-solid flex items-center gap-2 px-3 py-2 rounded-lg transition-colors"
+          >
+            <LucidePlus class="size-4" />
+            <span>{{ __("New ticket") }}</span>
+          </RouterLink>
         </div>
       </section>
 
@@ -355,9 +349,11 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import {
+  Avatar,
   Button,
   createListResource,
   createResource,
+  dayjs,
   usePageMeta,
 } from "frappe-ui";
 import { useRouter } from "vue-router";
@@ -375,6 +371,7 @@ import LucideChevronRight from "~icons/lucide/chevron-right";
 import LucideFileText from "~icons/lucide/file-text";
 import LucideBookOpen from "~icons/lucide/book-open";
 import LucideTicket from "~icons/lucide/ticket";
+import LucidePlus from "~icons/lucide/plus";
 import LucideListChecks from "~icons/lucide/list-checks";
 import LucideBell from "~icons/lucide/bell";
 import LucideMail from "~icons/lucide/mail";
@@ -391,6 +388,20 @@ const router = useRouter();
 const config = useConfigStore();
 const authStore = useAuthStore();
 const searchQuery = ref("");
+
+const firstName = computed(() => {
+  const n = authStore.userName || "";
+  return n.split(" ")[0] || n || __("there");
+});
+const greeting = computed(() => {
+  const hour = dayjs().hour();
+  if (hour < 5) return __("Hello");
+  if (hour < 12) return __("Good morning");
+  if (hour < 18) return __("Good afternoon");
+  return __("Good evening");
+});
+const todayLabel = computed(() => dayjs().format("dddd, MMM D"));
+const brandName = computed(() => config.brandName || __("Support"));
 
 const popularArticles = createListResource({
   doctype: "HD Article",
