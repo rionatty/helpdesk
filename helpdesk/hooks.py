@@ -54,6 +54,10 @@ website_route_rules = [
     },
 ]
 
+# Send website users (customers) to the helpdesk portal after login
+# instead of Frappe's default /me account page. Agents/system users unaffected.
+get_website_user_home_page = "helpdesk.utils.get_customer_home_page"
+
 user_invitation = {
     "allowed_roles": {
         "Agent Manager": ["Agent", "Agent Manager"],

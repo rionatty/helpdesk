@@ -472,3 +472,13 @@ def format_time_difference(dt, context="ago"):
         return f"{int(total_seconds // 3600)}h"
     else:
         return f"{int(total_seconds // 86400)}d"
+
+
+def get_customer_home_page(user: str = None) -> str:
+	"""Landing route for website users (customers) after login.
+
+	Returns the helpdesk customer portal so customers are taken straight to
+	their tickets instead of Frappe's default /me account page. Agents and
+	system users are unaffected (this hook only runs for Website Users).
+	"""
+	return "helpdesk"
