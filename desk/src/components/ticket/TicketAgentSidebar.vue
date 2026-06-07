@@ -1,5 +1,7 @@
 <template>
-  <div class="flex !w-[382px] flex-col justify-between border-s hd-chrome-bg">
+  <div
+    class="flex !w-[382px] flex-col border-s hd-chrome-bg overflow-y-auto"
+  >
     <div
       class="flex h-10.5 items-center border-b px-5 py-2.5 text-lg font-medium text-ink-gray-9 justify-between"
     >
@@ -44,6 +46,10 @@
     <TicketAgentDetails :ticket="ticket" />
     <!-- fields -->
     <TicketAgentFields :ticket="ticket" @update="update" />
+    <!-- subtasks + time tracking (agent-editable) -->
+    <div class="px-5 py-4 border-t">
+      <TicketSubtasks :ticket-id="ticket.name" :editable="true" />
+    </div>
     <TicketMergeModal
       :ticket="ticket"
       v-if="showMergeModal"
@@ -63,6 +69,7 @@ import TicketAgentContact from "./TicketAgentContact.vue";
 import TicketAgentDetails from "./TicketAgentDetails.vue";
 import TicketAgentFields from "./TicketAgentFields.vue";
 import TicketMergeModal from "./TicketMergeModal.vue";
+import TicketSubtasks from "./TicketSubtasks.vue";
 
 interface Props {
   ticket: Ticket;

@@ -51,6 +51,7 @@
   "resolution_date",
   "resolution_time",
   "user_resolution_time",
+  "estimated_hours",
   "resolution_failed_by",
   "reference_tab",
   "additional_info",
@@ -312,6 +313,15 @@
    "fieldtype": "Duration",
    "label": "User Resolution Time",
    "read_only": 1
+  },
+  {
+   "default": "0",
+   "description": "Estimated hours budgeted for this ticket (set by agents)",
+   "fieldname": "estimated_hours",
+   "fieldtype": "Float",
+   "label": "Estimated Hours",
+   "non_negative": 1,
+   "precision": "2"
   },
   {
    "collapsible": 1,

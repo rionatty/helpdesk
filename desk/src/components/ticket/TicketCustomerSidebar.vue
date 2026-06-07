@@ -149,6 +149,10 @@
         </div>
       </div>
     </div>
+    <!-- Progress / subtasks (read-only for customers) -->
+    <div class="px-5 py-4 border-b">
+      <TicketSubtasks :ticket-id="ticket.data.name" :editable="false" />
+    </div>
     <!-- feedback component -->
     <TicketFeedback
       v-if="ticket.data.feedback_rating"
@@ -238,6 +242,7 @@ import {
 } from "frappe-ui";
 import { computed, inject, ref, watch } from "vue";
 import { useRouter } from "vue-router";
+import TicketSubtasks from "@/components/ticket/TicketSubtasks.vue";
 
 const router = useRouter();
 
