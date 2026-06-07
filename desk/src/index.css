@@ -365,44 +365,49 @@ html:not([data-theme="dark"]) #list-rows > * {
   margin-bottom: 2px;
   transition: box-shadow 200ms ease, background-color 180ms ease;
 }
-/* Cycling refined colored left-accent stripe (every 5 rows) */
+/* Cycling FULL-ROW color highlight (light wash) + colored left-accent stripe.
+   Every 5 rows cycles blue → emerald → amber → pink → violet so each ticket
+   is anchored by its own color across the whole row, not just the edge. */
 html:not([data-theme="dark"]) #list-rows > *:nth-child(5n + 1) {
-  box-shadow: inset 3px 0 0 0 rgba(59, 130, 246, 0.5);
+  background-color: rgba(59, 130, 246, 0.06);
+  box-shadow: inset 3px 0 0 0 rgba(59, 130, 246, 0.7);
 }
 html:not([data-theme="dark"]) #list-rows > *:nth-child(5n + 2) {
-  box-shadow: inset 3px 0 0 0 rgba(16, 185, 129, 0.5);
+  background-color: rgba(16, 185, 129, 0.06);
+  box-shadow: inset 3px 0 0 0 rgba(16, 185, 129, 0.7);
 }
 html:not([data-theme="dark"]) #list-rows > *:nth-child(5n + 3) {
-  box-shadow: inset 3px 0 0 0 rgba(245, 158, 11, 0.5);
+  background-color: rgba(245, 158, 11, 0.07);
+  box-shadow: inset 3px 0 0 0 rgba(245, 158, 11, 0.7);
 }
 html:not([data-theme="dark"]) #list-rows > *:nth-child(5n + 4) {
-  box-shadow: inset 3px 0 0 0 rgba(236, 72, 153, 0.5);
+  background-color: rgba(236, 72, 153, 0.06);
+  box-shadow: inset 3px 0 0 0 rgba(236, 72, 153, 0.7);
 }
 html:not([data-theme="dark"]) #list-rows > *:nth-child(5n + 5) {
-  box-shadow: inset 3px 0 0 0 rgba(139, 92, 246, 0.5);
+  background-color: rgba(139, 92, 246, 0.06);
+  box-shadow: inset 3px 0 0 0 rgba(139, 92, 246, 0.7);
 }
-/* Soft zebra — even rows get a faint cool wash */
-html:not([data-theme="dark"]) #list-rows > *:nth-child(even) {
-  background-color: rgba(59, 130, 246, 0.03);
-}
-/* Hover — deepen background and thicken the matching accent stripe */
-html:not([data-theme="dark"]) #list-rows > *:hover {
-  background-color: rgba(59, 130, 246, 0.07);
-}
+/* Hover — deepen the full-row wash and thicken the matching accent stripe */
 html:not([data-theme="dark"]) #list-rows > *:nth-child(5n + 1):hover {
-  box-shadow: inset 4px 0 0 0 rgba(59, 130, 246, 0.9);
+  background-color: rgba(59, 130, 246, 0.13);
+  box-shadow: inset 4px 0 0 0 rgba(59, 130, 246, 1);
 }
 html:not([data-theme="dark"]) #list-rows > *:nth-child(5n + 2):hover {
-  box-shadow: inset 4px 0 0 0 rgba(16, 185, 129, 0.9);
+  background-color: rgba(16, 185, 129, 0.13);
+  box-shadow: inset 4px 0 0 0 rgba(16, 185, 129, 1);
 }
 html:not([data-theme="dark"]) #list-rows > *:nth-child(5n + 3):hover {
-  box-shadow: inset 4px 0 0 0 rgba(245, 158, 11, 0.9);
+  background-color: rgba(245, 158, 11, 0.15);
+  box-shadow: inset 4px 0 0 0 rgba(245, 158, 11, 1);
 }
 html:not([data-theme="dark"]) #list-rows > *:nth-child(5n + 4):hover {
-  box-shadow: inset 4px 0 0 0 rgba(236, 72, 153, 0.9);
+  background-color: rgba(236, 72, 153, 0.13);
+  box-shadow: inset 4px 0 0 0 rgba(236, 72, 153, 1);
 }
 html:not([data-theme="dark"]) #list-rows > *:nth-child(5n + 5):hover {
-  box-shadow: inset 4px 0 0 0 rgba(139, 92, 246, 0.9);
+  background-color: rgba(139, 92, 246, 0.13);
+  box-shadow: inset 4px 0 0 0 rgba(139, 92, 246, 1);
 }
 /* Refined list header — subtle tint + uppercase tracking reads executive */
 html:not([data-theme="dark"]) .list-header {

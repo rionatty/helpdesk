@@ -168,8 +168,16 @@ const htmlContent = computed(
       .replied-content .collapse + input:checked + div {
         display: block;
       }
+      body {
+        color: #1f2937;
+      }
       .email-content {
         word-break: break-word;
+        color: #1f2937;
+      }
+      [data-theme='dark'] body,
+      [data-theme='dark'] .email-content {
+        color: #e5e7eb;
       }
           
       .email-content :is(:where(img):not(:where([class~='not-prose'], [class~='not-prose'] *))) {

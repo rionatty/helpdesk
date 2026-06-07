@@ -373,7 +373,7 @@ function handleResponseByField(row: any, item: string) {
   if (row.first_responded_on && dayjs(row.first_responded_on).isBefore(item)) {
     return h(Badge, {
       label: __("Fulfilled"),
-      theme: "gray",
+      theme: "green",
       variant: "subtle",
     });
   } else if (dayjs(row.first_responded_on).isAfter(item)) {
@@ -410,7 +410,7 @@ function handleResolutionByField(row: any, item: string) {
   if (row.agreement_status === "Fulfilled") {
     return h(Badge, {
       label: __("Fulfilled"),
-      theme: "gray",
+      theme: "green",
       variant: "subtle",
     });
   }
