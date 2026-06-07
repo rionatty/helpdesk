@@ -28,14 +28,35 @@ def _assert_agent() -> None:
 
 @frappe.whitelist()
 def get_subtasks(ticket: str) -> list:
-	"""Subtasks for a ticket. Allowed for agents and the ticket's customer."""
+	"""Subtasks for a ticket. Allowed for agents and the ticket's customer.
+
+	Includes assigned_to_name (the agent's display name) so the customer view
+	can show who's handling a subtask without needing HD Agent read access.
+	"""
 	_assert_ticket_read(ticket)
-	return frappe.get_all(
+	rows = frappe.get_all(
 		"HD Ticket Subtask",
 		filters={"ticket": ticket},
 		fields=["name", "subject", "status", "hours_spent", "assigned_to", "description"],
 		order_by="creation asc",
 	)
+	if rows:
+		names = {r.get("assigned_to") for r in rows if r.get("assigned_to")}
+		name_map = {}
+		if names:
+			name_map = {
+				a.name: a.agent_name
+				for a in frappe.get_all(
+					"HD Agent",
+					filters={"name": ["in", list(names)]},
+					fields=["name", "agent_name"],
+				)
+			}
+		for r in rows:
+			r["assigned_to_name"] = name_map.get(r.get("assigned_to")) or r.get(
+				"assigned_to"
+			)
+	return rows
 
 
 @frappe.whitelist()

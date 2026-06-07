@@ -1,185 +1,227 @@
 <template>
-  <div class="flex flex-col gap-3">
-    <!-- Section header -->
-    <div class="flex items-center justify-between gap-2">
-      <div
-        class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-violet-700"
-      >
-        <span class="h-3 w-1 rounded-full bg-violet-500" />
-        {{ __("Subtasks") }}
+  <div
+    class="rounded-xl border border-outline-gray-2 bg-surface-white shadow-sm overflow-hidden"
+  >
+    <!-- Standout header -->
+    <div
+      class="flex items-center justify-between gap-2 px-4 py-3 bg-gradient-to-r from-violet-100 to-blue-100 border-b border-outline-gray-2"
+    >
+      <div class="flex items-center gap-2">
+        <div
+          class="size-7 rounded-lg bg-gradient-to-br from-violet-500 to-blue-500 flex items-center justify-center shadow-sm ring-1 ring-inset ring-white/40"
+        >
+          <LucideListTodo class="size-4 text-white" />
+        </div>
+        <span class="text-sm font-bold text-ink-gray-9">
+          {{ __("Subtasks") }}
+        </span>
       </div>
-      <span v-if="summary.total" class="text-xs text-ink-gray-5">
+      <span
+        v-if="summary.total"
+        class="text-xs font-semibold text-violet-700 bg-violet-200/70 rounded-full px-2 py-0.5"
+      >
         {{ summary.done }}/{{ summary.total }} {{ __("done") }}
       </span>
     </div>
 
-    <!-- Progress bar -->
-    <div v-if="summary.total" class="flex flex-col gap-1">
-      <div class="h-2 w-full rounded-full bg-surface-gray-3 overflow-hidden">
-        <div
-          class="h-full rounded-full bg-gradient-to-r from-violet-500 to-blue-500 transition-all"
-          :style="{ width: summary.progress + '%' }"
-        />
-      </div>
-      <div class="flex items-center justify-between text-xs text-ink-gray-5">
-        <span>{{ summary.progress }}% {{ __("complete") }}</span>
-        <span v-if="editable && summary.hours_spent">
-          {{ formatHours(summary.hours_spent) }} {{ __("logged") }}
-        </span>
-      </div>
-    </div>
-
-    <!-- Subtask list -->
-    <div v-if="subtasks.data && subtasks.data.length" class="flex flex-col gap-1.5">
-      <div
-        v-for="t in subtasks.data"
-        :key="t.name"
-        class="rounded-lg border border-outline-gray-1 px-3 py-2 flex flex-col gap-2"
-      >
-        <div class="flex items-start gap-2">
-          <component
-            :is="statusIcon(t.status)"
-            class="size-4 mt-0.5 shrink-0"
-            :class="statusColor(t.status)"
+    <div class="p-4 flex flex-col gap-3">
+      <!-- Progress bar -->
+      <div v-if="summary.total" class="flex flex-col gap-1">
+        <div class="h-2.5 w-full rounded-full bg-surface-gray-3 overflow-hidden">
+          <div
+            class="h-full rounded-full bg-gradient-to-r from-violet-500 to-blue-500 transition-all"
+            :style="{ width: summary.progress + '%' }"
           />
-          <span
-            class="text-sm flex-1 leading-snug"
-            :class="
-              t.status === 'Done'
-                ? 'text-ink-gray-5 line-through'
-                : 'text-ink-gray-8'
-            "
-          >
-            {{ t.subject }}
-          </span>
-          <Badge
-            v-if="!editable"
-            :label="__(t.status)"
-            :theme="statusTheme(t.status)"
-            variant="subtle"
-          />
-          <button
-            v-if="editable"
-            type="button"
-            class="text-ink-gray-4 hover:text-ink-red-3 shrink-0"
-            :aria-label="__('Delete subtask')"
-            @click="removeSubtask(t.name)"
-          >
-            <LucideTrash2 class="size-3.5" />
-          </button>
         </div>
-        <!-- Agent controls -->
-        <div v-if="editable" class="flex items-center gap-2 ps-6">
-          <select
-            :value="t.status"
-            class="text-xs rounded-md border border-outline-gray-2 bg-surface-white px-2 py-1 text-ink-gray-7 focus:outline-none focus:border-blue-400"
-            @change="
-              (e) => patchSubtask(t.name, { status: e.target.value })
-            "
-          >
-            <option value="To Do">{{ __("To Do") }}</option>
-            <option value="In Progress">{{ __("In Progress") }}</option>
-            <option value="Done">{{ __("Done") }}</option>
-          </select>
-          <div class="flex items-center gap-1">
-            <LucideClock class="size-3.5 text-ink-gray-5" />
-            <input
-              type="number"
-              min="0"
-              step="0.25"
-              :value="t.hours_spent"
-              class="w-16 text-xs rounded-md border border-outline-gray-2 bg-surface-white px-2 py-1 text-ink-gray-7 focus:outline-none focus:border-blue-400"
-              :aria-label="__('Hours spent')"
-              @change="
-                (e) =>
-                  patchSubtask(t.name, {
-                    hours_spent: parseFloat(e.target.value) || 0,
-                  })
-              "
+        <div class="flex items-center justify-between text-xs text-ink-gray-6">
+          <span class="font-medium">{{ summary.progress }}% {{ __("complete") }}</span>
+          <span v-if="editable && summary.hours_spent">
+            {{ formatHours(summary.hours_spent) }} {{ __("logged") }}
+          </span>
+        </div>
+      </div>
+
+      <!-- Subtask list -->
+      <div
+        v-if="subtasks.data && subtasks.data.length"
+        class="flex flex-col gap-2"
+      >
+        <div
+          v-for="t in subtasks.data"
+          :key="t.name"
+          class="rounded-lg border border-outline-gray-1 bg-surface-gray-1 px-3 py-2.5 flex flex-col gap-2"
+        >
+          <div class="flex items-start gap-2">
+            <component
+              :is="statusIcon(t.status)"
+              class="size-4 mt-0.5 shrink-0"
+              :class="statusColor(t.status)"
             />
-            <span class="text-xs text-ink-gray-5">{{ __("hrs") }}</span>
+            <span
+              class="text-sm flex-1 leading-snug font-medium"
+              :class="
+                t.status === 'Done'
+                  ? 'text-ink-gray-5 line-through'
+                  : 'text-ink-gray-8'
+              "
+            >
+              {{ t.subject }}
+            </span>
+            <Badge
+              v-if="!editable"
+              :label="__(t.status)"
+              :theme="statusTheme(t.status)"
+              variant="subtle"
+            />
+            <button
+              v-if="editable"
+              type="button"
+              class="text-ink-gray-4 hover:text-ink-red-3 shrink-0"
+              :aria-label="__('Delete subtask')"
+              @click="removeSubtask(t.name)"
+            >
+              <LucideTrash2 class="size-3.5" />
+            </button>
+          </div>
+
+          <!-- Read-only assignee line -->
+          <div
+            v-if="!editable && t.assigned_to"
+            class="flex items-center gap-1.5 ps-6 text-xs text-ink-gray-6"
+          >
+            <Avatar size="xs" :label="t.assigned_to_name || t.assigned_to" />
+            <span>{{ t.assigned_to_name || t.assigned_to }}</span>
+          </div>
+
+          <!-- Agent controls -->
+          <div v-if="editable" class="flex flex-wrap items-center gap-2 ps-6">
+            <select
+              :value="t.status"
+              class="text-xs rounded-md border border-outline-gray-2 bg-surface-white px-2 py-1 text-ink-gray-7 focus:outline-none focus:border-blue-400"
+              @change="(e) => patchSubtask(t.name, { status: e.target.value })"
+            >
+              <option value="To Do">{{ __("To Do") }}</option>
+              <option value="In Progress">{{ __("In Progress") }}</option>
+              <option value="Done">{{ __("Done") }}</option>
+            </select>
+            <select
+              :value="t.assigned_to || ''"
+              class="text-xs rounded-md border border-outline-gray-2 bg-surface-white px-2 py-1 text-ink-gray-7 focus:outline-none focus:border-blue-400 max-w-[120px]"
+              :aria-label="__('Assignee')"
+              @change="
+                (e) => patchSubtask(t.name, { assigned_to: e.target.value })
+              "
+            >
+              <option value="">{{ __("Unassigned") }}</option>
+              <option
+                v-for="a in agentOptions"
+                :key="a.value"
+                :value="a.value"
+              >
+                {{ a.label }}
+              </option>
+            </select>
+            <div class="flex items-center gap-1">
+              <LucideClock class="size-3.5 text-ink-gray-5" />
+              <input
+                type="number"
+                min="0"
+                step="0.25"
+                :value="t.hours_spent"
+                class="w-14 text-xs rounded-md border border-outline-gray-2 bg-surface-white px-2 py-1 text-ink-gray-7 focus:outline-none focus:border-blue-400"
+                :aria-label="__('Hours spent')"
+                @change="
+                  (e) =>
+                    patchSubtask(t.name, {
+                      hours_spent: parseFloat(e.target.value) || 0,
+                    })
+                "
+              />
+              <span class="text-xs text-ink-gray-5">{{ __("hrs") }}</span>
+            </div>
           </div>
         </div>
       </div>
-    </div>
 
-    <!-- Empty state -->
-    <div
-      v-else-if="!subtasks.loading"
-      class="text-xs text-ink-gray-5 px-1 py-1"
-    >
-      {{
-        editable
-          ? __("No subtasks yet — break this ticket into steps below.")
-          : __("No subtasks have been added yet.")
-      }}
-    </div>
+      <!-- Empty state -->
+      <div
+        v-else-if="!subtasks.loading"
+        class="text-xs text-ink-gray-5 px-1 py-1"
+      >
+        {{
+          editable
+            ? __("No subtasks yet — break this ticket into steps below.")
+            : __("No subtasks have been added yet.")
+        }}
+      </div>
 
-    <!-- Add subtask (agent only) -->
-    <form
-      v-if="editable"
-      class="flex items-center gap-2 mt-1"
-      @submit.prevent="createSubtask"
-    >
-      <input
-        v-model="newSubject"
-        type="text"
-        :placeholder="__('Add a subtask…')"
-        class="flex-1 text-sm rounded-lg border border-outline-gray-2 bg-surface-white px-3 py-1.5 text-ink-gray-8 focus:outline-none focus:border-blue-400"
-        maxlength="200"
-      />
-      <Button
-        :label="__('Add')"
-        theme="blue"
-        variant="subtle"
-        size="sm"
-        :loading="addRes.loading"
-        @click="createSubtask"
-      />
-    </form>
+      <!-- Add subtask (agent only) -->
+      <form
+        v-if="editable"
+        class="flex items-center gap-2 mt-1"
+        @submit.prevent="createSubtask"
+      >
+        <input
+          v-model="newSubject"
+          type="text"
+          :placeholder="__('Add a subtask…')"
+          class="flex-1 text-sm rounded-lg border border-outline-gray-2 bg-surface-white px-3 py-1.5 text-ink-gray-8 focus:outline-none focus:border-blue-400"
+          maxlength="200"
+        />
+        <Button
+          :label="__('Add')"
+          theme="blue"
+          variant="solid"
+          size="sm"
+          :loading="addRes.loading"
+          @click="createSubtask"
+        />
+      </form>
 
-    <!-- Estimate (agent only) -->
-    <div
-      v-if="editable"
-      class="flex items-center gap-2 mt-2 pt-2 border-t border-outline-gray-1"
-    >
-      <LucideTarget class="size-4 text-ink-gray-5 shrink-0" />
-      <span class="text-sm text-ink-gray-6 flex-1">{{ __("Estimated") }}</span>
-      <input
-        type="number"
-        min="0"
-        step="0.5"
-        :value="summary.estimated_hours"
-        class="w-20 text-sm rounded-md border border-outline-gray-2 bg-surface-white px-2 py-1 text-ink-gray-8 focus:outline-none focus:border-blue-400"
-        :aria-label="__('Estimated hours')"
-        @change="(e) => saveEstimate(parseFloat(e.target.value) || 0)"
-      />
-      <span class="text-sm text-ink-gray-5">{{ __("hrs") }}</span>
-    </div>
-    <!-- Time summary (agent only) -->
-    <div
-      v-if="editable && (summary.estimated_hours || summary.hours_spent)"
-      class="flex items-center justify-between text-xs px-1"
-      :class="overBudget ? 'text-ink-red-3 font-medium' : 'text-ink-gray-6'"
-    >
-      <span>
-        {{ formatHours(summary.hours_spent) }} {{ __("spent") }}
-        <template v-if="summary.estimated_hours">
-          / {{ formatHours(summary.estimated_hours) }} {{ __("estimated") }}
-        </template>
-      </span>
-      <span v-if="overBudget">{{ __("over budget") }}</span>
+      <!-- Estimate (agent only) -->
+      <div
+        v-if="editable"
+        class="flex items-center gap-2 mt-1 pt-3 border-t border-outline-gray-1"
+      >
+        <LucideTarget class="size-4 text-ink-gray-5 shrink-0" />
+        <span class="text-sm text-ink-gray-6 flex-1">{{ __("Estimated") }}</span>
+        <input
+          type="number"
+          min="0"
+          step="0.5"
+          :value="summary.estimated_hours"
+          class="w-20 text-sm rounded-md border border-outline-gray-2 bg-surface-white px-2 py-1 text-ink-gray-8 focus:outline-none focus:border-blue-400"
+          :aria-label="__('Estimated hours')"
+          @change="(e) => saveEstimate(parseFloat(e.target.value) || 0)"
+        />
+        <span class="text-sm text-ink-gray-5">{{ __("hrs") }}</span>
+      </div>
+      <!-- Time summary (agent only) -->
+      <div
+        v-if="editable && (summary.estimated_hours || summary.hours_spent)"
+        class="flex items-center justify-between text-xs px-1"
+        :class="overBudget ? 'text-ink-red-3 font-medium' : 'text-ink-gray-6'"
+      >
+        <span>
+          {{ formatHours(summary.hours_spent) }} {{ __("spent") }}
+          <template v-if="summary.estimated_hours">
+            / {{ formatHours(summary.estimated_hours) }} {{ __("estimated") }}
+          </template>
+        </span>
+        <span v-if="overBudget">{{ __("over budget") }}</span>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
-import { Badge, Button, createResource, toast } from "frappe-ui";
+import { Avatar, Badge, Button, createListResource, createResource, toast } from "frappe-ui";
 import { __ } from "@/translation";
 import LucideTrash2 from "~icons/lucide/trash-2";
 import LucideClock from "~icons/lucide/clock";
 import LucideTarget from "~icons/lucide/target";
+import LucideListTodo from "~icons/lucide/list-todo";
 import LucideCircle from "~icons/lucide/circle";
 import LucideCircleDot from "~icons/lucide/circle-dot";
 import LucideCheckCircle2 from "~icons/lucide/check-circle-2";
@@ -215,6 +257,22 @@ const summary = computed(
     }
 );
 
+// Agents for the assignee picker — only fetched in the agent (editable)
+// context, since customers don't have read access to HD Agent.
+const agents = createListResource({
+  doctype: "HD Agent",
+  fields: ["name", "agent_name"],
+  filters: { is_active: 1 },
+  pageLength: 500,
+  auto: props.editable,
+});
+const agentOptions = computed(() =>
+  (agents.data || []).map((a: any) => ({
+    value: a.name,
+    label: a.agent_name || a.name,
+  }))
+);
+
 const overBudget = computed(
   () =>
     summary.value.estimated_hours > 0 &&
@@ -237,7 +295,8 @@ const addRes = createResource({
     newSubject.value = "";
     reload();
   },
-  onError: (e: any) => toast.error(e?.messages?.[0] || __("Could not add subtask")),
+  onError: (e: any) =>
+    toast.error(e?.messages?.[0] || __("Could not add subtask")),
 });
 function createSubtask() {
   const s = newSubject.value.trim();
