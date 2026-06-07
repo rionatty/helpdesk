@@ -38,11 +38,12 @@
       </div>
     </div>
 
-    <!-- Scrollable sections: Ticket Info + Recent / Similar Tickets -->
-    <div
-      class="border-t flex-1 min-h-0 overflow-y-auto divide-y-[1px]"
-      v-if="Boolean(customFields.length) || showRecentSimilarTickets"
-    >
+    <!-- Scrollable sections: Subtasks + Ticket Info + Recent / Similar Tickets -->
+    <div class="border-t flex-1 min-h-0 overflow-y-auto divide-y-[1px]">
+      <!-- Subtasks + time tracking (agent-editable) -->
+      <div class="px-4 py-4">
+        <TicketSubtasks :ticket-id="ticketName" :editable="true" />
+      </div>
       <!-- Ticket Info (custom fields) -->
       <div v-if="Boolean(customFields.length)">
         <Section label="Ticket Info" v-model:opened="openedSections.ticketInfo">
@@ -160,10 +161,12 @@ import { computed, inject, ref } from "vue";
 import LucideChevronRight from "~icons/lucide/chevron-right";
 import Section from "../Section.vue";
 import TicketField from "../TicketField.vue";
+import TicketSubtasks from "@/components/ticket/TicketSubtasks.vue";
 import AssignTo from "./AssignTo.vue";
 import TicketContact from "./TicketContact.vue";
 
 const ticket = inject(TicketSymbol)!;
+const ticketName = computed(() => ticket.value?.doc?.name);
 const assignees = inject(AssigneeSymbol)!;
 const customizations = inject(CustomizationSymbol)!;
 const activities = inject(ActivitiesSymbol)!;
