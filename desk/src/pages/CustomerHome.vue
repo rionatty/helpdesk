@@ -202,6 +202,9 @@
         </div>
       </section>
 
+      <!-- Customer analytics charts -->
+      <CustomerAnalytics />
+
       <!-- 4 action cards -->
       <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <RouterLink
@@ -359,6 +362,7 @@ import {
 } from "frappe-ui";
 import { useRouter } from "vue-router";
 import { LayoutHeader } from "@/components";
+import CustomerAnalytics from "@/components/CustomerAnalytics.vue";
 import { useConfigStore } from "@/stores/config";
 import { useAuthStore } from "@/stores/auth";
 import { __ } from "@/translation";
