@@ -586,3 +586,22 @@ html:not([data-theme="dark"]) *::-webkit-scrollbar-thumb:hover {
     --fade-bottom: 0px;
   }
 }
+
+/* Print: isolate a tagged region (e.g. the Dashboard) so app chrome
+   (sidebar, header) is dropped from the printout / saved PDF. */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .hd-print-area,
+  .hd-print-area * {
+    visibility: visible;
+  }
+  .hd-print-area {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    padding: 0;
+  }
+}

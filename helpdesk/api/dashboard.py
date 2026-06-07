@@ -68,6 +68,15 @@ def get_dashboard_data(
         )
     elif dashboard_type == "trend":
         return dashboard.get_trend_data()
+    elif dashboard_type == "backlog":
+        return dashboard.get_backlog_data()
+    elif dashboard_type == "agent_performance":
+        if not is_manager:
+            frappe.throw(
+                _("Only Agent Managers can view agent performance."),
+                frappe.PermissionError,
+            )
+        return dashboard.get_agent_performance()
 
 
 class HelpdeskDashboard:
@@ -404,6 +413,210 @@ class HelpdeskDashboard:
         total_tickets = result[0].total_tickets or 0
         days = result[0].days or 1
         return total_tickets / days
+
+    @staticmethod
+    def _first_assignee(assign):
+        """Return the first assigned user from a ticket's _assign JSON, or None."""
+        if not assign:
+            return None
+        try:
+            parsed = frappe.parse_json(assign)
+        except Exception:
+            return None
+        if isinstance(parsed, list) and parsed:
+            return parsed[0]
+        return None
+
+    @staticmethod
+    def _age_bucket(age_days: int) -> str:
+        if age_days < 1:
+            return "< 1 day"
+        if age_days < 3:
+            return "1–3 days"
+        if age_days < 7:
+            return "3–7 days"
+        return "> 7 days"
+
+    def get_backlog_data(self):
+        """Point-in-time snapshot of currently-open tickets, bucketed by age.
+
+        The date range is intentionally ignored — backlog is "what's open now".
+        Team and agent filters still apply.
+        """
+        bucket_order = ["< 1 day", "1–3 days", "3–7 days", "> 7 days"]
+        empty = {
+            "buckets": [{"label": b, "count": 0} for b in bucket_order],
+            "oldest": [],
+            "total": 0,
+        }
+        if not self.open_statuses:
+            return empty
+
+        filters = {"status": ["in", self.open_statuses]}
+        if self.team:
+            filters["agent_group"] = self.team
+        if self.agent:
+            filters["_assign"] = ["like", f"%{self.agent}%"]
+
+        tickets = frappe.get_all(
+            HD_TICKET,
+            filters=filters,
+            fields=[
+                "name",
+                "subject",
+                "status",
+                "priority",
+                "creation",
+                "_assign",
+            ],
+            order_by="creation asc",
+        )
+        if not tickets:
+            return empty
+
+        now = frappe.utils.now_datetime()
+        counts = {b: 0 for b in bucket_order}
+        for t in tickets:
+            counts[self._age_bucket(frappe.utils.date_diff(now, t.creation))] += 1
+
+        # Resolve display names for the oldest tickets' assignees.
+        oldest_rows = tickets[:10]
+        assignees = list(
+            {self._first_assignee(t._assign) for t in oldest_rows if t._assign}
+        )
+        name_map = {}
+        if assignees:
+            name_map = {
+                a.name: a.agent_name
+                for a in frappe.get_all(
+                    "HD Agent",
+                    filters={"name": ["in", assignees]},
+                    fields=["name", "agent_name"],
+                )
+            }
+
+        oldest = []
+        for t in oldest_rows:
+            assignee = self._first_assignee(t._assign)
+            oldest.append(
+                {
+                    "name": t.name,
+                    "subject": t.subject,
+                    "status": t.status,
+                    "priority": t.priority,
+                    "age_days": frappe.utils.date_diff(now, t.creation),
+                    "agent": name_map.get(assignee) or assignee or None,
+                }
+            )
+
+        return {
+            "buckets": [{"label": b, "count": counts[b]} for b in bucket_order],
+            "oldest": oldest,
+            "total": sum(counts.values()),
+        }
+
+    def get_agent_performance(self):
+        """Per-agent performance for the selected period and team.
+
+        One conditional-aggregate query per agent keeps it simple and correct
+        against the JSON `_assign` field. Caller enforces manager-only access.
+        """
+        if self.team:
+            agents = frappe.get_all(
+                "HD Team Member", filters={"parent": self.team}, pluck="user"
+            )
+        else:
+            agents = frappe.get_all(
+                "HD Agent", filters={"is_active": 1}, pluck="name"
+            )
+        agents = [a for a in agents if a]
+        if not agents:
+            return []
+
+        meta = {
+            a.name: a
+            for a in frappe.get_all(
+                "HD Agent",
+                filters={"name": ["in", agents]},
+                fields=["name", "agent_name", "user_image"],
+            )
+        }
+
+        rows = [self._agent_row(agent, meta.get(agent)) for agent in agents]
+        rows.sort(key=lambda r: r["handled"], reverse=True)
+        return rows
+
+    def _agent_row(self, agent, agent_meta=None):
+        t = self.ticket
+        # Period (and team) are common to every agent, so they go in WHERE to
+        # limit the scan; the per-agent assignment lives in the CASE.
+        where_cond = (t.creation >= self.from_date) & (t.creation < self.to_date_next)
+        if self.team:
+            where_cond = where_cond & (t.agent_group == self.team)
+
+        assigned = Function("JSON_SEARCH", t._assign, "one", agent).isnotnull()
+        resolved_cond = (
+            t.status.isin(self.resolved_statuses) if self.resolved_statuses else None
+        )
+
+        handled = Count(Case().when(assigned, t.name).else_(None))
+        sla = Count(
+            Case()
+            .when(assigned & (t.agreement_status == "Fulfilled"), t.name)
+            .else_(None)
+        )
+        avg_fr = Avg(
+            Case()
+            .when(
+                assigned & t.first_responded_on.isnotnull(),
+                t.first_response_time / 3600,
+            )
+            .else_(None)
+        )
+        avg_fb = Avg(
+            Case().when(assigned & (t.feedback_rating > 0), t.feedback_rating).else_(None)
+        )
+        if resolved_cond is not None:
+            resolved = Count(Case().when(assigned & resolved_cond, t.name).else_(None))
+            avg_res = Avg(
+                Case()
+                .when(assigned & resolved_cond, t.resolution_time / 86400)
+                .else_(None)
+            )
+        else:
+            # No "Resolved" statuses configured — emit an always-false (but valid
+            # SQL) branch so these aggregates evaluate to 0/NULL.
+            never = assigned & t.name.isnull()
+            resolved = Count(Case().when(never, t.name).else_(None))
+            avg_res = Avg(Case().when(never, t.resolution_time).else_(None))
+
+        res = (
+            frappe.qb.from_(t)
+            .select(
+                handled.as_("handled"),
+                resolved.as_("resolved"),
+                sla.as_("sla_fulfilled"),
+                avg_fr.as_("avg_first_response"),
+                avg_res.as_("avg_resolution"),
+                avg_fb.as_("avg_feedback"),
+            )
+            .where(where_cond)
+            .run(as_dict=True)[0]
+        )
+
+        resolved_n = res.resolved or 0
+        sla_n = res.sla_fulfilled or 0
+        return {
+            "agent": agent,
+            "agent_name": (agent_meta and agent_meta.agent_name) or agent,
+            "user_image": (agent_meta and agent_meta.user_image) or None,
+            "handled": res.handled or 0,
+            "resolved": resolved_n,
+            "sla_pct": round(sla_n / resolved_n * 100, 1) if resolved_n else 0,
+            "avg_first_response": round(res.avg_first_response or 0, 1),
+            "avg_resolution": round(res.avg_resolution or 0, 1),
+            "avg_feedback": round((res.avg_feedback or 0) * 5, 1),
+        }
 
 
 def get_master_dashboard_data(

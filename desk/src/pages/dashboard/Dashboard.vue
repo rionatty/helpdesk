@@ -7,16 +7,28 @@
         </div>
       </template>
       <template #right-header>
-        <!-- Segmented pill toggle: only visible to managers -->
-        <div v-if="isManager">
-          <TabButtons v-model="activeTab" :buttons="tabButtons" />
+        <div class="flex items-center gap-2">
+          <Dropdown :options="exportOptions">
+            <template #default>
+              <Button variant="subtle" class="print:hidden">
+                <template #prefix>
+                  <LucideDownload class="size-4" />
+                </template>
+                {{ __("Export") }}
+              </Button>
+            </template>
+          </Dropdown>
+          <!-- Segmented pill toggle: only visible to managers -->
+          <div v-if="isManager">
+            <TabButtons v-model="activeTab" :buttons="tabButtons" />
+          </div>
         </div>
       </template>
     </LayoutHeader>
 
     <div class="p-5 w-full overflow-y-scroll">
       <!-- Filters -->
-      <div class="mb-4 flex items-center gap-4 overflow-x-auto">
+      <div class="mb-4 flex items-center gap-4 overflow-x-auto print:hidden">
         <Dropdown
           v-if="!showDatePicker"
           :options="options"
@@ -79,6 +91,17 @@
         </Link>
       </div>
       <!-- Charts -->
+
+      <div class="hd-print-area">
+      <!-- Print-only heading (shown on the PDF/print output) -->
+      <div class="hidden print:block mb-4">
+        <div class="text-xl font-semibold text-ink-gray-9">
+          {{ __(dashboardTitle) }}
+        </div>
+        <div class="text-sm text-ink-gray-6">
+          {{ preset }} · {{ printGeneratedAt }}
+        </div>
+      </div>
 
       <!-- Number Cards -->
       <div
@@ -152,8 +175,20 @@
         </div>
       </div>
 
+      <!-- Operational reports (independent of the period's empty state) -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
+        <BacklogReport :team="filters.team" :agent="filters.agent" />
+      </div>
+      <AgentPerformanceTable
+        v-if="isManager && !viewMyStats"
+        class="mt-4"
+        :from-date="parsedFilters.from_date"
+        :to-date="parsedFilters.to_date"
+        :team="filters.team"
+      />
+
       <!-- Skeleton Loading State -->
-      <div class="flex flex-col gap-4">
+      <div class="flex flex-col gap-4 print:hidden">
         <SkeletonLoader
           v-if="numberCards.loading"
           :variants="['number-cards']"
@@ -171,7 +206,7 @@
       <!-- complete empty state -->
       <div
         v-if="isEmpty"
-        class="transition-all animate-fade-in duration-300 relative"
+        class="transition-all animate-fade-in duration-300 relative print:hidden"
       >
         <div>
           <SkeletonLoader
@@ -182,6 +217,7 @@
           />
         </div>
       </div>
+      </div>
     </div>
   </div>
 </template>
@@ -191,6 +227,7 @@ import { Link } from "@/components";
 import { useAuthStore } from "@/stores/auth";
 import {
   AxisChart,
+  Button,
   DateRangePicker,
   DonutChart,
   Dropdown,
@@ -208,6 +245,9 @@ import LucideBuilding2 from "~icons/lucide/building-2";
 import LucideUser from "~icons/lucide/user";
 import { useScreenSize } from "@/composables/screen";
 import { useStorage } from "@vueuse/core";
+import { downloadCsv } from "@/utils";
+import BacklogReport from "./BacklogReport.vue";
+import AgentPerformanceTable from "./AgentPerformanceTable.vue";
 
 interface NumberCardData {
   title: string;
@@ -335,6 +375,32 @@ const parseFilters = (filters: Filters) => {
   };
 };
 
+const parsedFilters = computed(() => parseFilters(filters));
+const printGeneratedAt = computed(() => dayjs().format("MMM D, YYYY h:mm A"));
+
+function exportSummaryCsv() {
+  const cards = (numberCards.data as NumberCardData[]) || [];
+  downloadCsv(
+    "helpdesk-dashboard-summary",
+    [__("Metric"), __("Value")],
+    cards.map((c) => [
+      c.title,
+      `${Number.isInteger(c.value) ? c.value : c.value.toFixed(1)}${
+        c.suffix || ""
+      }`,
+    ])
+  );
+}
+
+function printDashboard() {
+  window.print();
+}
+
+const exportOptions = computed(() => [
+  { label: __("Summary CSV"), onClick: exportSummaryCsv },
+  { label: __("Print / Save as PDF"), onClick: printDashboard },
+]);
+
 const numberCards = createResource({
   url: "helpdesk.api.dashboard.get_dashboard_data",
   cache: ["Analytics", "NumberCards"],
@@ -386,6 +452,15 @@ function validateView(myStats: boolean) {
   } else {
     filters.agent = null;
   }
+}
+
+// Initialise the view synchronously — before the report child components mount
+// and auto-fetch — so non-managers request their own data (agent = self) and
+// never trip the server-side permission guard with a null agent.
+if (!isManager) {
+  filters.agent = userId;
+} else {
+  validateView(activeTab.value === "my_stats");
 }
 
 watch(activeTab, (val) => {
