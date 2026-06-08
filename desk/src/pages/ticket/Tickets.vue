@@ -196,8 +196,9 @@ const STATUS_PILL: Record<string, string> = {
   cyan: "bg-gradient-to-r from-cyan-500 to-sky-500 text-white",
   violet: "bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white",
   purple: "bg-gradient-to-r from-purple-500 to-fuchsia-500 text-white",
-  gray: "bg-gradient-to-r from-slate-500 to-slate-600 text-white",
-  black: "bg-gradient-to-r from-slate-700 to-slate-800 text-white",
+  // Neutral/closed: dark text on a light pill — readable, and reads as "done".
+  gray: "bg-slate-200 text-slate-700 ring-1 ring-inset ring-slate-300",
+  black: "bg-slate-700 text-white ring-1 ring-inset ring-slate-800",
 };
 
 const PRIORITY_PILL: Record<string, string> = {
@@ -208,7 +209,7 @@ const PRIORITY_PILL: Record<string, string> = {
 };
 
 const PILL_CLASS =
-  "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold shadow-sm";
+  "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold shadow-sm ring-1 ring-inset ring-black/5";
 
 const listSelections = ref(new Set());
 
