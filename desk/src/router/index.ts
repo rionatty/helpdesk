@@ -112,6 +112,22 @@ const routes = [
     component: () => import("@/pages/dashboard/Dashboard.vue"),
   },
   {
+    path: "/projects",
+    name: "ProjectsAgent",
+    component: () => import("@/pages/ProjectsList.vue"),
+  },
+  {
+    path: "/projects/:projectId",
+    name: "ProjectAgent",
+    component: () => import("@/pages/ProjectView.vue"),
+    props: true,
+  },
+  {
+    path: "/addons",
+    name: "AddonsAgent",
+    component: () => import("@/pages/AddonsView.vue"),
+  },
+  {
     path: "/call-logs",
     name: "CallLogs",
     component: () => import("@/pages/call-logs/CallLogs.vue"),
@@ -162,6 +178,34 @@ const routes = [
     path: "/account",
     name: "CustomerSettings",
     component: () => import("@/pages/CustomerSettings.vue"),
+    meta: {
+      public: true,
+      auth: true,
+    },
+  },
+  {
+    path: "/my-projects",
+    name: "ProjectsCustomer",
+    component: () => import("@/pages/ProjectsList.vue"),
+    meta: {
+      public: true,
+      auth: true,
+    },
+  },
+  {
+    path: "/my-projects/:projectId",
+    name: "ProjectCustomer",
+    component: () => import("@/pages/ProjectView.vue"),
+    props: true,
+    meta: {
+      public: true,
+      auth: true,
+    },
+  },
+  {
+    path: "/my-addons",
+    name: "AddonsCustomer",
+    component: () => import("@/pages/AddonsView.vue"),
     meta: {
       public: true,
       auth: true,

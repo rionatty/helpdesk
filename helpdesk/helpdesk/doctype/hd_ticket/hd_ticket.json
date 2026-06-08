@@ -57,6 +57,7 @@
   "additional_info",
   "contact",
   "customer",
+  "project",
   "email_account",
   "column_break_16",
   "via_customer_portal",
@@ -342,6 +343,13 @@
    "in_standard_filter": 1,
    "label": "Customer",
    "options": "HD Customer"
+  },
+  {
+   "fieldname": "project",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Project",
+   "options": "HD Project"
   },
   {
    "fieldname": "email_account",
