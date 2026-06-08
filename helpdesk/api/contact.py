@@ -2,6 +2,26 @@ from typing import Literal
 
 import frappe
 
+from helpdesk.utils import get_customer
+
+
+@frappe.whitelist(methods=["GET"])
+def get_my_companies() -> list[dict]:
+	"""HD Customers (companies) the current user belongs to, via their Contact.
+
+	Used by the customer portal to offer a company-wide ticket view. The ticket
+	permission query already allows a contact to read tickets where
+	`customer` is one of these, so no extra access is granted here.
+	"""
+	names = get_customer(frappe.session.user)
+	if not names:
+		return []
+	return frappe.get_all(
+		"HD Customer",
+		filters={"name": ["in", names]},
+		fields=["name"],
+	)
+
 
 @frappe.whitelist(methods=["GET"])
 def search_contacts(

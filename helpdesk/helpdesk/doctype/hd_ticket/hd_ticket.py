@@ -575,6 +575,23 @@ class HDTicket(Document):
 
     @frappe.whitelist()
     @agent_only
+    def _with_participants_cc(self, cc: str | list | None) -> str | None:
+        """Merge this ticket's participant emails into a cc value (deduped)."""
+        emails = frappe.get_all(
+            "HD Ticket Participant", filters={"ticket": self.name}, pluck="email"
+        )
+        if not emails:
+            return cc
+        existing = []
+        if cc:
+            existing = (
+                cc
+                if isinstance(cc, list)
+                else [e.strip() for e in cc.split(",") if e.strip()]
+            )
+        merged = list(dict.fromkeys([*existing, *emails]))
+        return ", ".join(merged)
+
     def reply_via_agent(
         self,
         message: str,
@@ -595,6 +612,8 @@ class HDTicket(Document):
         email_account_name = from_email.get("email_account") if from_email else None
         sender = from_email_id or frappe.session.user
         recipients = to
+        # CC any colleagues the customer added as participants on this ticket.
+        cc = self._with_participants_cc(cc)
 
         sender_email = None
         if not skip_email_workflow:
@@ -804,6 +823,12 @@ class HDTicket(Document):
             frappe.throw(_(e))
 
     def send_acknowledgement_email(self):
+        from helpdesk.api.profile import wants_email_updates
+
+        # Respect the requester's notification preference (default: opted in).
+        if not wants_email_updates(self.raised_by):
+            return
+
         acknowledgement_email_content = frappe.db.get_single_value(
             "HD Settings", "acknowledgement_email_content"
         )

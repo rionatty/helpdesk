@@ -596,6 +596,10 @@ html:not([data-theme="dark"]) *::-webkit-scrollbar-thumb:hover {
   .hd-print-area,
   .hd-print-area * {
     visibility: visible;
+    /* Let scrollable regions (e.g. the ticket conversation) paginate fully
+       instead of clipping to the on-screen viewport. */
+    overflow: visible !important;
+    max-height: none !important;
   }
   .hd-print-area {
     position: absolute;

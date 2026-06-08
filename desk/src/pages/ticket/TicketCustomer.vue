@@ -10,6 +10,16 @@
           :actions="ticket.data._customActions"
         />
         <Button
+          variant="ghost"
+          :label="__('Print')"
+          :tooltip="__('Download / print this ticket')"
+          @click="printTicket"
+        >
+          <template #prefix>
+            <LucidePrinter class="size-4" />
+          </template>
+        </Button>
+        <Button
           v-if="ticket.data.status !== 'Closed'"
           :label="__('Close ticket')"
           theme="blue"
@@ -24,10 +34,12 @@
     </LayoutHeader>
     <div class="flex overflow-hidden h-full w-full">
       <!-- Main Ticket Comm -->
-      <section class="flex flex-col flex-1 w-full md:max-w-[calc(100%-382px)]">
+      <section
+        class="flex flex-col flex-1 w-full md:max-w-[calc(100%-382px)] hd-print-area"
+      >
         <TicketHeader />
         <div
-          class="px-4 md:px-10 pt-3 flex flex-wrap items-center gap-2"
+          class="px-4 md:px-10 pt-3 flex flex-wrap items-center gap-2 print:hidden"
         >
           <Button
             size="sm"
@@ -130,12 +142,12 @@
         </details>
 
         <TicketConversation class="grow" />
-        <div v-if="showEditor" class="px-5 pt-2 pb-1">
+        <div v-if="showEditor" class="px-5 pt-2 pb-1 print:hidden">
           <TypingIndicator :ticketId="props.ticketId" />
         </div>
         <div
           v-if="showEditor && isExpanded"
-          class="px-5 pb-2 flex flex-wrap gap-2"
+          class="px-5 pb-2 flex flex-wrap gap-2 print:hidden"
         >
           <Button
             v-for="snippet in cannedReplies"
@@ -148,7 +160,7 @@
           />
         </div>
         <div
-          class="w-full px-4 md:px-10 pb-5 pt-2 relative"
+          class="w-full px-4 md:px-10 pb-5 pt-2 relative print:hidden"
           @keydown.ctrl.enter.capture.stop="sendEmail"
           @keydown.meta.enter.capture.stop="sendEmail"
           @dragover.prevent="onDragOver"
@@ -332,6 +344,12 @@ async function copyLink() {
   } catch (_) {
     toast.error(__("Could not copy link"));
   }
+}
+
+// Opens the browser print dialog; the @media print rules isolate the
+// conversation so the customer can save a clean PDF.
+function printTicket() {
+  window.print();
 }
 
 async function pasteFromClipboard() {

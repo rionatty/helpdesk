@@ -198,7 +198,7 @@ import { useNotificationStore } from "@/stores/notification";
 import { useSidebarStore } from "@/stores/sidebar";
 import { capture } from "@/telemetry";
 import { isCustomerPortal } from "@/utils";
-import { call, toast, useTheme } from "frappe-ui";
+import { call, createResource, toast, useTheme } from "frappe-ui";
 import {
   GettingStartedBanner,
   HelpModal,
@@ -224,6 +224,7 @@ import { __ } from "@/translation";
 import LucideArrowLeftFromLine from "~icons/lucide/arrow-left-from-line";
 import LucideArrowRightFromLine from "~icons/lucide/arrow-right-from-line";
 import LucideBell from "~icons/lucide/bell";
+import LucideBuilding2 from "~icons/lucide/building-2";
 import FileText from "~icons/lucide/file-text";
 import Globe from "~icons/lucide/globe";
 import LucideKeyboard from "~icons/lucide/keyboard";
@@ -282,10 +283,26 @@ function toggleSection(label: string, defaultOpen: boolean) {
   sectionOpenState.value[label] = !current;
 }
 
+const myCompanies = createResource({
+  url: "helpdesk.api.contact.get_my_companies",
+  auto: isCustomerPortal.value,
+});
+const hasCompany = computed(() => (myCompanies.data || []).length > 0);
+
 const allViews = computed(() => {
   let items = isCustomerPortal.value
-    ? customerPortalSidebarOptions
+    ? [...customerPortalSidebarOptions]
     : agentPortalSidebarOptions;
+
+  // Show "Company" to customers who belong to an organization.
+  if (isCustomerPortal.value && hasCompany.value) {
+    const companyLink = {
+      label: __("Company"),
+      icon: LucideBuilding2,
+      to: "CompanyTickets",
+    };
+    items = [...items.slice(0, 2), companyLink, ...items.slice(2)];
+  }
 
   if (!isCallingEnabled.value) {
     items = items.filter((item) => item.label !== __("Call Logs"));
@@ -338,6 +355,11 @@ function parseViews(views) {
 }
 
 const customerPortalDropdown = computed(() => [
+  {
+    label: __("Account settings"),
+    icon: "lucide-user-cog",
+    onClick: () => router.push({ name: "CustomerSettings" }),
+  },
   themeMenuItem.value,
   {
     group: __("Danger"),

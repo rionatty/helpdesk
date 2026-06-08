@@ -150,6 +150,24 @@ const routes = [
     },
   },
   {
+    path: "/my-tickets/company",
+    name: "CompanyTickets",
+    component: () => import("@/pages/CompanyTickets.vue"),
+    meta: {
+      public: true,
+      auth: true,
+    },
+  },
+  {
+    path: "/account",
+    name: "CustomerSettings",
+    component: () => import("@/pages/CustomerSettings.vue"),
+    meta: {
+      public: true,
+      auth: true,
+    },
+  },
+  {
     path: "/kb-public",
     name: "CustomerKnowledgeBase",
     component: () => import("@/pages/knowledge-base/KnowledgeBaseCustomer.vue"),

@@ -157,6 +157,10 @@
     <div class="px-5 py-4 border-b">
       <TicketSubtasks :ticket-id="ticket.data.name" :editable="false" />
     </div>
+    <!-- Participants — customer can CC colleagues -->
+    <div class="px-5 py-4 border-b">
+      <TicketParticipants :ticket-id="ticket.data.name" />
+    </div>
     <!-- feedback component -->
     <TicketFeedback
       v-if="ticket.data.feedback_rating"
@@ -249,6 +253,7 @@ import {
 import { computed, inject, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import TicketSubtasks from "@/components/ticket/TicketSubtasks.vue";
+import TicketParticipants from "@/components/ticket/TicketParticipants.vue";
 
 const router = useRouter();
 
