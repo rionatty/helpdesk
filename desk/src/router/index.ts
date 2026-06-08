@@ -128,6 +128,12 @@ const routes = [
     component: () => import("@/pages/AddonsView.vue"),
   },
   {
+    path: "/addons/:addonId",
+    name: "AddonAgent",
+    component: () => import("@/pages/AddonView.vue"),
+    props: true,
+  },
+  {
     path: "/call-logs",
     name: "CallLogs",
     component: () => import("@/pages/call-logs/CallLogs.vue"),
@@ -206,6 +212,16 @@ const routes = [
     path: "/my-addons",
     name: "AddonsCustomer",
     component: () => import("@/pages/AddonsView.vue"),
+    meta: {
+      public: true,
+      auth: true,
+    },
+  },
+  {
+    path: "/my-addons/:addonId",
+    name: "AddonCustomer",
+    component: () => import("@/pages/AddonView.vue"),
+    props: true,
     meta: {
       public: true,
       auth: true,

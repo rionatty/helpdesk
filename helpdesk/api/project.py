@@ -63,6 +63,17 @@ def _linked_tickets(project: str) -> list:
 		return []
 
 
+def _project_features(project: str) -> list:
+	"""Add-on features tagged to this project (its upcoming features)."""
+	return frappe.get_all(
+		"HD Addon Feature",
+		filters={"project": project},
+		fields=["name", "feature_title", "status", "addon", "target_date"],
+		order_by="creation asc",
+		ignore_permissions=True,
+	)
+
+
 def _get_comments(project: str) -> list:
 	rows = frappe.get_all(
 		"HD Project Comment",
@@ -120,6 +131,7 @@ def get_project(name: str) -> dict:
 	data = doc.as_dict()
 	data["tickets"] = _linked_tickets(name)
 	data["comments"] = _get_comments(name)
+	data["features"] = _project_features(name)
 	return data
 
 
@@ -197,3 +209,23 @@ def add_project_comment(project: str, content: str) -> str:
 		{"doctype": "HD Project Comment", "project": project, "content": content}
 	).insert(ignore_permissions=True)
 	return c.name
+
+
+@frappe.whitelist()
+def get_taggable_features(project: str) -> list:
+	"""Features of the project's customer's add-ons, for tagging to the project.
+	Agents only."""
+	_assert_agent()
+	customer = frappe.db.get_value("HD Project", project, "customer")
+	if not customer:
+		return []
+	addons = frappe.get_all("HD Addon", filters={"customer": customer}, pluck="name")
+	if not addons:
+		return []
+	return frappe.get_all(
+		"HD Addon Feature",
+		filters={"addon": ["in", addons]},
+		fields=["name", "feature_title", "status", "addon", "project"],
+		order_by="creation asc",
+		ignore_permissions=True,
+	)

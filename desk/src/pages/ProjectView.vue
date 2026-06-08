@@ -162,20 +162,106 @@
         </p>
       </div>
 
+      <!-- Upcoming features -->
+      <div class="executive-card p-5 flex flex-col gap-2">
+        <div class="flex items-center justify-between gap-2">
+          <div class="text-sm font-semibold text-ink-gray-8">
+            {{ __("Upcoming features") }}
+          </div>
+          <Button
+            v-if="editable"
+            variant="subtle"
+            size="sm"
+            @click="openTagDialog"
+          >
+            <template #prefix><LucideTags class="size-3.5" /></template>
+            {{ __("Tag features") }}
+          </Button>
+        </div>
+        <div
+          v-if="resource.data.features?.length"
+          class="flex flex-col gap-2"
+        >
+          <div
+            v-for="f in resource.data.features"
+            :key="f.name"
+            class="flex items-center gap-2"
+          >
+            <span class="size-2 rounded-full" :class="featureDot(f.status)" />
+            <span class="text-sm text-ink-gray-8 flex-1 truncate">
+              {{ f.feature_title }}
+            </span>
+            <span class="text-xs text-ink-gray-5 truncate">{{ f.addon }}</span>
+            <Badge
+              :label="f.status"
+              :theme="featureTheme(f.status)"
+              variant="subtle"
+            />
+          </div>
+        </div>
+        <p v-else class="text-sm text-ink-gray-5">
+          {{ __("No features tagged to this project yet.") }}
+        </p>
+      </div>
+
       <!-- Discussion -->
       <div class="executive-card p-5">
         <ProjectComments :project-id="projectId" />
       </div>
     </div>
+
+    <!-- Tag features dialog (agent only) -->
+    <Dialog
+      v-if="editable"
+      v-model="showTag"
+      :options="{ title: __('Tag features to this project'), size: 'lg' }"
+    >
+      <template #body-content>
+        <div v-if="taggable.loading" class="py-6 text-center text-sm text-ink-gray-5">
+          {{ __("Loading…") }}
+        </div>
+        <div
+          v-else-if="!taggable.data?.length"
+          class="py-6 text-center text-sm text-ink-gray-5"
+        >
+          {{ __("No add-on features found for this customer.") }}
+        </div>
+        <div v-else class="flex flex-col gap-1 max-h-96 overflow-y-auto">
+          <label
+            v-for="f in taggable.data"
+            :key="f.name"
+            class="flex items-center gap-2.5 px-2 py-2 rounded hover:bg-surface-menu-bar cursor-pointer"
+          >
+            <input
+              type="checkbox"
+              :checked="f.project === projectId"
+              :disabled="!!f.project && f.project !== projectId"
+              @change="toggleTag(f)"
+            />
+            <span class="text-sm text-ink-gray-8 flex-1">
+              {{ f.feature_title }}
+            </span>
+            <span class="text-xs text-ink-gray-5">{{ f.addon }}</span>
+            <span
+              v-if="f.project && f.project !== projectId"
+              class="text-[11px] text-ink-gray-4"
+            >
+              {{ __("on {0}", [f.project]) }}
+            </span>
+          </label>
+        </div>
+      </template>
+    </Dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { reactive, computed } from "vue";
+import { reactive, computed, ref } from "vue";
 import {
   Badge,
   Breadcrumbs,
   Button,
+  Dialog,
   createResource,
   toast,
   usePageMeta,
@@ -183,6 +269,7 @@ import {
 import { useRouter } from "vue-router";
 import { LayoutHeader, Link } from "@/components";
 import ProjectComments from "@/components/ProjectComments.vue";
+import LucideTags from "~icons/lucide/tags";
 import { globalStore } from "@/stores/globalStore";
 import { isCustomerPortal } from "@/utils";
 import { __ } from "@/translation";
@@ -291,6 +378,48 @@ function openTicket(name: string) {
     name: isCustomerPortal.value ? "TicketCustomer" : "TicketAgent",
     params: { ticketId: name },
   });
+}
+
+// --- Tag add-on features to this project (agent) ---
+const showTag = ref(false);
+const taggable = createResource({
+  url: "helpdesk.api.project.get_taggable_features",
+  makeParams: () => ({ project: props.projectId }),
+});
+function openTagDialog() {
+  showTag.value = true;
+  taggable.reload();
+}
+const tagRes = createResource({
+  url: "helpdesk.api.addon.update_feature",
+  onSuccess: () => {
+    taggable.reload();
+    resource.reload();
+  },
+});
+function toggleTag(f: any) {
+  const tagged = f.project === props.projectId;
+  tagRes.submit({ name: f.name, project: tagged ? "" : props.projectId });
+}
+function featureDot(status: string) {
+  return (
+    {
+      Planned: "bg-ink-gray-4",
+      "In Progress": "bg-blue-500",
+      Released: "bg-green-500",
+      Deprecated: "bg-amber-500",
+    }[status] || "bg-ink-gray-4"
+  );
+}
+function featureTheme(status: string) {
+  return (
+    {
+      Planned: "gray",
+      "In Progress": "blue",
+      Released: "green",
+      Deprecated: "orange",
+    }[status] || "gray"
+  );
 }
 
 usePageMeta(() => ({

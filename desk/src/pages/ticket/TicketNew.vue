@@ -18,6 +18,15 @@
     <div
       class="flex flex-col gap-5 py-6 h-full flex-1 self-center overflow-auto mx-auto w-full max-w-4xl px-5"
     >
+      <!-- Context banner (creating a ticket for an add-on / project) -->
+      <div
+        v-if="contextLabel"
+        class="flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-800"
+      >
+        <lucide-package class="size-4 shrink-0" />
+        {{ contextLabel }}
+      </div>
+
       <!-- Customer-side hero -->
       <div
         v-if="isCustomerPortal"
@@ -220,6 +229,15 @@ const props = withDefaults(defineProps<P>(), {
 
 const route = useRoute();
 const router = useRouter();
+
+// When opened from an add-on / project ("New ticket"), show context + tag it.
+const contextLabel = computed(() => {
+  if (route.query.addon)
+    return __("Creating a ticket for add-on: {0}", [route.query.addon]);
+  if (route.query.project)
+    return __("Creating a ticket for project: {0}", [route.query.project]);
+  return "";
+});
 const { $dialog } = globalStore();
 const { updateOnboardingStep } = useOnboarding("helpdesk");
 const { isManager, userId: userID } = useAuthStore();
@@ -301,6 +319,8 @@ const ticket = createResource({
       description: description.value,
       subject: subject.value,
       template: props.templateId,
+      ...(route.query.addon ? { addon: route.query.addon } : {}),
+      ...(route.query.project ? { project: route.query.project } : {}),
       ...templateFields,
     },
     attachments: attachments.value,

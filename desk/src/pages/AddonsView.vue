@@ -65,12 +65,12 @@
       </div>
 
       <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div
+        <button
           v-for="a in addons.data"
           :key="a.name"
-          class="executive-card p-5 flex flex-col gap-3"
-          :class="!isCustomerPortal && 'cursor-pointer executive-card-hover'"
-          @click="!isCustomerPortal && openEdit(a)"
+          type="button"
+          class="executive-card executive-card-hover text-start p-5 flex flex-col gap-3"
+          @click="open(a.name)"
         >
           <div class="flex items-start justify-between gap-3">
             <div class="flex items-center gap-3 min-w-0">
@@ -103,16 +103,18 @@
               {{ __("Renews") }}: {{ a.renewal_date }}
             </span>
           </div>
-          <p v-if="a.notes" class="text-sm text-ink-gray-7">{{ a.notes }}</p>
-        </div>
+          <p v-if="a.notes" class="text-sm text-ink-gray-7 truncate">
+            {{ a.notes }}
+          </p>
+        </button>
       </div>
     </div>
 
-    <!-- Create / edit dialog (agent only) -->
+    <!-- Create dialog (agent only) -->
     <Dialog
       v-if="!isCustomerPortal"
-      v-model="showDialog"
-      :options="{ title: editingName ? __('Edit add-on') : __('New add-on'), size: 'lg' }"
+      v-model="showCreate"
+      :options="{ title: __('New add-on'), size: 'lg' }"
     >
       <template #body-content>
         <div class="flex flex-col gap-3.5">
@@ -154,26 +156,15 @@
         </div>
       </template>
       <template #actions>
-        <div class="flex items-center gap-2">
-          <Button
-            v-if="editingName"
-            theme="red"
-            variant="subtle"
-            :loading="deleteRes.loading"
-            @click="remove"
-          >
-            {{ __("Delete") }}
-          </Button>
-          <Button
-            variant="solid"
-            theme="blue"
-            class="flex-1"
-            :loading="saveRes.loading"
-            @click="submit"
-          >
-            {{ editingName ? __("Save") : __("Create") }}
-          </Button>
-        </div>
+        <Button
+          variant="solid"
+          theme="blue"
+          class="w-full"
+          :loading="createRes.loading"
+          @click="submitCreate"
+        >
+          {{ __("Create add-on") }}
+        </Button>
       </template>
     </Dialog>
   </div>
@@ -190,12 +181,14 @@ import {
   toast,
   usePageMeta,
 } from "frappe-ui";
+import { useRouter } from "vue-router";
 import { LayoutHeader, Link } from "@/components";
 import { isCustomerPortal } from "@/utils";
 import { __ } from "@/translation";
 import LucidePackage from "~icons/lucide/package";
 import LucidePlus from "~icons/lucide/plus";
 
+const router = useRouter();
 const STATUSES = ["Active", "Trial", "Suspended", "Retired"];
 const statusOptions = STATUSES.map((s) => ({ label: s, value: s }));
 const customerFilter = ref("");
@@ -215,8 +208,15 @@ function statusTheme(status: string) {
   );
 }
 
-const showDialog = ref(false);
-const editingName = ref<string | null>(null);
+function open(name: string) {
+  router.push({
+    name: isCustomerPortal.value ? "AddonCustomer" : "AddonAgent",
+    params: { addonId: name },
+  });
+}
+
+// --- Create (agent) ---
+const showCreate = ref(false);
 const form = reactive({
   addon_name: "",
   customer: "",
@@ -226,7 +226,7 @@ const form = reactive({
   renewal_date: "",
   notes: "",
 });
-function reset() {
+function openCreate() {
   Object.assign(form, {
     addon_name: "",
     customer: "",
@@ -236,76 +236,24 @@ function reset() {
     renewal_date: "",
     notes: "",
   });
+  showCreate.value = true;
 }
-function openCreate() {
-  editingName.value = null;
-  reset();
-  showDialog.value = true;
-}
-function openEdit(a: any) {
-  editingName.value = a.name;
-  Object.assign(form, {
-    addon_name: a.addon_name || "",
-    customer: a.customer || "",
-    status: a.status || "Active",
-    version: a.version || "",
-    activated_on: a.activated_on || "",
-    renewal_date: a.renewal_date || "",
-    notes: a.notes || "",
-  });
-  showDialog.value = true;
-}
-
-const saveRes = createResource({
+const createRes = createResource({
   url: "helpdesk.api.addon.create_addon",
+  onSuccess: (name: string) => {
+    showCreate.value = false;
+    toast.success(__("Add-on created"));
+    router.push({ name: "AddonAgent", params: { addonId: name } });
+  },
   onError: (e: any) =>
-    toast.error(e?.messages?.[0] || __("Could not save add-on")),
+    toast.error(e?.messages?.[0] || __("Could not create add-on")),
 });
-const updateRes = createResource({
-  url: "helpdesk.api.addon.update_addon",
-  onError: (e: any) =>
-    toast.error(e?.messages?.[0] || __("Could not save add-on")),
-});
-function submit() {
+function submitCreate() {
   if (!form.addon_name.trim() || !form.customer) {
     toast.error(__("Add-on name and customer are required"));
     return;
   }
-  if (editingName.value) {
-    updateRes.submit(
-      { name: editingName.value, ...form },
-      {
-        onSuccess: () => {
-          showDialog.value = false;
-          toast.success(__("Add-on saved"));
-          addons.reload();
-        },
-      }
-    );
-  } else {
-    saveRes.submit(
-      { ...form },
-      {
-        onSuccess: () => {
-          showDialog.value = false;
-          toast.success(__("Add-on created"));
-          addons.reload();
-        },
-      }
-    );
-  }
-}
-
-const deleteRes = createResource({
-  url: "helpdesk.api.addon.delete_addon",
-  onSuccess: () => {
-    showDialog.value = false;
-    toast.success(__("Add-on deleted"));
-    addons.reload();
-  },
-});
-function remove() {
-  if (editingName.value) deleteRes.submit({ name: editingName.value });
+  createRes.submit({ ...form });
 }
 
 usePageMeta(() => ({ title: __("Add-ons") }));
