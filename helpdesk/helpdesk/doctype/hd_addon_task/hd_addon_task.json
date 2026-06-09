@@ -8,6 +8,7 @@
  "field_order": [
   "subject",
   "addon",
+  "project",
   "status",
   "priority",
   "column_break_main",
@@ -32,7 +33,14 @@
    "in_standard_filter": 1,
    "label": "Add-on",
    "options": "HD Addon",
-   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "project",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Project",
+   "options": "HD Project",
    "search_index": 1
   },
   {

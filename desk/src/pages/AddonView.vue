@@ -152,11 +152,7 @@
           </div>
         </div>
 
-        <div
-          v-if="!isCustomerPortal"
-          class="executive-card hd-color-card p-5 pt-6"
-          data-accent="violet"
-        >
+        <div class="executive-card hd-color-card p-5 pt-6" data-accent="violet">
           <div class="flex items-center gap-2 mb-2">
             <LucideClipboardList class="size-4 text-violet-600" />
             <span class="text-sm font-semibold text-ink-gray-8">
@@ -202,9 +198,13 @@
         />
       </div>
 
-      <!-- Tasks (agent only) -->
-      <div v-if="!isCustomerPortal" class="executive-card p-5">
-        <AddonTasks :addon-id="addonId" @changed="resource.reload()" />
+      <!-- Tasks -->
+      <div class="executive-card p-5">
+        <TaskBoard
+          :addon-id="addonId"
+          :editable="editable"
+          @changed="resource.reload()"
+        />
       </div>
 
       <!-- Linked tickets -->
@@ -250,7 +250,7 @@ import {
 import { useRouter } from "vue-router";
 import { LayoutHeader } from "@/components";
 import AddonFeatures from "@/components/AddonFeatures.vue";
-import AddonTasks from "@/components/AddonTasks.vue";
+import TaskBoard from "@/components/TaskBoard.vue";
 import { globalStore } from "@/stores/globalStore";
 import { isCustomerPortal } from "@/utils";
 import { __ } from "@/translation";

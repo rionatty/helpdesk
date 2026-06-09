@@ -128,10 +128,13 @@ def get_project(name: str) -> dict:
 	"""A single project with its linked tickets and comments."""
 	doc = frappe.get_doc("HD Project", name)
 	_assert_project_access(doc)
+	from helpdesk.api.addon import _get_tasks
+
 	data = doc.as_dict()
 	data["tickets"] = _linked_tickets(name)
 	data["comments"] = _get_comments(name)
 	data["features"] = _project_features(name)
+	data["tasks"] = _get_tasks(project=name)
 	return data
 
 

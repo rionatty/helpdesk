@@ -22,7 +22,8 @@ This document is the living spec — keep it in sync with the implementation.
 | `HD Add-on` (`HD Addon`) | `addon_name`, `customer`, `status` (Active/Trial/Suspended/Retired), `version`, `activated_on`, `renewal_date`, `notes` | autoname `HD-ADDON-.#####` |
 | `HD Project Comment` | `project` (→ HD Project), `content` | one row per comment; `owner`/`creation` track author/time |
 | `HD Addon Feature` | `feature_title`, `addon` (→ HD Addon), `status` (Planned/In Progress/Released/Deprecated), `project` (→ HD Project, optional), `target_date`, `released_on`, `description` | "upcoming" = Planned/In Progress; tagging `project` surfaces it on that project |
-| `HD Addon Task` | `subject`, `addon`, `status` (To Do/In Progress/Done/Blocked), `priority`, `assigned_to` (→ HD Agent), `start_date`, `end_date`, `description` | internal delivery tracking (agent-only) |
+| `HD Addon Task` | `subject`, `addon` (optional), `project` (optional), `status` (To Do/In Progress/Done/Blocked), `priority`, `assigned_to` (→ HD Agent), `start_date`, `end_date`, `description` | a task attaches to an add-on **or** a project; agents manage, customers view + comment |
+| `HD Task Comment` | `task` (→ HD Addon Task), `content` | comment thread on a task; agents + the parent's customer can post |
 | `HD Ticket` | **new** `project` (→ HD Project), `addon` (→ HD Addon) | optional; tags a ticket to a project / add-on |
 
 ## Access model
@@ -65,8 +66,12 @@ add-on detail page:
   status (agents), linked-ticket count.
 - **Features** (`components/AddonFeatures.vue`) — agents add/edit-status/delete;
   customers view; "upcoming" features highlighted; shows a project tag if set.
-- **Tasks** (`components/AddonTasks.vue`) — agent-only; inline status, priority,
-  assignee, start/end dates, with overdue highlighting.
+- **Tasks** (`components/TaskBoard.vue`) — a status-grouped kanban shared by
+  add-ons **and** projects. Agents add/edit (status, priority, assignee,
+  start/end) and delete; **customers view and comment**. Each task opens a detail
+  dialog with a comment thread (`get_task_comments` / `add_task_comment`).
+  `get_project` returns project tasks; the board is also rendered on
+  `ProjectView`.
 - **Linked tickets** + a **"New ticket"** button (both portals) that opens the
   ticket composer prefilled with `?addon=<name>` (the `new` API persists it).
 

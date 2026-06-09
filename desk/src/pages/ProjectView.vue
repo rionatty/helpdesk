@@ -162,6 +162,11 @@
         </p>
       </div>
 
+      <!-- Tasks -->
+      <div class="executive-card p-5">
+        <TaskBoard :project-id="projectId" :editable="editable" />
+      </div>
+
       <!-- Upcoming features -->
       <div class="executive-card p-5 flex flex-col gap-2">
         <div class="flex items-center justify-between gap-2">
@@ -269,6 +274,7 @@ import {
 import { useRouter } from "vue-router";
 import { LayoutHeader, Link } from "@/components";
 import ProjectComments from "@/components/ProjectComments.vue";
+import TaskBoard from "@/components/TaskBoard.vue";
 import LucideTags from "~icons/lucide/tags";
 import { globalStore } from "@/stores/globalStore";
 import { isCustomerPortal } from "@/utils";

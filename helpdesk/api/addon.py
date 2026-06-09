@@ -179,11 +179,13 @@ def _get_features(addon: str) -> list:
 		return []
 
 
-def _get_tasks(addon: str) -> list:
+def _get_tasks(addon: str | None = None, project: str | None = None) -> list:
+	"""Tasks for an add-on OR a project, with assignee names + comment counts."""
+	parent_filter = {"addon": addon} if addon else {"project": project}
 	try:
 		rows = frappe.get_all(
 			"HD Addon Task",
-			filters={"addon": addon},
+			filters=parent_filter,
 			fields=TASK_FIELDS,
 			order_by="modified desc",
 			ignore_permissions=True,
@@ -201,7 +203,40 @@ def _get_tasks(addon: str) -> list:
 		}
 	for r in rows:
 		r["assigned_to_name"] = names.get(r.assigned_to) or r.assigned_to
+		try:
+			r["comment_count"] = frappe.db.count("HD Task Comment", {"task": r.name})
+		except Exception:
+			r["comment_count"] = 0
 	return rows
+
+
+def _assert_parent_access(
+	addon: str | None = None, project: str | None = None
+) -> None:
+	"""Access to a task's parent (add-on or project): agents, or its customer."""
+	if addon:
+		_assert_addon_access(addon)
+		return
+	if project:
+		if not frappe.db.exists("HD Project", project):
+			frappe.throw(_("Project not found"), frappe.DoesNotExistError)
+		if is_agent():
+			return
+		customer = frappe.db.get_value("HD Project", project, "customer")
+		if customer and customer in get_customer(frappe.session.user):
+			return
+		frappe.throw(_("Not permitted"), frappe.PermissionError)
+	frappe.throw(_("A parent add-on or project is required"))
+
+
+def _assert_task_access(task: str) -> frappe._dict:
+	row = frappe.db.get_value(
+		"HD Addon Task", task, ["addon", "project"], as_dict=True
+	)
+	if not row:
+		frappe.throw(_("Task not found"), frappe.DoesNotExistError)
+	_assert_parent_access(addon=row.addon, project=row.project)
+	return row
 
 
 def _linked_tickets(addon: str) -> list:
@@ -232,7 +267,7 @@ def get_addon(name: str) -> dict:
 	_assert_addon_access(name)
 	doc = frappe.get_doc("HD Addon", name).as_dict()
 	features = _get_features(name)
-	tasks = _get_tasks(name) if is_agent() else []
+	tasks = _get_tasks(addon=name)
 	tickets = _linked_tickets(name)
 	doc["features"] = features
 	doc["tasks"] = tasks
@@ -305,17 +340,17 @@ def delete_feature(name: str) -> bool:
 
 
 @frappe.whitelist()
-def get_tasks(addon: str) -> list:
-	"""Tasks for an add-on. Agents only (internal delivery tracking)."""
-	_assert_agent()
-	_assert_addon_access(addon)
-	return _get_tasks(addon)
+def get_tasks(addon: str | None = None, project: str | None = None) -> list:
+	"""Tasks for an add-on or project. Agents and the parent's customer (view)."""
+	_assert_parent_access(addon=addon, project=project)
+	return _get_tasks(addon=addon, project=project)
 
 
 @frappe.whitelist()
 def add_task(
-	addon: str,
 	subject: str,
+	addon: str | None = None,
+	project: str | None = None,
 	status: str = "To Do",
 	priority: str = "Medium",
 	assigned_to: str | None = None,
@@ -323,15 +358,16 @@ def add_task(
 	end_date: str | None = None,
 	description: str | None = None,
 ) -> str:
-	"""Add a task to an add-on. Agents only."""
+	"""Add a task to an add-on or project. Agents only."""
 	_assert_agent()
-	_assert_addon_access(addon)
+	_assert_parent_access(addon=addon, project=project)
 	if not (subject or "").strip():
 		frappe.throw(_("Task title is required"))
 	doc = frappe.get_doc(
 		{
 			"doctype": "HD Addon Task",
-			"addon": addon,
+			"addon": addon or None,
+			"project": project or None,
 			"subject": subject.strip(),
 			"status": status or "To Do",
 			"priority": priority or "Medium",
@@ -358,7 +394,46 @@ def update_task(name: str, **fields) -> bool:
 
 @frappe.whitelist()
 def delete_task(name: str) -> bool:
-	"""Delete a task. Agents only."""
+	"""Delete a task and its comments. Agents only."""
 	_assert_agent()
+	frappe.db.delete("HD Task Comment", {"task": name})
 	frappe.delete_doc("HD Addon Task", name, ignore_permissions=True)
 	return True
+
+
+@frappe.whitelist()
+def get_task_comments(task: str) -> list:
+	"""Comments on a task. Agents and the parent's customer."""
+	_assert_task_access(task)
+	rows = frappe.get_all(
+		"HD Task Comment",
+		filters={"task": task},
+		fields=["name", "content", "owner", "creation"],
+		order_by="creation asc",
+		ignore_permissions=True,
+	)
+	owners = list({r.owner for r in rows if r.owner})
+	names = {}
+	if owners:
+		names = {
+			u.name: u.full_name
+			for u in frappe.get_all(
+				"User", filters={"name": ["in", owners]}, fields=["name", "full_name"]
+			)
+		}
+	for r in rows:
+		r["author"] = names.get(r.owner) or r.owner
+	return rows
+
+
+@frappe.whitelist()
+def add_task_comment(task: str, content: str) -> str:
+	"""Post a comment on a task. Agents and the parent's customer."""
+	_assert_task_access(task)
+	content = (content or "").strip()
+	if not content:
+		frappe.throw(_("Comment cannot be empty"))
+	c = frappe.get_doc(
+		{"doctype": "HD Task Comment", "task": task, "content": content}
+	).insert(ignore_permissions=True)
+	return c.name
