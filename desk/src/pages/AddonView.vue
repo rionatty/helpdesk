@@ -290,8 +290,8 @@ const resource = createResource({
     form.renewal_date = d.renewal_date || "";
     form.notes = d.notes || "";
   },
-  onError: () => {
-    toast.error(__("Add-on not found"));
+  onError: (e: any) => {
+    toast.error(e?.messages?.[0] || e?.message || __("Could not load add-on"));
     router.replace({ name: isCustomerPortal.value ? "AddonsCustomer" : "AddonsAgent" });
   },
 });

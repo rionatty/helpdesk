@@ -166,23 +166,30 @@ def _assert_addon_access(addon: str) -> frappe._dict:
 
 
 def _get_features(addon: str) -> list:
-	return frappe.get_all(
-		"HD Addon Feature",
-		filters={"addon": addon},
-		fields=FEATURE_FIELDS,
-		order_by="creation asc",
-		ignore_permissions=True,
-	)
+	# Degrade gracefully if the table isn't migrated yet.
+	try:
+		return frappe.get_all(
+			"HD Addon Feature",
+			filters={"addon": addon},
+			fields=FEATURE_FIELDS,
+			order_by="creation asc",
+			ignore_permissions=True,
+		)
+	except Exception:
+		return []
 
 
 def _get_tasks(addon: str) -> list:
-	rows = frappe.get_all(
-		"HD Addon Task",
-		filters={"addon": addon},
-		fields=TASK_FIELDS,
-		order_by="modified desc",
-		ignore_permissions=True,
-	)
+	try:
+		rows = frappe.get_all(
+			"HD Addon Task",
+			filters={"addon": addon},
+			fields=TASK_FIELDS,
+			order_by="modified desc",
+			ignore_permissions=True,
+		)
+	except Exception:
+		return []
 	users = list({r.assigned_to for r in rows if r.assigned_to})
 	names = {}
 	if users:
