@@ -1216,10 +1216,8 @@ class HDTicket(Document):
 
     @staticmethod
     def filter_standard_fields(fields):
-        for f in fields:
-            if f["name"] in customer_not_allowed_fields:
-                fields.remove(f)
-        return fields
+        # Build a new list — mutating while iterating skips elements.
+        return [f for f in fields if f["name"] not in customer_not_allowed_fields]
 
 
 # Check if `user` has access to this specific ticket (`doc`). This implements extra
@@ -1364,7 +1362,7 @@ def remove_guest_ticket_creation_permission():
     remove(doctype, role, permlevel, 1)
 
 
-customer_not_allowed_fields = ["customer"]
+customer_not_allowed_fields = ["customer", "project", "addon"]
 
 
 def close_tickets_after_n_days():
