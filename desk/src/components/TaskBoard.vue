@@ -31,9 +31,9 @@
       <div
         v-for="col in COLUMNS"
         :key="col.key"
-        class="rounded-xl bg-surface-gray-1 border border-outline-gray-1 p-2.5 flex flex-col gap-2 min-h-[80px]"
+        class="rounded-xl bg-surface-gray-1 border border-outline-gray-1 p-2.5 flex flex-col gap-2 min-h-[80px] max-h-[68vh]"
       >
-        <div class="flex items-center justify-between px-1">
+        <div class="flex items-center justify-between px-1 shrink-0">
           <div class="flex items-center gap-1.5 text-xs font-semibold text-ink-gray-7">
             <span class="size-2 rounded-full" :class="col.dot" />
             {{ col.key }}
@@ -50,6 +50,9 @@
           </button>
         </div>
 
+        <!-- Scrollable card stack: the column stays a fixed height no matter
+             how many tasks land in it; cards scroll within the column. -->
+        <div class="flex flex-col gap-2 overflow-y-auto grow -me-1 pe-1">
         <button
           v-for="t in grouped[col.key]"
           :key="t.name"
@@ -112,6 +115,7 @@
           class="text-[11px] text-ink-gray-4 px-1 py-1"
         >
           {{ __("Nothing here") }}
+        </div>
         </div>
       </div>
     </div>
