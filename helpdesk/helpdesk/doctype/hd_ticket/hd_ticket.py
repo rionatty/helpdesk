@@ -1082,20 +1082,9 @@ class HDTicket(Document):
                 "key": "priority",
                 "width": "10rem",
             },
-            {
-                "label": "Type",
-                "type": "Link",
-                "options": "HD Ticket Type",
-                "key": "ticket_type",
-                "width": "11rem",
-            },
-            {
-                "label": "Team",
-                "type": "Link",
-                "options": "HD Team",
-                "key": "agent_group",
-                "width": "10rem",
-            },
+            # Type (ticket_type) and Team (agent_group) are intentionally NOT
+            # default columns — they were usually empty, stretched the table
+            # into a horizontal scroll, and are one click away via "Columns".
             {
                 "label": "Contact",
                 "type": "Link",

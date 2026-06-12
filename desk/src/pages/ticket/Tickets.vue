@@ -77,7 +77,7 @@
       <div
         :class="
           isCustomerPortal
-            ? 'executive-card flex-1 flex flex-col min-h-0 overflow-hidden bg-surface-white'
+            ? 'executive-card hd-colorful-rows flex-1 flex flex-col min-h-0 overflow-hidden bg-surface-white'
             : 'contents'
         "
       >
@@ -184,32 +184,33 @@ const STATUS_THEME: Record<string, string> = {
   black: "gray",
 };
 
-const STATUS_PILL: Record<string, string> = {
-  red: "bg-gradient-to-r from-red-500 to-rose-500 text-white",
-  green: "bg-gradient-to-r from-emerald-500 to-teal-500 text-white",
-  blue: "bg-gradient-to-r from-blue-500 to-cyan-500 text-white",
-  yellow: "bg-gradient-to-r from-yellow-400 to-amber-500 text-white",
-  orange: "bg-gradient-to-r from-orange-500 to-amber-500 text-white",
-  amber: "bg-gradient-to-r from-amber-400 to-orange-500 text-white",
-  pink: "bg-gradient-to-r from-pink-500 to-rose-500 text-white",
-  teal: "bg-gradient-to-r from-teal-500 to-cyan-500 text-white",
-  cyan: "bg-gradient-to-r from-cyan-500 to-sky-500 text-white",
-  violet: "bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white",
-  purple: "bg-gradient-to-r from-purple-500 to-fuchsia-500 text-white",
-  // Neutral/closed: dark text on a light pill — readable, and reads as "done".
-  gray: "bg-slate-200 text-slate-700 ring-1 ring-inset ring-slate-300",
-  black: "bg-slate-700 text-white ring-1 ring-inset ring-slate-800",
+// Status renders as a calm subtle Badge in the status's configured color.
+// Strong/loud treatment is reserved for genuine alarms (Failed SLA, Urgent).
+const STATUS_THEME: Record<string, string> = {
+  red: "red",
+  green: "green",
+  blue: "blue",
+  yellow: "orange",
+  orange: "orange",
+  amber: "orange",
+  pink: "red",
+  teal: "green",
+  cyan: "blue",
+  violet: "blue",
+  purple: "blue",
+  gray: "gray",
+  black: "gray",
 };
 
-const PRIORITY_PILL: Record<string, string> = {
-  Urgent: "bg-gradient-to-r from-red-500 to-rose-500 text-white",
-  High: "bg-gradient-to-r from-orange-500 to-amber-500 text-white",
-  Medium: "bg-gradient-to-r from-blue-500 to-cyan-500 text-white",
-  Low: "bg-gradient-to-r from-slate-400 to-slate-500 text-white",
-};
+// Only Urgent earns the loud gradient pill; the rest stay subtle.
+const URGENT_PILL_CLASS =
+  "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold shadow-sm ring-1 ring-inset ring-black/5 bg-gradient-to-r from-red-500 to-rose-500 text-white";
 
-const PILL_CLASS =
-  "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold shadow-sm ring-1 ring-inset ring-black/5";
+const PRIORITY_THEME: Record<string, string> = {
+  High: "orange",
+  Medium: "blue",
+  Low: "gray",
+};
 
 const listSelections = ref(new Set());
 
@@ -253,27 +254,33 @@ const options = computed(() => ({
     status: {
       custom: ({ item }) => {
         const status = getStatus(item);
-        const label = isCustomerPortal.value
-          ? status?.["label_customer"]
-          : status?.["label_agent"];
+        let label =
+          (isCustomerPortal.value
+            ? status?.["label_customer"]
+            : status?.["label_agent"]) ||
+          item ||
+          "";
+        // Normalize user-created lowercase status labels (e.g. "reopened")
+        label = label.charAt(0).toUpperCase() + label.slice(1);
         const colorKey = (status?.color || "gray").toLowerCase();
-        const cls = STATUS_PILL[colorKey] || STATUS_PILL.gray;
-        return h(
-          "span",
-          { class: `${PILL_CLASS} ${cls}` },
-          label || item
-        );
+        return h(Badge, {
+          label,
+          theme: STATUS_THEME[colorKey] || "gray",
+          variant: "subtle",
+        });
       },
     },
     priority: {
       custom: ({ item }) => {
         if (!item) return h("span", { class: "text-ink-gray-4 text-sm" }, "—");
-        const cls = PRIORITY_PILL[item] || PRIORITY_PILL.Low;
-        return h(
-          "span",
-          { class: `${PILL_CLASS} ${cls}` },
-          item
-        );
+        if (item === "Urgent") {
+          return h("span", { class: URGENT_PILL_CLASS }, item);
+        }
+        return h(Badge, {
+          label: item,
+          theme: PRIORITY_THEME[item] || "gray",
+          variant: "subtle",
+        });
       },
     },
     name: {

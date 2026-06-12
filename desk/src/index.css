@@ -369,56 +369,64 @@ html:not([data-theme="dark"]) .hd-sidebar-bg {
   background-image: linear-gradient(180deg, #dde6f3 0%, #ccd9ec 100%);
 }
 
-/* ===== Beautified list rows — cycling colored left-accent + zebra =====
+/* ===== List rows =====
    frappe-ui ListView renders rows as DIVS inside #list-rows (not a table),
-   so we target direct children and use inset box-shadow for the accent. */
+   so we target direct children and use inset box-shadow for the accent.
+
+   Base (ALL lists, incl. agent): clean rows + a calm neutral hover. Color
+   is reserved for meaning (status badges, SLA chips) on work surfaces. */
 html:not([data-theme="dark"]) #list-rows > * {
   position: relative;
   border-radius: 8px;
   margin-bottom: 2px;
   transition: box-shadow 200ms ease, background-color 180ms ease;
 }
-/* Cycling FULL-ROW color highlight (light wash) + colored left-accent stripe.
-   Every 5 rows cycles blue → emerald → amber → pink → violet so each ticket
-   is anchored by its own color across the whole row, not just the edge. */
-html:not([data-theme="dark"]) #list-rows > *:nth-child(5n + 1) {
+html:not([data-theme="dark"]) #list-rows > *:hover {
+  background-color: rgba(59, 130, 246, 0.05);
+}
+
+/* CUSTOMER PORTAL ONLY (.hd-colorful-rows wrapper): cycling full-row wash +
+   colored left-accent stripe, blue → emerald → amber → pink → violet. A
+   friendly touch at customer ticket volumes; deliberately NOT applied to the
+   high-volume agent list where it reads as noise. */
+html:not([data-theme="dark"]) .hd-colorful-rows #list-rows > *:nth-child(5n + 1) {
   background-color: rgba(59, 130, 246, 0.06);
   box-shadow: inset 3px 0 0 0 rgba(59, 130, 246, 0.7);
 }
-html:not([data-theme="dark"]) #list-rows > *:nth-child(5n + 2) {
+html:not([data-theme="dark"]) .hd-colorful-rows #list-rows > *:nth-child(5n + 2) {
   background-color: rgba(16, 185, 129, 0.06);
   box-shadow: inset 3px 0 0 0 rgba(16, 185, 129, 0.7);
 }
-html:not([data-theme="dark"]) #list-rows > *:nth-child(5n + 3) {
+html:not([data-theme="dark"]) .hd-colorful-rows #list-rows > *:nth-child(5n + 3) {
   background-color: rgba(245, 158, 11, 0.07);
   box-shadow: inset 3px 0 0 0 rgba(245, 158, 11, 0.7);
 }
-html:not([data-theme="dark"]) #list-rows > *:nth-child(5n + 4) {
+html:not([data-theme="dark"]) .hd-colorful-rows #list-rows > *:nth-child(5n + 4) {
   background-color: rgba(236, 72, 153, 0.06);
   box-shadow: inset 3px 0 0 0 rgba(236, 72, 153, 0.7);
 }
-html:not([data-theme="dark"]) #list-rows > *:nth-child(5n + 5) {
+html:not([data-theme="dark"]) .hd-colorful-rows #list-rows > *:nth-child(5n + 5) {
   background-color: rgba(139, 92, 246, 0.06);
   box-shadow: inset 3px 0 0 0 rgba(139, 92, 246, 0.7);
 }
 /* Hover — deepen the full-row wash and thicken the matching accent stripe */
-html:not([data-theme="dark"]) #list-rows > *:nth-child(5n + 1):hover {
+html:not([data-theme="dark"]) .hd-colorful-rows #list-rows > *:nth-child(5n + 1):hover {
   background-color: rgba(59, 130, 246, 0.13);
   box-shadow: inset 4px 0 0 0 rgba(59, 130, 246, 1);
 }
-html:not([data-theme="dark"]) #list-rows > *:nth-child(5n + 2):hover {
+html:not([data-theme="dark"]) .hd-colorful-rows #list-rows > *:nth-child(5n + 2):hover {
   background-color: rgba(16, 185, 129, 0.13);
   box-shadow: inset 4px 0 0 0 rgba(16, 185, 129, 1);
 }
-html:not([data-theme="dark"]) #list-rows > *:nth-child(5n + 3):hover {
+html:not([data-theme="dark"]) .hd-colorful-rows #list-rows > *:nth-child(5n + 3):hover {
   background-color: rgba(245, 158, 11, 0.15);
   box-shadow: inset 4px 0 0 0 rgba(245, 158, 11, 1);
 }
-html:not([data-theme="dark"]) #list-rows > *:nth-child(5n + 4):hover {
+html:not([data-theme="dark"]) .hd-colorful-rows #list-rows > *:nth-child(5n + 4):hover {
   background-color: rgba(236, 72, 153, 0.13);
   box-shadow: inset 4px 0 0 0 rgba(236, 72, 153, 1);
 }
-html:not([data-theme="dark"]) #list-rows > *:nth-child(5n + 5):hover {
+html:not([data-theme="dark"]) .hd-colorful-rows #list-rows > *:nth-child(5n + 5):hover {
   background-color: rgba(139, 92, 246, 0.13);
   box-shadow: inset 4px 0 0 0 rgba(139, 92, 246, 1);
 }
