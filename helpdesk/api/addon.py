@@ -104,10 +104,13 @@ def update_addon(name: str, **fields) -> bool:
 
 @frappe.whitelist()
 def delete_addon(name: str) -> bool:
-	"""Delete an add-on and its features/tasks. Agents only."""
+	"""Delete an add-on and its features/tasks (incl. their comments). Agents only."""
 	_assert_agent()
 	frappe.db.delete("HD Addon Feature", {"addon": name})
-	frappe.db.delete("HD Addon Task", {"addon": name})
+	tasks = frappe.get_all("HD Addon Task", filters={"addon": name}, pluck="name")
+	if tasks:
+		frappe.db.delete("HD Task Comment", {"task": ["in", tasks]})
+		frappe.db.delete("HD Addon Task", {"addon": name})
 	frappe.delete_doc("HD Addon", name, ignore_permissions=True)
 	return True
 
@@ -232,7 +235,10 @@ def _get_tasks(addon: str | None = None, project: str | None = None) -> list:
 		except Exception:
 			counts = {}
 	for r in rows:
-		r["assigned_to_name"] = names.get(r.assigned_to) or r.assigned_to
+		# Assignees are agents; never fall back to their email on the portal.
+		r["assigned_to_name"] = names.get(r.assigned_to) or (
+			r.assigned_to if agent else (_("Support agent") if r.assigned_to else None)
+		)
 		r["comment_count"] = counts.get(r.name, 0)
 		if not agent:
 			# assigned_to is an email; portal gets the display name only.
@@ -477,7 +483,10 @@ def get_task_comments(task: str) -> list:
 		r["author"] = names.get(r.owner) or r.owner
 		r["is_agent"] = r.owner in agents
 		if not agent:
-			# owner is an email address; don't expose it on the portal.
+			# owner is an email address; don't expose it on the portal. Agents
+			# without a display name get a generic label instead of their email.
+			if r["is_agent"] and not names.get(r.owner):
+				r["author"] = _("Support agent")
 			r["owner"] = None
 	return rows
 

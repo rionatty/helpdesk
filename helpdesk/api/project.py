@@ -133,9 +133,16 @@ def _get_comments(project: str) -> list:
 				"HD Agent", filters={"name": ["in", users]}, pluck="name"
 			)
 		)
+	viewer_is_agent = is_agent()
 	for r in rows:
 		r["author"] = full_names.get(r.owner) or r.owner
 		r["is_agent"] = r.owner in agents
+		if not viewer_is_agent:
+			# owner is an email address; don't expose it on the portal. Agents
+			# without a display name get a generic label instead of their email.
+			if r["is_agent"] and not full_names.get(r.owner):
+				r["author"] = _("Support agent")
+			r["owner"] = None
 	return rows
 
 

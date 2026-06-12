@@ -573,8 +573,6 @@ class HDTicket(Document):
                 "HD Ticket Comment", c.name, attachment.get("file_url")
             )
 
-    @frappe.whitelist()
-    @agent_only
     def _with_participants_cc(self, cc: str | list | None) -> str | None:
         """Merge this ticket's participant emails into a cc value (deduped)."""
         emails = frappe.get_all(
@@ -592,6 +590,8 @@ class HDTicket(Document):
         merged = list(dict.fromkeys([*existing, *emails]))
         return ", ".join(merged)
 
+    @frappe.whitelist()
+    @agent_only
     def reply_via_agent(
         self,
         message: str,

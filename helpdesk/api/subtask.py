@@ -60,10 +60,15 @@ def get_subtasks(ticket: str) -> list:
 					fields=["name", "agent_name"],
 				)
 			}
+		agent = is_agent()
 		for r in rows:
-			r["assigned_to_name"] = name_map.get(r.get("assigned_to")) or r.get(
-				"assigned_to"
+			assignee = r.get("assigned_to")
+			# Assignees are agents; the portal gets a display name, never an email.
+			r["assigned_to_name"] = name_map.get(assignee) or (
+				assignee if agent else (_("Support agent") if assignee else None)
 			)
+			if not agent:
+				r["assigned_to"] = None
 	return rows
 
 

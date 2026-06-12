@@ -118,15 +118,15 @@
 
           <!-- Read-only assignee + due date line -->
           <div
-            v-if="!editable && (t.assigned_to || t.due_date)"
+            v-if="!editable && (t.assigned_to_name || t.due_date)"
             class="flex flex-wrap items-center gap-x-3 gap-y-1 ps-6 text-xs"
           >
             <span
-              v-if="t.assigned_to"
+              v-if="t.assigned_to_name"
               class="flex items-center gap-1.5 text-ink-gray-6"
             >
-              <Avatar size="xs" :label="t.assigned_to_name || t.assigned_to" />
-              {{ t.assigned_to_name || t.assigned_to }}
+              <Avatar size="xs" :label="t.assigned_to_name" />
+              {{ t.assigned_to_name }}
             </span>
             <span
               v-if="t.due_date"
