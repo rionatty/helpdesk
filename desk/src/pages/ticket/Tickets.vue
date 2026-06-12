@@ -168,22 +168,6 @@ const showExportModal = ref(false);
 
 const { getStatus } = useTicketStatusStore();
 
-const STATUS_THEME: Record<string, string> = {
-  red: "red",
-  green: "green",
-  blue: "blue",
-  yellow: "yellow",
-  orange: "orange",
-  amber: "amber",
-  pink: "pink",
-  teal: "green",
-  cyan: "blue",
-  violet: "violet",
-  purple: "violet",
-  gray: "gray",
-  black: "gray",
-};
-
 // Status renders as a calm subtle Badge in the status's configured color.
 // Strong/loud treatment is reserved for genuine alarms (Failed SLA, Urgent).
 const STATUS_THEME: Record<string, string> = {
