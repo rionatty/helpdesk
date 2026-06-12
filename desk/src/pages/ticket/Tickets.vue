@@ -78,7 +78,7 @@
         :class="
           isCustomerPortal
             ? 'executive-card hd-colorful-rows flex-1 flex flex-col min-h-0 overflow-hidden bg-surface-white'
-            : 'contents'
+            : 'contents hd-colorful-rows'
         "
       >
         <ListViewBuilder
