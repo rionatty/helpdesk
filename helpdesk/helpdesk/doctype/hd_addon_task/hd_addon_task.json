@@ -9,12 +9,16 @@
   "subject",
   "addon",
   "project",
+  "milestone",
+  "feature",
+  "ticket",
   "status",
   "priority",
   "column_break_main",
   "assigned_to",
   "start_date",
   "end_date",
+  "is_internal",
   "section_break_desc",
   "description"
  ],
@@ -41,6 +45,28 @@
    "in_standard_filter": 1,
    "label": "Project",
    "options": "HD Project",
+   "search_index": 1
+  },
+  {
+   "fieldname": "milestone",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Milestone",
+   "options": "HD Milestone",
+   "search_index": 1
+  },
+  {
+   "fieldname": "feature",
+   "fieldtype": "Link",
+   "label": "Feature",
+   "options": "HD Addon Feature",
+   "search_index": 1
+  },
+  {
+   "fieldname": "ticket",
+   "fieldtype": "Link",
+   "label": "Origin Ticket",
+   "options": "HD Ticket",
    "search_index": 1
   },
   {
@@ -80,6 +106,13 @@
    "fieldname": "end_date",
    "fieldtype": "Date",
    "label": "Due Date"
+  },
+  {
+   "default": "0",
+   "description": "Hidden from the customer portal",
+   "fieldname": "is_internal",
+   "fieldtype": "Check",
+   "label": "Internal Only"
   },
   {
    "fieldname": "section_break_desc",

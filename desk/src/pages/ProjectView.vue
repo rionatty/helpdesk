@@ -42,10 +42,24 @@
             <h1 v-else class="text-2xl font-semibold text-ink-gray-9">
               {{ resource.data.project_name }}
             </h1>
-            <div class="text-sm text-ink-gray-5 mt-0.5">
-              {{ resource.data.customer }}
+            <div class="text-sm text-ink-gray-5 mt-0.5 flex items-center gap-2">
+              <span
+                v-if="isInternal"
+                class="text-[10px] font-medium rounded-full px-1.5 py-0.5 bg-surface-gray-2 text-ink-gray-6 inline-flex items-center gap-0.5"
+              >
+                <LucideEyeOff class="size-3" /> {{ __("Internal project") }}
+              </span>
+              <span v-else>{{ resource.data.customer }}</span>
             </div>
           </div>
+          <select
+            v-if="editable"
+            v-model="form.project_type"
+            class="text-sm rounded-md border border-outline-gray-2 bg-surface-white px-2 py-1.5 text-ink-gray-7 focus:outline-none focus:border-blue-400"
+          >
+            <option value="Customer">{{ __("Customer") }}</option>
+            <option value="Internal">{{ __("Internal") }}</option>
+          </select>
           <select
             v-if="editable"
             v-model="form.status"
@@ -87,11 +101,38 @@
 
         <!-- Meta grid -->
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1">
+          <div
+            v-if="editable && form.project_type === 'Customer'"
+            class="flex flex-col gap-1"
+          >
+            <span class="text-xs text-ink-gray-5">{{ __("Customer") }}</span>
+            <Link doctype="HD Customer" v-model="form.customer" />
+          </div>
           <div class="flex flex-col gap-1">
             <span class="text-xs text-ink-gray-5">{{ __("Team") }}</span>
             <Link v-if="editable" doctype="HD Team" v-model="form.team" :hide-me="true" />
             <span v-else class="text-sm text-ink-gray-8">
               {{ resource.data.team || "—" }}
+            </span>
+          </div>
+          <div v-if="editable || resource.data.lead_name" class="flex flex-col gap-1">
+            <span class="text-xs text-ink-gray-5">{{ __("Project lead") }}</span>
+            <Link v-if="editable" doctype="HD Agent" v-model="form.lead" :hide-me="true" />
+            <span v-else class="text-sm text-ink-gray-8">
+              {{ resource.data.lead_name || "—" }}
+            </span>
+          </div>
+          <div class="flex flex-col gap-1">
+            <span class="text-xs text-ink-gray-5">{{ __("Priority") }}</span>
+            <select
+              v-if="editable"
+              v-model="form.priority"
+              class="text-sm rounded-md border border-outline-gray-2 bg-surface-white px-2 py-1 text-ink-gray-7 focus:outline-none focus:border-blue-400"
+            >
+              <option v-for="p in PRIORITIES" :key="p" :value="p">{{ p }}</option>
+            </select>
+            <span v-else class="text-sm text-ink-gray-8">
+              {{ resource.data.priority || "—" }}
             </span>
           </div>
           <div class="flex flex-col gap-1">
@@ -162,9 +203,24 @@
         </p>
       </div>
 
+      <!-- Milestones -->
+      <div class="executive-card p-5">
+        <ProjectMilestones
+          ref="milestonesRef"
+          :project-id="projectId"
+          :editable="editable"
+          @changed="taskBoardRef?.refreshMilestones()"
+        />
+      </div>
+
       <!-- Tasks -->
       <div class="executive-card p-5">
-        <TaskBoard :project-id="projectId" :editable="editable" />
+        <TaskBoard
+          ref="taskBoardRef"
+          :project-id="projectId"
+          :editable="editable"
+          @changed="milestonesRef?.reload()"
+        />
       </div>
 
       <!-- Upcoming features -->
@@ -274,8 +330,10 @@ import {
 import { useRouter } from "vue-router";
 import { LayoutHeader, Link } from "@/components";
 import ProjectComments from "@/components/ProjectComments.vue";
+import ProjectMilestones from "@/components/ProjectMilestones.vue";
 import TaskBoard from "@/components/TaskBoard.vue";
 import LucideTags from "~icons/lucide/tags";
+import LucideEyeOff from "~icons/lucide/eye-off";
 import { globalStore } from "@/stores/globalStore";
 import { isCustomerPortal } from "@/utils";
 import { __ } from "@/translation";
@@ -288,15 +346,26 @@ const router = useRouter();
 const { $dialog } = globalStore();
 
 const STATUSES = ["Planned", "Active", "On Hold", "Completed", "Cancelled"];
+const PRIORITIES = ["Low", "Medium", "High"];
 const editable = computed(() => !isCustomerPortal.value);
 const progressPct = computed(
   () => (editable.value ? form.progress : resource.data?.progress) || 0
 );
+const isInternal = computed(
+  () => (resource.data?.project_type || "Customer") === "Internal"
+);
+
+const milestonesRef = ref<any>(null);
+const taskBoardRef = ref<any>(null);
 
 const form = reactive({
   project_name: "",
+  project_type: "Customer",
+  customer: "",
   status: "Planned",
+  priority: "Medium",
   team: "",
+  lead: "",
   start_date: "",
   end_date: "",
   progress: 0,
@@ -309,8 +378,12 @@ const resource = createResource({
   auto: true,
   onSuccess: (d: any) => {
     form.project_name = d.project_name || "";
+    form.project_type = d.project_type || "Customer";
+    form.customer = d.customer || "";
     form.status = d.status || "Planned";
+    form.priority = d.priority || "Medium";
     form.team = d.team || "";
+    form.lead = d.lead || "";
     form.start_date = d.start_date || "";
     form.end_date = d.end_date || "";
     form.progress = d.progress || 0;
@@ -364,7 +437,9 @@ const deleteRes = createResource({
 function confirmDelete() {
   $dialog({
     title: __("Delete project"),
-    message: __("This will permanently delete the project and its comments."),
+    message: __(
+      "This will permanently delete the project with its milestones, tasks and comments."
+    ),
     actions: [
       {
         label: __("Delete"),

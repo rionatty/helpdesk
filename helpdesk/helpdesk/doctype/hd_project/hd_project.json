@@ -7,10 +7,13 @@
  "engine": "InnoDB",
  "field_order": [
   "project_name",
+  "project_type",
   "customer",
   "status",
+  "priority",
   "column_break_main",
   "team",
+  "lead",
   "start_date",
   "end_date",
   "progress",
@@ -26,13 +29,24 @@
    "reqd": 1
   },
   {
+   "default": "Customer",
+   "fieldname": "project_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Project Type",
+   "options": "Customer\nInternal",
+   "reqd": 1
+  },
+  {
+   "depends_on": "eval:doc.project_type!='Internal'",
    "fieldname": "customer",
    "fieldtype": "Link",
    "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "Customer",
+   "mandatory_depends_on": "eval:doc.project_type=='Customer'",
    "options": "HD Customer",
-   "reqd": 1,
    "search_index": 1
   },
   {
@@ -46,6 +60,14 @@
    "reqd": 1
   },
   {
+   "default": "Medium",
+   "fieldname": "priority",
+   "fieldtype": "Select",
+   "in_standard_filter": 1,
+   "label": "Priority",
+   "options": "Low\nMedium\nHigh"
+  },
+  {
    "fieldname": "column_break_main",
    "fieldtype": "Column Break"
   },
@@ -54,6 +76,12 @@
    "fieldtype": "Link",
    "label": "Team",
    "options": "HD Team"
+  },
+  {
+   "fieldname": "lead",
+   "fieldtype": "Link",
+   "label": "Project Lead",
+   "options": "HD Agent"
   },
   {
    "fieldname": "start_date",

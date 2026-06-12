@@ -7,6 +7,16 @@
           · {{ tasks.data.length }}
         </span>
       </div>
+      <select
+        v-if="milestoneOptions.length"
+        v-model="milestoneFilter"
+        class="text-xs rounded-md border border-outline-gray-2 bg-surface-white px-2 py-1 text-ink-gray-7 focus:outline-none focus:border-blue-400"
+      >
+        <option value="">{{ __("All milestones") }}</option>
+        <option v-for="m in milestoneOptions" :key="m.value" :value="m.value">
+          {{ m.label }}
+        </option>
+      </select>
     </div>
 
     <!-- Kanban columns -->
@@ -66,6 +76,19 @@
               class="text-[10px] rounded-full px-1.5 py-0.5 bg-surface-gray-2 text-ink-gray-6 inline-flex items-center gap-0.5"
             >
               <LucideMessageCircle class="size-3" /> {{ t.comment_count }}
+            </span>
+            <span
+              v-if="t.milestone && milestoneTitle(t.milestone)"
+              class="text-[10px] rounded-full px-1.5 py-0.5 bg-violet-100 text-violet-700 inline-flex items-center gap-0.5"
+            >
+              <LucideFlag class="size-3" /> {{ milestoneTitle(t.milestone) }}
+            </span>
+            <span
+              v-if="t.is_internal && editable"
+              class="text-[10px] rounded-full px-1.5 py-0.5 bg-surface-gray-2 text-ink-gray-6 inline-flex items-center gap-0.5"
+              :title="__('Hidden from the customer portal')"
+            >
+              <LucideEyeOff class="size-3" /> {{ __("Internal") }}
             </span>
           </div>
           <div
@@ -188,6 +211,60 @@
             </div>
           </div>
 
+          <!-- Placement: milestone / feature -->
+          <div
+            v-if="milestoneOptions.length || featureOptions.length"
+            class="grid grid-cols-2 gap-3"
+          >
+            <div v-if="milestoneOptions.length" class="flex flex-col gap-1">
+              <span class="text-xs text-ink-gray-5">{{ __("Milestone") }}</span>
+              <select
+                v-if="editable"
+                :value="selected.milestone || ''"
+                class="text-sm rounded-md border border-outline-gray-2 bg-surface-white px-2 py-1 text-ink-gray-7 focus:outline-none focus:border-blue-400"
+                @change="(e) => patch({ milestone: e.target.value })"
+              >
+                <option value="">{{ __("No milestone") }}</option>
+                <option v-for="m in milestoneOptions" :key="m.value" :value="m.value">
+                  {{ m.label }}
+                </option>
+              </select>
+              <span v-else class="text-sm text-ink-gray-8">
+                {{ milestoneTitle(selected.milestone) || "—" }}
+              </span>
+            </div>
+            <div v-if="featureOptions.length" class="flex flex-col gap-1">
+              <span class="text-xs text-ink-gray-5">{{ __("Feature") }}</span>
+              <select
+                v-if="editable"
+                :value="selected.feature || ''"
+                class="text-sm rounded-md border border-outline-gray-2 bg-surface-white px-2 py-1 text-ink-gray-7 focus:outline-none focus:border-blue-400"
+                @change="(e) => patch({ feature: e.target.value })"
+              >
+                <option value="">{{ __("No feature") }}</option>
+                <option v-for="f in featureOptions" :key="f.value" :value="f.value">
+                  {{ f.label }}
+                </option>
+              </select>
+              <span v-else class="text-sm text-ink-gray-8">
+                {{ featureTitle(selected.feature) || "—" }}
+              </span>
+            </div>
+          </div>
+
+          <!-- Internal toggle (agent) -->
+          <label
+            v-if="editable"
+            class="flex items-center gap-2 text-sm text-ink-gray-7 cursor-pointer"
+          >
+            <input
+              type="checkbox"
+              :checked="!!selected.is_internal"
+              @change="(e) => patch({ is_internal: e.target.checked ? 1 : 0 })"
+            />
+            {{ __("Internal only — hidden from the customer portal") }}
+          </label>
+
           <!-- Assignee (agent) -->
           <div v-if="editable" class="flex flex-col gap-1">
             <span class="text-xs text-ink-gray-5">{{ __("Assignee") }}</span>
@@ -294,6 +371,8 @@ import LucidePlus from "~icons/lucide/plus";
 import LucideTrash2 from "~icons/lucide/trash-2";
 import LucideCalendar from "~icons/lucide/calendar";
 import LucideMessageCircle from "~icons/lucide/message-circle";
+import LucideFlag from "~icons/lucide/flag";
+import LucideEyeOff from "~icons/lucide/eye-off";
 
 interface P {
   addonId?: string;
@@ -326,8 +405,14 @@ const tasks = createResource({
 });
 watch(
   () => [props.addonId, props.projectId],
-  () => tasks.reload()
+  () => {
+    tasks.reload();
+    if (props.projectId) milestonesRes.reload();
+    if (props.addonId) featuresRes.reload();
+  }
 );
+
+const milestoneFilter = ref("");
 
 const grouped = computed(() => {
   const g: Record<string, any[]> = {
@@ -336,9 +421,41 @@ const grouped = computed(() => {
     Done: [],
     Blocked: [],
   };
-  (tasks.data || []).forEach((t: any) => (g[t.status] || g["To Do"]).push(t));
+  (tasks.data || [])
+    .filter((t: any) => !milestoneFilter.value || t.milestone === milestoneFilter.value)
+    .forEach((t: any) => (g[t.status] || g["To Do"]).push(t));
   return g;
 });
+
+// --- milestone / feature context for placement + chips ---
+const milestonesRes = createResource({
+  url: "helpdesk.api.project.get_milestones",
+  makeParams: () => ({ project: props.projectId }),
+  auto: !!props.projectId,
+});
+const featuresRes = createResource({
+  url: "helpdesk.api.addon.get_features",
+  makeParams: () => ({ addon: props.addonId }),
+  auto: !!props.addonId,
+});
+const milestoneOptions = computed(() =>
+  (milestonesRes.data || []).map((m: any) => ({ value: m.name, label: m.title }))
+);
+const featureOptions = computed(() =>
+  (featuresRes.data || []).map((f: any) => ({
+    value: f.name,
+    label: f.feature_title,
+  }))
+);
+function milestoneTitle(name: string) {
+  return (milestonesRes.data || []).find((m: any) => m.name === name)?.title;
+}
+defineExpose({
+  refreshMilestones: () => props.projectId && milestonesRes.reload(),
+});
+function featureTitle(name: string) {
+  return (featuresRes.data || []).find((f: any) => f.name === name)?.feature_title;
+}
 
 const agents = createListResource({
   doctype: "HD Agent",
@@ -371,6 +488,7 @@ function isOverdue(t: any) {
 
 function reload() {
   tasks.reload();
+  if (props.projectId) milestonesRes.reload();
   emit("changed");
 }
 
@@ -410,7 +528,13 @@ function open(t: any) {
 
 const updateRes = createResource({
   url: "helpdesk.api.addon.update_task",
-  onSuccess: () => tasks.reload(),
+  onSuccess: () => {
+    tasks.reload();
+    if (props.projectId) milestonesRes.reload();
+    emit("changed");
+  },
+  onError: (e: any) =>
+    toast.error(e?.messages?.[0] || __("Could not update task")),
 });
 function patch(fields: Record<string, any>) {
   if (!selected.value) return;

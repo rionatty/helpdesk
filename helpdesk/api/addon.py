@@ -6,6 +6,7 @@
 
 import frappe
 from frappe import _
+from frappe.utils import cint
 
 from helpdesk.utils import get_customer, is_agent
 
@@ -120,6 +121,7 @@ FEATURE_FIELDS = [
 	"feature_title",
 	"status",
 	"project",
+	"milestone",
 	"target_date",
 	"released_on",
 	"description",
@@ -128,6 +130,7 @@ FEATURE_WRITABLE = {
 	"feature_title",
 	"status",
 	"project",
+	"milestone",
 	"target_date",
 	"released_on",
 	"description",
@@ -138,6 +141,10 @@ TASK_FIELDS = [
 	"status",
 	"priority",
 	"assigned_to",
+	"milestone",
+	"feature",
+	"ticket",
+	"is_internal",
 	"start_date",
 	"end_date",
 	"description",
@@ -147,6 +154,10 @@ TASK_WRITABLE = {
 	"status",
 	"priority",
 	"assigned_to",
+	"milestone",
+	"feature",
+	"ticket",
+	"is_internal",
 	"start_date",
 	"end_date",
 	"description",
@@ -180,12 +191,16 @@ def _get_features(addon: str) -> list:
 
 
 def _get_tasks(addon: str | None = None, project: str | None = None) -> list:
-	"""Tasks for an add-on OR a project, with assignee names + comment counts."""
-	parent_filter = {"addon": addon} if addon else {"project": project}
+	"""Tasks for an add-on OR a project, with assignee names + comment counts.
+	Portal users don't get internal tasks, nor agent emails."""
+	filters: dict = {"addon": addon} if addon else {"project": project}
+	agent = is_agent()
+	if not agent:
+		filters["is_internal"] = 0
 	try:
 		rows = frappe.get_all(
 			"HD Addon Task",
-			filters=parent_filter,
+			filters=filters,
 			fields=TASK_FIELDS,
 			order_by="modified desc",
 			ignore_permissions=True,
@@ -201,12 +216,27 @@ def _get_tasks(addon: str | None = None, project: str | None = None) -> list:
 				"HD Agent", filters={"name": ["in", users]}, fields=["name", "agent_name"]
 			)
 		}
+	counts = {}
+	if rows:
+		try:
+			counts = {
+				c.task: c.n
+				for c in frappe.get_all(
+					"HD Task Comment",
+					filters={"task": ["in", [r.name for r in rows]]},
+					fields=["task", "count(name) as n"],
+					group_by="task",
+					ignore_permissions=True,
+				)
+			}
+		except Exception:
+			counts = {}
 	for r in rows:
 		r["assigned_to_name"] = names.get(r.assigned_to) or r.assigned_to
-		try:
-			r["comment_count"] = frappe.db.count("HD Task Comment", {"task": r.name})
-		except Exception:
-			r["comment_count"] = 0
+		r["comment_count"] = counts.get(r.name, 0)
+		if not agent:
+			# assigned_to is an email; portal gets the display name only.
+			r["assigned_to"] = None
 	return rows
 
 
@@ -218,12 +248,16 @@ def _assert_parent_access(
 		_assert_addon_access(addon)
 		return
 	if project:
-		if not frappe.db.exists("HD Project", project):
+		row = frappe.db.get_value(
+			"HD Project", project, ["customer", "project_type"], as_dict=True
+		)
+		if not row:
 			frappe.throw(_("Project not found"), frappe.DoesNotExistError)
 		if is_agent():
 			return
-		customer = frappe.db.get_value("HD Project", project, "customer")
-		if customer and customer in get_customer(frappe.session.user):
+		if (row.project_type or "Customer") == "Internal":
+			frappe.throw(_("Not permitted"), frappe.PermissionError)
+		if row.customer and row.customer in get_customer(frappe.session.user):
 			return
 		frappe.throw(_("Not permitted"), frappe.PermissionError)
 	frappe.throw(_("A parent add-on or project is required"))
@@ -351,23 +385,33 @@ def add_task(
 	subject: str,
 	addon: str | None = None,
 	project: str | None = None,
+	milestone: str | None = None,
+	feature: str | None = None,
+	ticket: str | None = None,
 	status: str = "To Do",
 	priority: str = "Medium",
 	assigned_to: str | None = None,
 	start_date: str | None = None,
 	end_date: str | None = None,
 	description: str | None = None,
+	is_internal: int = 0,
 ) -> str:
 	"""Add a task to an add-on or project. Agents only."""
 	_assert_agent()
 	_assert_parent_access(addon=addon, project=project)
 	if not (subject or "").strip():
 		frappe.throw(_("Task title is required"))
+	if milestone and project:
+		if frappe.db.get_value("HD Milestone", milestone, "project") != project:
+			frappe.throw(_("Milestone belongs to a different project"))
 	doc = frappe.get_doc(
 		{
 			"doctype": "HD Addon Task",
 			"addon": addon or None,
 			"project": project or None,
+			"milestone": milestone or None,
+			"feature": feature or None,
+			"ticket": ticket or None,
 			"subject": subject.strip(),
 			"status": status or "To Do",
 			"priority": priority or "Medium",
@@ -375,6 +419,7 @@ def add_task(
 			"start_date": start_date,
 			"end_date": end_date,
 			"description": description,
+			"is_internal": 1 if cint(is_internal) else 0,
 		}
 	).insert(ignore_permissions=True)
 	return doc.name
@@ -388,6 +433,9 @@ def update_task(name: str, **fields) -> bool:
 	for key, value in fields.items():
 		if key in TASK_WRITABLE:
 			doc.set(key, value)
+	if doc.milestone and doc.project:
+		if frappe.db.get_value("HD Milestone", doc.milestone, "project") != doc.project:
+			frappe.throw(_("Milestone belongs to a different project"))
 	doc.save(ignore_permissions=True)
 	return True
 
@@ -413,7 +461,7 @@ def get_task_comments(task: str) -> list:
 		ignore_permissions=True,
 	)
 	owners = list({r.owner for r in rows if r.owner})
-	names = {}
+	names, agents = {}, set()
 	if owners:
 		names = {
 			u.name: u.full_name
@@ -421,8 +469,16 @@ def get_task_comments(task: str) -> list:
 				"User", filters={"name": ["in", owners]}, fields=["name", "full_name"]
 			)
 		}
+		agents = set(
+			frappe.get_all("HD Agent", filters={"name": ["in", owners]}, pluck="name")
+		)
+	agent = is_agent()
 	for r in rows:
 		r["author"] = names.get(r.owner) or r.owner
+		r["is_agent"] = r.owner in agents
+		if not agent:
+			# owner is an email address; don't expose it on the portal.
+			r["owner"] = None
 	return rows
 
 

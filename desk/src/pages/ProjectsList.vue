@@ -54,6 +54,22 @@
             {{ s.label }}
           </button>
         </div>
+        <div v-if="!isCustomerPortal" class="flex items-center gap-1.5 flex-wrap">
+          <button
+            v-for="t in typeFilters"
+            :key="t.value"
+            type="button"
+            class="px-3 py-1 rounded-full text-xs font-medium border transition-colors"
+            :class="
+              typeFilter === t.value
+                ? 'bg-violet-600 border-violet-600 text-white'
+                : 'border-outline-gray-2 text-ink-gray-6 hover:border-outline-gray-3'
+            "
+            @click="typeFilter = t.value"
+          >
+            {{ t.label }}
+          </button>
+        </div>
       </div>
 
       <!-- Loading -->
@@ -100,7 +116,11 @@
                 {{ p.project_name }}
               </div>
               <div class="text-xs text-ink-gray-5 truncate">
-                {{ p.customer }}
+                {{
+                  (p.project_type || "Customer") === "Internal"
+                    ? __("Internal project")
+                    : p.customer
+                }}
               </div>
             </div>
             <Badge
@@ -145,8 +165,17 @@
             :label="__('Project name')"
             type="text"
           />
+          <FormControl
+            v-model="form.project_type"
+            :label="__('Type')"
+            type="select"
+            :options="typeOptions"
+          />
           <div class="grid grid-cols-2 gap-3">
-            <div class="flex flex-col gap-1">
+            <div
+              v-if="form.project_type === 'Customer'"
+              class="flex flex-col gap-1"
+            >
               <span class="text-xs text-ink-gray-6">{{ __("Customer") }}</span>
               <Link doctype="HD Customer" v-model="form.customer" />
             </div>
@@ -223,13 +252,23 @@ const router = useRouter();
 
 const STATUSES = ["Planned", "Active", "On Hold", "Completed", "Cancelled"];
 const statusOptions = STATUSES.map((s) => ({ label: s, value: s }));
+const typeOptions = [
+  { label: __("Customer project"), value: "Customer" },
+  { label: __("Internal project"), value: "Internal" },
+];
 const statusFilters = [
   { value: "", label: __("All") },
   { value: "Active", label: __("Active") },
   { value: "On Hold", label: __("On Hold") },
   { value: "Completed", label: __("Completed") },
 ];
+const typeFilters = [
+  { value: "", label: __("All types") },
+  { value: "Customer", label: __("Customer") },
+  { value: "Internal", label: __("Internal") },
+];
 const statusFilter = ref("");
+const typeFilter = ref("");
 const customerFilter = ref("");
 
 const projects = createResource({
@@ -240,10 +279,14 @@ const projects = createResource({
 watch(customerFilter, () => projects.reload());
 
 const filtered = computed(() => {
-  const rows = projects.data || [];
-  return statusFilter.value
-    ? rows.filter((p: any) => p.status === statusFilter.value)
-    : rows;
+  let rows = projects.data || [];
+  if (statusFilter.value)
+    rows = rows.filter((p: any) => p.status === statusFilter.value);
+  if (typeFilter.value)
+    rows = rows.filter(
+      (p: any) => (p.project_type || "Customer") === typeFilter.value
+    );
+  return rows;
 });
 
 function statusTheme(status: string) {
@@ -269,6 +312,7 @@ function open(name: string) {
 const showCreate = ref(false);
 const form = reactive({
   project_name: "",
+  project_type: "Customer",
   customer: "",
   team: "",
   status: "Planned",
@@ -280,6 +324,7 @@ const form = reactive({
 function openCreate() {
   Object.assign(form, {
     project_name: "",
+    project_type: "Customer",
     customer: "",
     team: "",
     status: "Planned",
@@ -301,8 +346,12 @@ const createRes = createResource({
     toast.error(e?.messages?.[0] || __("Could not create project")),
 });
 function submitCreate() {
-  if (!form.project_name.trim() || !form.customer) {
-    toast.error(__("Project name and customer are required"));
+  if (!form.project_name.trim()) {
+    toast.error(__("Project name is required"));
+    return;
+  }
+  if (form.project_type === "Customer" && !form.customer) {
+    toast.error(__("Customer is required for customer projects"));
     return;
   }
   createRes.submit({ ...form });

@@ -2,47 +2,47 @@
  "actions": [],
  "allow_rename": 0,
  "autoname": "hash",
- "creation": "2026-06-09 00:00:00.000000",
+ "creation": "2026-06-12 00:00:00.000000",
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
-  "feature_title",
-  "addon",
+  "title",
+  "project",
   "status",
   "column_break_main",
-  "project",
-  "milestone",
-  "target_date",
-  "released_on",
+  "due_date",
+  "sequence",
+  "completed_on",
+  "customer_visible",
   "section_break_desc",
   "description"
  ],
  "fields": [
   {
-   "fieldname": "feature_title",
+   "fieldname": "title",
    "fieldtype": "Data",
    "in_list_view": 1,
-   "label": "Feature",
+   "label": "Milestone",
    "reqd": 1
   },
   {
-   "fieldname": "addon",
+   "fieldname": "project",
    "fieldtype": "Link",
    "in_list_view": 1,
    "in_standard_filter": 1,
-   "label": "Add-on",
-   "options": "HD Addon",
+   "label": "Project",
+   "options": "HD Project",
    "reqd": 1,
    "search_index": 1
   },
   {
-   "default": "Planned",
+   "default": "Upcoming",
    "fieldname": "status",
    "fieldtype": "Select",
    "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "Status",
-   "options": "Planned\nIn Progress\nReleased\nDeprecated",
+   "options": "Upcoming\nIn Progress\nCompleted\nMissed",
    "reqd": 1
   },
   {
@@ -50,30 +50,29 @@
    "fieldtype": "Column Break"
   },
   {
-   "description": "Tag this feature to a project (shown as an upcoming feature on the project).",
-   "fieldname": "project",
-   "fieldtype": "Link",
-   "in_standard_filter": 1,
-   "label": "Project",
-   "options": "HD Project"
-  },
-  {
-   "description": "Milestone this feature is delivered in",
-   "fieldname": "milestone",
-   "fieldtype": "Link",
-   "label": "Milestone",
-   "options": "HD Milestone",
-   "search_index": 1
-  },
-  {
-   "fieldname": "target_date",
+   "fieldname": "due_date",
    "fieldtype": "Date",
-   "label": "Target Date"
+   "in_list_view": 1,
+   "label": "Due Date"
   },
   {
-   "fieldname": "released_on",
+   "default": "0",
+   "description": "Display order on the project plan",
+   "fieldname": "sequence",
+   "fieldtype": "Int",
+   "label": "Sequence"
+  },
+  {
+   "fieldname": "completed_on",
    "fieldtype": "Date",
-   "label": "Released On"
+   "label": "Completed On"
+  },
+  {
+   "default": "1",
+   "description": "Show this milestone on the customer portal",
+   "fieldname": "customer_visible",
+   "fieldtype": "Check",
+   "label": "Customer Visible"
   },
   {
    "fieldname": "section_break_desc",
@@ -87,10 +86,10 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-06-09 00:00:00.000000",
+ "modified": "2026-06-12 00:00:00.000000",
  "modified_by": "Administrator",
  "module": "Helpdesk",
- "name": "HD Addon Feature",
+ "name": "HD Milestone",
  "owner": "Administrator",
  "permissions": [
   {
@@ -120,9 +119,9 @@
   }
  ],
  "row_format": "Dynamic",
- "sort_field": "creation",
+ "sort_field": "sequence",
  "sort_order": "ASC",
  "states": [],
- "title_field": "feature_title",
+ "title_field": "title",
  "track_changes": 1
 }

@@ -140,7 +140,7 @@ Pumble offers two mechanisms, both on the free plan; we use both:
 
 ## Delivery phases
 
-1. **Foundations** — internal projects (`project_type`), HD Milestone, task links (milestone/feature/ticket), migration. The model is right before anything is built on it.
+1. **Foundations** — internal projects (`project_type`), HD Milestone, task links (milestone/feature/ticket), migration. The model is right before anything is built on it. **✅ Shipped** (also includes: priority + lead on projects, `is_internal` tasks, milestone tracker UI on ProjectView, milestone/feature pickers + milestone filter on the task board, agent emails stripped from all portal payloads).
 2. **Daily drivers** — My tasks page, ticket → task conversion, drag-and-drop kanban, checklists, progress rollups.
 3. **Communication** — notifications + daily digest, **Pumble integration (webhooks first, API addon second)**, activity feed, attachments, client status page.
 4. **Scale** — time logs + estimate vs actual, timeline view, project templates, workload dashboard.
