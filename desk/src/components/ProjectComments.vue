@@ -1,7 +1,17 @@
 <template>
   <div class="flex flex-col gap-3">
-    <div class="text-sm font-semibold text-ink-gray-8">
-      {{ __("Discussion") }}
+    <div class="flex items-center gap-2">
+      <div
+        class="size-7 rounded-lg bg-sky-100 text-sky-700 flex items-center justify-center"
+      >
+        <LucideMessagesSquare class="size-4" />
+      </div>
+      <span class="text-sm font-semibold text-ink-gray-8">
+        {{ __("Discussion") }}
+      </span>
+      <span v-if="comments.data?.length" class="text-xs text-ink-gray-5">
+        · {{ comments.data.length }}
+      </span>
     </div>
 
     <div v-if="comments.data?.length" class="flex flex-col gap-3">
@@ -61,6 +71,7 @@ import { ref, watch } from "vue";
 import { Avatar, Button, createResource, toast } from "frappe-ui";
 import { timeAgo } from "@/utils";
 import { __ } from "@/translation";
+import LucideMessagesSquare from "~icons/lucide/messages-square";
 
 interface P {
   projectId: string;

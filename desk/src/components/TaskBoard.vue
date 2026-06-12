@@ -1,9 +1,16 @@
 <template>
   <div class="flex flex-col gap-3">
     <div class="flex items-center justify-between gap-2">
-      <div class="text-sm font-semibold text-ink-gray-8">
-        {{ __("Tasks") }}
-        <span v-if="tasks.data?.length" class="text-ink-gray-5 font-normal">
+      <div class="flex items-center gap-2">
+        <div
+          class="size-7 rounded-lg bg-green-100 text-green-700 flex items-center justify-center"
+        >
+          <LucideListChecks class="size-4" />
+        </div>
+        <span class="text-sm font-semibold text-ink-gray-8">
+          {{ __("Tasks") }}
+        </span>
+        <span v-if="tasks.data?.length" class="text-xs text-ink-gray-5">
           · {{ tasks.data.length }}
         </span>
       </div>
@@ -373,6 +380,7 @@ import LucideCalendar from "~icons/lucide/calendar";
 import LucideMessageCircle from "~icons/lucide/message-circle";
 import LucideFlag from "~icons/lucide/flag";
 import LucideEyeOff from "~icons/lucide/eye-off";
+import LucideListChecks from "~icons/lucide/list-checks";
 
 interface P {
   addonId?: string;

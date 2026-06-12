@@ -1,9 +1,16 @@
 <template>
   <div class="flex flex-col gap-3">
     <div class="flex items-center justify-between gap-2">
-      <div class="text-sm font-semibold text-ink-gray-8">
-        {{ __("Milestones") }}
-        <span v-if="milestones.data?.length" class="text-ink-gray-5 font-normal">
+      <div class="flex items-center gap-2">
+        <div
+          class="size-7 rounded-lg bg-violet-100 text-violet-700 flex items-center justify-center"
+        >
+          <LucideFlag class="size-4" />
+        </div>
+        <span class="text-sm font-semibold text-ink-gray-8">
+          {{ __("Milestones") }}
+        </span>
+        <span v-if="milestones.data?.length" class="text-xs text-ink-gray-5">
           · {{ milestones.data.length }}
         </span>
       </div>
@@ -166,6 +173,7 @@ import {
 import { __ } from "@/translation";
 import LucidePlus from "~icons/lucide/plus";
 import LucideCheck from "~icons/lucide/check";
+import LucideFlag from "~icons/lucide/flag";
 import LucideCalendar from "~icons/lucide/calendar";
 import LucideEyeOff from "~icons/lucide/eye-off";
 
