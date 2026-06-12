@@ -129,11 +129,38 @@ def get_one(name: str, is_customer_portal: bool = False):
         ),
         "fields": get_meta(template),
         "calls": call_logs,
+        "project_name": _linked_project_name(ticket.get("project"), _is_agent),
+        "addon_name": (
+            frappe.db.get_value("HD Addon", ticket.get("addon"), "addon_name")
+            if ticket.get("addon")
+            else None
+        ),
     }
 
 
+def _linked_project_name(project: str | None, _is_agent: bool) -> str | None:
+    if not project:
+        return None
+    row = frappe.db.get_value(
+        "HD Project", project, ["project_name", "project_type"], as_dict=True
+    )
+    if not row:
+        return None
+    # Don't expose internal project names on the customer portal.
+    if not _is_agent and (row.project_type or "Customer") == "Internal":
+        return None
+    return row.project_name
+
+
 def get_meta(template: str):
-    default_fields = ["ticket_type", "agent_group", "priority", "customer"]
+    default_fields = [
+        "ticket_type",
+        "agent_group",
+        "priority",
+        "customer",
+        "project",
+        "addon",
+    ]
     DocField = frappe.qb.DocType("DocField")
 
     fields = (
@@ -611,7 +638,7 @@ def get_navigation_filters(ticket: str, current_view: str = None):
                 filters = (
                     json.loads(_filters) if isinstance(_filters, str) else _filters
                 )
-            except json.JSONDecodeError, TypeError:
+            except (json.JSONDecodeError, TypeError):
                 filters = []
 
     if not filters:
@@ -628,7 +655,7 @@ def get_navigation_filters(ticket: str, current_view: str = None):
                     if isinstance(default_view, str)
                     else default_view
                 )
-            except json.JSONDecodeError, TypeError:
+            except (json.JSONDecodeError, TypeError):
                 filters = []
 
     # Base filters - exclude the current ticket

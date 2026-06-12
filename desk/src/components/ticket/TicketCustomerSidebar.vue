@@ -458,11 +458,27 @@ const ticketAdditionalInfo = computed(() => {
       value: ticket.data.priority,
     },
   ];
+  if (ticket.data.project_name) {
+    fields.push({
+      fieldname: "project",
+      label: "Project",
+      value: ticket.data.project_name,
+    });
+  }
+  if (ticket.data.addon_name) {
+    fields.push({
+      fieldname: "addon",
+      label: "Add-on",
+      value: ticket.data.addon_name,
+    });
+  }
   const custom_fields = ticket.data.template.fields
     .filter(
       (field: Field) =>
         !field.hide_from_customer &&
-        ["subject", "team", "priority"].indexOf(field.fieldname) === -1
+        ["subject", "team", "priority", "project", "addon"].indexOf(
+          field.fieldname
+        ) === -1
     )
     .map((field: Field) => {
       const option = {

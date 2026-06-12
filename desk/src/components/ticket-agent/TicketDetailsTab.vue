@@ -188,10 +188,13 @@ const coreFields = computed(() => {
     { group: true, fields: [getField("ticket_type"), getField("priority")] },
     { group: false, fields: [getField("customer")] },
     { group: true, fields: [getField("agent_group")] },
+    { group: false, fields: [getField("project")] },
+    { group: false, fields: [getField("addon")] },
   ];
 
   _coreFields.forEach((section) => {
-    section.fields = section.fields.map((f) => {
+    // filter(Boolean): project/addon may be absent before the site migrates
+    section.fields = section.fields.filter(Boolean).map((f) => {
       f = parseField(f, ticket.value.doc);
 
       // cant handle required depends on as we directly set the value in DB on change
@@ -221,6 +224,8 @@ const customFields = computed(() => {
     "agent_group",
     "subject",
     "status",
+    "project",
+    "addon",
   ];
   customFields = customFields.filter((f) => !_coreFields.includes(f.fieldname));
   let _customFields = customFields

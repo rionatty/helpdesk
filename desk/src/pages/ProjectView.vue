@@ -8,20 +8,31 @@
         <Breadcrumbs :items="breadcrumbs" />
       </template>
       <template #right-header>
-        <div v-if="editable && resource.data" class="flex items-center gap-2">
+        <div class="flex items-center gap-2">
           <Button
-            theme="red"
-            variant="ghost"
-            :label="__('Delete')"
-            @click="confirmDelete"
-          />
-          <Button
+            v-if="resource.data && (!isInternal || editable)"
             theme="blue"
-            variant="solid"
-            :label="__('Save')"
-            :loading="saveRes.loading"
-            @click="save"
-          />
+            variant="subtle"
+            :label="__('New ticket')"
+            @click="newTicket"
+          >
+            <template #prefix><LucideTicket class="size-4" /></template>
+          </Button>
+          <template v-if="editable && resource.data">
+            <Button
+              theme="red"
+              variant="ghost"
+              :label="__('Delete')"
+              @click="confirmDelete"
+            />
+            <Button
+              theme="blue"
+              variant="solid"
+              :label="__('Save')"
+              :loading="saveRes.loading"
+              @click="save"
+            />
+          </template>
         </div>
       </template>
     </LayoutHeader>
@@ -334,6 +345,7 @@ import ProjectMilestones from "@/components/ProjectMilestones.vue";
 import TaskBoard from "@/components/TaskBoard.vue";
 import LucideTags from "~icons/lucide/tags";
 import LucideEyeOff from "~icons/lucide/eye-off";
+import LucideTicket from "~icons/lucide/ticket";
 import { globalStore } from "@/stores/globalStore";
 import { isCustomerPortal } from "@/utils";
 import { __ } from "@/translation";
@@ -458,6 +470,13 @@ function openTicket(name: string) {
   router.push({
     name: isCustomerPortal.value ? "TicketCustomer" : "TicketAgent",
     params: { ticketId: name },
+  });
+}
+
+function newTicket() {
+  router.push({
+    name: isCustomerPortal.value ? "TicketNew" : "TicketAgentNew",
+    query: { project: props.projectId },
   });
 }
 

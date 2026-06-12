@@ -99,6 +99,32 @@
           </template>
         </UniInput>
       </div>
+      <!-- Related project / add-on (optional) -->
+      <div
+        v-if="projectOptions.length > 1 || addonOptions.length > 1"
+        class="grid grid-cols-1 gap-4 sm:grid-cols-2"
+      >
+        <div v-if="projectOptions.length > 1" class="flex flex-col gap-2">
+          <span class="block text-sm font-medium text-ink-gray-7">
+            {{ __("Related project") }}
+          </span>
+          <FormControl
+            v-model="selectedProject"
+            type="select"
+            :options="projectOptions"
+          />
+        </div>
+        <div v-if="addonOptions.length > 1" class="flex flex-col gap-2">
+          <span class="block text-sm font-medium text-ink-gray-7">
+            {{ __("Related add-on") }}
+          </span>
+          <FormControl
+            v-model="selectedAddon"
+            type="select"
+            :options="addonOptions"
+          />
+        </div>
+      </div>
       <!-- existing fields -->
       <div
         class="flex flex-col"
@@ -246,6 +272,32 @@ const description = ref("");
 const attachments = ref([]);
 const templateFields = reactive({});
 
+// Optional project / add-on link, prefilled from ?project= / ?addon=.
+const selectedProject = ref((route.query.project as string) || "");
+const selectedAddon = ref((route.query.addon as string) || "");
+const projectsRes = createResource({
+  url: "helpdesk.api.project.get_projects",
+  auto: true,
+});
+const addonsRes = createResource({
+  url: "helpdesk.api.addon.get_addons",
+  auto: true,
+});
+const projectOptions = computed(() => [
+  { label: __("None"), value: "" },
+  ...(projectsRes.data || []).map((p: any) => ({
+    label: p.project_name || p.name,
+    value: p.name,
+  })),
+]);
+const addonOptions = computed(() => [
+  { label: __("None"), value: "" },
+  ...(addonsRes.data || []).map((a: any) => ({
+    label: a.addon_name || a.name,
+    value: a.name,
+  })),
+]);
+
 const template = createResource({
   url: "helpdesk.helpdesk.doctype.hd_ticket_template.api.get_one",
   makeParams: () => ({
@@ -319,8 +371,8 @@ const ticket = createResource({
       description: description.value,
       subject: subject.value,
       template: props.templateId,
-      ...(route.query.addon ? { addon: route.query.addon } : {}),
-      ...(route.query.project ? { project: route.query.project } : {}),
+      ...(selectedAddon.value ? { addon: selectedAddon.value } : {}),
+      ...(selectedProject.value ? { project: selectedProject.value } : {}),
       ...templateFields,
     },
     attachments: attachments.value,
