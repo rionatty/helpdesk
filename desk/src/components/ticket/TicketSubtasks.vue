@@ -311,12 +311,15 @@ const subtasks = createResource({
   url: "helpdesk.api.subtask.get_subtasks",
   makeParams: () => ({ ticket: props.ticketId }),
   auto: true,
+  // Auxiliary widget — degrade silently rather than toasting at the viewer.
+  onError: (e: any) => console.warn("[helpdesk] subtasks:", e),
 });
 
 const summaryRes = createResource({
   url: "helpdesk.api.subtask.get_summary",
   makeParams: () => ({ ticket: props.ticketId }),
   auto: true,
+  onError: (e: any) => console.warn("[helpdesk] subtask summary:", e),
 });
 
 const summary = computed(

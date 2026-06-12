@@ -53,9 +53,17 @@ setConfig("serverMessagesHandler", (msgs) => {
   });
 });
 setConfig("fallbackErrorHandler", (error) => {
+  // Keep the full error (incl. traceback) in the console for diagnosis —
+  // the toast only carries the message.
+  console.error("[helpdesk] unhandled resource error:", error);
   const msg = error.exc_type
     ? (error.messages || error.message || []).join(", ")
     : error.message;
+  // Background permission failures are noise to portal customers (e.g. an
+  // auxiliary widget they can't use anyway) — log them, don't toast them.
+  if (isCustomerPortal.value && error.exc_type === "PermissionError") {
+    return;
+  }
   toast.error(msg);
 });
 

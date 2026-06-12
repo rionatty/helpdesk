@@ -272,6 +272,8 @@ const otherOpenTickets = createListResource({
   orderBy: "modified desc",
   pageLength: 5,
   auto: true,
+  // Auxiliary widget — degrade silently rather than toasting at the customer.
+  onError: (e: any) => console.warn("[helpdesk] other open tickets:", e),
 });
 
 function openTicket(name: string) {

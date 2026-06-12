@@ -18,7 +18,7 @@
         <Badge
           v-if="ticket.data.priority"
           :theme="priorityTheme"
-          variant="solid"
+          variant="subtle"
           :label="__(ticket.data.priority)"
         />
         <Badge

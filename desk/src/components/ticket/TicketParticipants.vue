@@ -64,6 +64,8 @@ const participants = createResource({
   url: "helpdesk.api.participant.get_participants",
   makeParams: () => ({ ticket: props.ticketId }),
   auto: true,
+  // Auxiliary widget — degrade silently rather than toasting at the viewer.
+  onError: (e: any) => console.warn("[helpdesk] participants:", e),
 });
 
 watch(
