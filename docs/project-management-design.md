@@ -65,6 +65,16 @@ One support desk that runs the whole delivery lifecycle:
 ### HD Project Template + HD Project Template Row (new, phase 4)
 - Named template (e.g. "Add-on development") with rows defining milestones and default tasks (subject, offset days, default assignee role). "New project from template" stamps out the structure.
 
+### HD Pumble Settings (new, single doctype)
+- `enabled` Check, `api_key` Password, `workspace_id` Data.
+- `default_webhook_url` Data (fallback channel for events with no routing).
+- `notify_new_ticket`, `notify_task_assigned`, `notify_task_done`, `notify_milestone_completed`, `notify_customer_comment` Checks — global event toggles.
+
+### Pumble routing fields (modify)
+- `HD Project.pumble_webhook_url` Data — project events go to this channel.
+- `HD Team.pumble_webhook_url` Data — team-level fallback.
+- `HD Agent.pumble_member_id` Data — for @mentions in messages.
+
 ## Behaviour
 
 ### Ticket ↔ task
@@ -80,6 +90,30 @@ One support desk that runs the whole delivery lifecycle:
 - Daily digest per agent: overdue + due-today tasks.
 - Milestone completed on a customer project → optional customer email (toggle per project).
 - @mention in a comment → notify the mentioned user.
+
+### Pumble integration (outbound chat notifications)
+
+Pumble offers two mechanisms, both on the free plan; we use both:
+
+- **Incoming webhooks** (primary) — one webhook URL per Pumble channel; we POST `{"text": ...}` to it. Zero-config per event, just paste the channel's webhook URL on the project/team. Rate limit one message per second per webhook, 10k chars max.
+- **API key addon** (secondary, optional) — `sendMessage`, `sendReply`, `addReaction`, `createChannel`, `listChannels` via the Pumble API. Unlocks "create a Pumble channel automatically for each new project" and threaded follow-ups. Configured once in HD Pumble Settings.
+
+**Routing** — most specific channel wins: task/milestone events → its project's webhook → owning team's webhook → default webhook. Ticket events → default (support) webhook.
+
+**Events** (each toggleable in HD Pumble Settings):
+
+| Event | Message | Channel |
+|-------|---------|---------|
+| New ticket | subject, customer, priority + portal link | support default |
+| Task assigned | subject, due date, @mention assignee | project channel |
+| Task done / blocked | subject, who, milestone | project channel |
+| Milestone completed | milestone, project, progress % | project channel |
+| Customer commented | excerpt + link (project or task thread) | project channel |
+| Daily digest | per-agent overdue/due-today rollup | team channel |
+
+**Delivery** — a thin `helpdesk/integrations/pumble.py` adapter; every send goes through `frappe.enqueue` (background queue) with retry, so a Pumble outage can never block or slow a save. Failures log to Error Log, never to the user.
+
+**Inbound (exploratory, not committed)** — creating tickets/tasks from Pumble messages would need Pumble's app platform/slash commands; park until the outbound flow proves itself.
 
 ### Activity feed
 - Enable `track_changes` on HD Project, HD Milestone, HD Addon Task.
@@ -108,7 +142,7 @@ One support desk that runs the whole delivery lifecycle:
 
 1. **Foundations** — internal projects (`project_type`), HD Milestone, task links (milestone/feature/ticket), migration. The model is right before anything is built on it.
 2. **Daily drivers** — My tasks page, ticket → task conversion, drag-and-drop kanban, checklists, progress rollups.
-3. **Communication** — notifications + daily digest, activity feed, attachments, client status page.
+3. **Communication** — notifications + daily digest, **Pumble integration (webhooks first, API addon second)**, activity feed, attachments, client status page.
 4. **Scale** — time logs + estimate vs actual, timeline view, project templates, workload dashboard.
 
 Each phase ships independently behind a `bench migrate`.
