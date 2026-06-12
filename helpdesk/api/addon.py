@@ -222,16 +222,15 @@ def _get_tasks(addon: str | None = None, project: str | None = None) -> list:
 	counts = {}
 	if rows:
 		try:
-			counts = {
-				c.task: c.n
-				for c in frappe.get_all(
-					"HD Task Comment",
-					filters={"task": ["in", [r.name for r in rows]]},
-					fields=["task", "count(name) as n"],
-					group_by="task",
-					ignore_permissions=True,
-				)
-			}
+			# Count in Python — string aggregates in `fields` are rejected on
+			# Frappe v16, and comment volumes per task list are tiny.
+			for task_name in frappe.get_all(
+				"HD Task Comment",
+				filters={"task": ["in", [r.name for r in rows]]},
+				pluck="task",
+				ignore_permissions=True,
+			):
+				counts[task_name] = counts.get(task_name, 0) + 1
 		except Exception:
 			counts = {}
 	for r in rows:

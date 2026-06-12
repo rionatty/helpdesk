@@ -9,14 +9,25 @@ function getTranslatedMessage(message: string): string {
 }
 
 function translate(message: string): string;
-function translate(message: string, ...args: string[]): string;
-function translate(message: string, ...args: string[]): string {
+function translate(
+  message: string,
+  ...args: (string | number | (string | number)[])[]
+): string;
+function translate(
+  message: string,
+  ...args: (string | number | (string | number)[])[]
+): string {
   const translatedMessage = getTranslatedMessage(message);
-  if (args.length === 0) {
+  // Frappe-style calls pass replacements as one array: __("{0} of {1}", [a, b])
+  const replacements =
+    args.length === 1 && Array.isArray(args[0]) ? args[0] : args;
+  if (replacements.length === 0) {
     return translatedMessage;
   }
   return translatedMessage.replace(/{(\d+)}/g, function (match, index) {
-    return typeof args[index] != "undefined" ? args[index] : match;
+    return typeof replacements[index] != "undefined"
+      ? String(replacements[index])
+      : match;
   });
 }
 
