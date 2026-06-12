@@ -31,7 +31,7 @@
       <div
         v-for="col in COLUMNS"
         :key="col.key"
-        class="rounded-xl bg-surface-gray-1 border border-outline-gray-1 p-2.5 flex flex-col gap-2 min-h-[80px] max-h-[68vh]"
+        class="rounded-xl bg-surface-gray-1 border border-outline-gray-1 p-2.5 flex flex-col gap-2 min-h-[80px] max-h-[420px]"
       >
         <div class="flex items-center justify-between px-1 shrink-0">
           <div class="flex items-center gap-1.5 text-xs font-semibold text-ink-gray-7">
