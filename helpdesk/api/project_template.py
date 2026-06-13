@@ -181,54 +181,56 @@ def update_template(
 	if not frappe.db.exists("HD Project Template", name):
 		frappe.throw(_("Template not found"), frappe.DoesNotExistError)
 
-	new_name = (template_name or "").strip()
-	if new_name and new_name != name:
-		if frappe.db.exists("HD Project Template", new_name):
-			frappe.throw(
-				_("A template named '{0}' already exists").format(new_name)
-			)
-		frappe.rename_doc("HD Project Template", name, new_name, force=True)
-		name = new_name
-
-	doc = frappe.get_doc("HD Project Template", name)
-	if description is not None:
-		doc.description = description
-
-	milestone_rows = (
-		_clean_milestone_rows(frappe.parse_json(milestones))
-		if milestones is not None
-		else None
-	)
-	task_rows = (
-		_clean_task_rows(frappe.parse_json(tasks)) if tasks is not None else None
-	)
-
-	if milestone_rows is not None:
-		doc.set("milestones", [])
-		for m in milestone_rows:
-			doc.append("milestones", m)
-	if task_rows is not None:
-		# A task must not reference a milestone title that no longer exists, or
-		# the doctype's validate() rejects the whole save. Resolve titles against
-		# the milestones being saved (or the existing ones if unchanged) and drop
-		# any dangling reference instead of failing.
-		if milestone_rows is not None:
-			titles = {m["title"] for m in milestone_rows}
-		else:
-			titles = {(m.title or "").strip() for m in (doc.milestones or [])}
-		doc.set("tasks", [])
-		for t in task_rows:
-			if t["milestone_title"] and t["milestone_title"] not in titles:
-				t["milestone_title"] = ""
-			doc.append("tasks", t)
-
+	# Everything past the access checks is wrapped: any unexpected failure is
+	# logged with a full traceback and re-surfaced as a readable message instead
+	# of an opaque 500 (clean validation/permission throws still pass through).
 	try:
+		new_name = (template_name or "").strip()
+		if new_name and new_name != name:
+			if frappe.db.exists("HD Project Template", new_name):
+				frappe.throw(
+					_("A template named '{0}' already exists").format(new_name)
+				)
+			frappe.rename_doc("HD Project Template", name, new_name, force=True)
+			name = new_name
+
+		doc = frappe.get_doc("HD Project Template", name)
+		if description is not None:
+			doc.description = description
+
+		milestone_rows = (
+			_clean_milestone_rows(frappe.parse_json(milestones))
+			if milestones is not None
+			else None
+		)
+		task_rows = (
+			_clean_task_rows(frappe.parse_json(tasks)) if tasks is not None else None
+		)
+
+		if milestone_rows is not None:
+			doc.set("milestones", [])
+			for m in milestone_rows:
+				doc.append("milestones", m)
+		if task_rows is not None:
+			# A task must not reference a milestone title that no longer exists,
+			# or the doctype's validate() rejects the whole save. Resolve titles
+			# against the milestones being saved (or existing ones if unchanged)
+			# and drop any dangling reference instead of failing.
+			if milestone_rows is not None:
+				titles = {m["title"] for m in milestone_rows}
+			else:
+				titles = {(m.title or "").strip() for m in (doc.milestones or [])}
+			doc.set("tasks", [])
+			for t in task_rows:
+				if t["milestone_title"] and t["milestone_title"] not in titles:
+					t["milestone_title"] = ""
+				doc.append("tasks", t)
+
 		doc.save(ignore_permissions=True)
+		return doc.name
 	except (frappe.ValidationError, frappe.PermissionError):
 		raise
 	except Exception as e:
-		# Surface the real cause instead of an opaque 500, and keep the full
-		# traceback in the Error Log for diagnosis.
 		frappe.log_error(
 			title="HD Project Template update failed",
 			message=frappe.get_traceback(),
@@ -236,7 +238,6 @@ def update_template(
 		frappe.throw(
 			_("Could not save template: {0}").format(str(e) or type(e).__name__)
 		)
-	return doc.name
 
 
 @frappe.whitelist()
