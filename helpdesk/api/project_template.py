@@ -191,7 +191,11 @@ def update_template(
 				frappe.throw(
 					_("A template named '{0}' already exists").format(new_name)
 				)
-			frappe.rename_doc("HD Project Template", name, new_name, force=True)
+			# No force=True: renaming an autoname=field doc rewrites every child
+			# row's parent FK; force bypasses guards and can raise a raw
+			# framework error. Without it, any issue surfaces as a clean message
+			# (caught below). This is also the only op with no insert-path analogue.
+			frappe.rename_doc("HD Project Template", name, new_name)
 			name = new_name
 
 		doc = frappe.get_doc("HD Project Template", name)
@@ -226,6 +230,11 @@ def update_template(
 					t["milestone_title"] = ""
 				doc.append("tasks", t)
 
+		# Skip version-diff machinery for this programmatic child-table rewrite:
+		# templates need no revision history, and the old-vs-new child diff that
+		# track_changes runs only on UPDATE (never on insert) is a known failure
+		# point when child rows are fully replaced.
+		doc.flags.ignore_version = True
 		doc.save(ignore_permissions=True)
 		return doc.name
 	except (frappe.ValidationError, frappe.PermissionError):
