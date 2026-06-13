@@ -145,28 +145,55 @@
     <!-- Task detail dialog -->
     <Dialog v-model="showDetail" :options="{ size: '2xl' }">
       <template #body>
-        <div v-if="selected" class="p-5 flex flex-col gap-4">
-          <!-- Title -->
-          <div class="flex items-start justify-between gap-3">
+        <div v-if="selected" class="flex flex-col">
+          <!-- Header: title + save state + actions -->
+          <div
+            class="flex items-start gap-3 px-5 pt-5 pb-3 border-b border-outline-gray-1"
+          >
             <input
               v-if="editable"
+              ref="subjectInput"
               :value="selected.subject"
-              class="flex-1 text-lg font-semibold text-ink-gray-9 bg-transparent focus:outline-none border-b border-transparent focus:border-outline-gray-2"
+              :placeholder="__('Task name')"
+              class="flex-1 min-w-0 text-lg font-semibold text-ink-gray-9 bg-transparent focus:outline-none border-b border-transparent focus:border-outline-gray-2"
               @change="(e) => patch({ subject: e.target.value })"
+              @keydown.enter="(e) => e.target.blur()"
             />
-            <h2 v-else class="flex-1 text-lg font-semibold text-ink-gray-9">
+            <h2 v-else class="flex-1 min-w-0 text-lg font-semibold text-ink-gray-9">
               {{ selected.subject }}
             </h2>
-            <button
-              v-if="editable"
-              type="button"
-              class="text-ink-gray-4 hover:text-ink-red-3 shrink-0 mt-1"
-              :aria-label="__('Delete task')"
-              @click="remove"
-            >
-              <LucideTrash2 class="size-4" />
-            </button>
+            <div class="flex items-center gap-2 shrink-0">
+              <span
+                v-if="editable"
+                class="text-xs flex items-center gap-1"
+                :class="updateRes.loading ? 'text-ink-gray-5' : 'text-green-600'"
+              >
+                <LucideLoader2
+                  v-if="updateRes.loading"
+                  class="size-3 animate-spin"
+                />
+                <LucideCheck v-else class="size-3" />
+                {{ updateRes.loading ? __("Saving…") : __("Saved") }}
+              </span>
+              <button
+                v-if="editable"
+                type="button"
+                class="text-ink-gray-4 hover:text-ink-red-3"
+                :aria-label="__('Delete task')"
+                @click="remove"
+              >
+                <LucideTrash2 class="size-4" />
+              </button>
+              <Button
+                :label="__('Done')"
+                theme="gray"
+                variant="solid"
+                @click="showDetail = false"
+              />
+            </div>
           </div>
+
+          <div class="p-5 flex flex-col gap-4">
 
           <!-- Fields -->
           <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -359,6 +386,7 @@
               />
             </form>
           </div>
+          </div>
         </div>
       </template>
     </Dialog>
@@ -366,7 +394,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, nextTick, ref, watch } from "vue";
 import {
   Avatar,
   Button,
@@ -385,6 +413,8 @@ import LucideMessageCircle from "~icons/lucide/message-circle";
 import LucideFlag from "~icons/lucide/flag";
 import LucideEyeOff from "~icons/lucide/eye-off";
 import LucideListChecks from "~icons/lucide/list-checks";
+import LucideCheck from "~icons/lucide/check";
+import LucideLoader2 from "~icons/lucide/loader-2";
 
 interface P {
   addonId?: string;
@@ -509,28 +539,67 @@ function reload() {
 }
 
 const newSubject = ref("");
+// When set, the task created by the next add_task success opens for naming.
+let pendingOpenStatus: string | null = null;
 const addRes = createResource({
   url: "helpdesk.api.addon.add_task",
-  onSuccess: () => {
+  onSuccess: (name: string) => {
     newSubject.value = "";
     reload();
+    if (pendingOpenStatus !== null && name) {
+      openNew(name, pendingOpenStatus);
+    }
+    pendingOpenStatus = null;
   },
-  onError: (e: any) => toast.error(e?.messages?.[0] || __("Could not add task")),
+  onError: (e: any) => {
+    pendingOpenStatus = null;
+    toast.error(e?.messages?.[0] || __("Could not add task"));
+  },
 });
 function add() {
   const s = newSubject.value.trim();
   if (!s) return;
+  pendingOpenStatus = null;
   addRes.submit({ ...parentParams(), subject: s });
 }
 function quickAdd(status: string) {
-  const s = (newSubject.value || __("New task")).trim();
-  addRes.submit({ ...parentParams(), subject: s, status });
-  newSubject.value = "";
+  pendingOpenStatus = status;
+  addRes.submit({
+    ...parentParams(),
+    subject: __("New task"),
+    status,
+    ...(milestoneFilter.value ? { milestone: milestoneFilter.value } : {}),
+  });
 }
 
 // --- detail dialog ---
 const showDetail = ref(false);
 const selected = ref<any>(null);
+const subjectInput = ref<any>(null);
+
+// Open a just-created task with its name selected, so the placeholder
+// "New task" can be renamed immediately.
+async function openNew(name: string, status: string) {
+  selected.value = {
+    name,
+    subject: __("New task"),
+    status,
+    priority: "Medium",
+    milestone: milestoneFilter.value || "",
+    feature: "",
+    is_internal: 0,
+    start_date: "",
+    end_date: "",
+    description: "",
+    assigned_to: "",
+    assigned_to_name: "",
+  };
+  showDetail.value = true;
+  comments.reload();
+  await nextTick();
+  subjectInput.value?.focus?.();
+  subjectInput.value?.select?.();
+}
 
 const comments = createResource({
   url: "helpdesk.api.addon.get_task_comments",
