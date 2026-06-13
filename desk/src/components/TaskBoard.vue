@@ -464,6 +464,10 @@ function milestoneTitle(name: string) {
 }
 defineExpose({
   refreshMilestones: () => props.projectId && milestonesRes.reload(),
+  reload: () => {
+    tasks.reload();
+    if (props.projectId) milestonesRes.reload();
+  },
 });
 function featureTitle(name: string) {
   return (featuresRes.data || []).find((f: any) => f.name === name)?.feature_title;

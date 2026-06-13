@@ -19,6 +19,24 @@
             <template #prefix><LucideTicket class="size-4" /></template>
           </Button>
           <template v-if="editable && resource.data">
+            <Dropdown
+              :options="[
+                {
+                  label: __('Apply template…'),
+                  onClick: openApplyTemplate,
+                },
+                {
+                  label: __('Save as template…'),
+                  onClick: () => (showSaveTemplateDialog = true),
+                },
+              ]"
+            >
+              <Button theme="gray" variant="subtle" :label="__('Templates')">
+                <template #prefix>
+                  <LucideLayoutTemplate class="size-4" />
+                </template>
+              </Button>
+            </Dropdown>
             <Button
               theme="red"
               variant="ghost"
@@ -426,6 +444,114 @@
         </div>
       </template>
     </Dialog>
+
+    <!-- Apply template dialog -->
+    <Dialog
+      v-model="showApplyTemplateDialog"
+      :options="{
+        title: __('Apply a project template'),
+        actions: [
+          {
+            label: __('Apply'),
+            variant: 'solid',
+            theme: 'blue',
+            loading: applyTemplateRes.loading,
+            disabled: !selectedTemplate,
+            onClick: applyTemplate,
+          },
+        ],
+      }"
+    >
+      <template #body-content>
+        <div
+          v-if="templatesRes.loading"
+          class="py-6 text-center text-sm text-ink-gray-5"
+        >
+          {{ __("Loading…") }}
+        </div>
+        <div
+          v-else-if="!templatesRes.data?.length"
+          class="py-6 text-center text-sm text-ink-gray-5"
+        >
+          {{
+            __(
+              "No templates yet. Build one project, then use 'Save as template'."
+            )
+          }}
+        </div>
+        <div v-else class="flex flex-col gap-1 max-h-96 overflow-y-auto">
+          <label
+            v-for="t in templatesRes.data"
+            :key="t.name"
+            class="flex items-center gap-2.5 px-2 py-2 rounded hover:bg-surface-menu-bar cursor-pointer"
+          >
+            <input
+              type="radio"
+              name="project-template"
+              :value="t.name"
+              v-model="selectedTemplate"
+            />
+            <span class="flex-1 min-w-0">
+              <span class="block text-sm font-medium text-ink-gray-8 truncate">
+                {{ t.template_name }}
+              </span>
+              <span
+                v-if="t.description"
+                class="block text-xs text-ink-gray-5 truncate"
+              >
+                {{ t.description }}
+              </span>
+            </span>
+            <span class="text-xs text-ink-gray-5 shrink-0">
+              {{ t.milestone_count }} {{ __("milestones") }} ·
+              {{ t.task_count }} {{ __("tasks") }}
+            </span>
+          </label>
+        </div>
+        <p class="mt-3 text-xs text-ink-gray-5">
+          {{
+            __(
+              "Milestone due dates are scheduled from today. Existing milestones with the same title are reused, not duplicated."
+            )
+          }}
+        </p>
+      </template>
+    </Dialog>
+
+    <!-- Save as template dialog -->
+    <Dialog
+      v-model="showSaveTemplateDialog"
+      :options="{
+        title: __('Save project as template'),
+        actions: [
+          {
+            label: __('Save template'),
+            variant: 'solid',
+            theme: 'blue',
+            loading: saveTemplateRes.loading,
+            disabled: !newTemplateName.trim(),
+            onClick: saveAsTemplate,
+          },
+        ],
+      }"
+    >
+      <template #body-content>
+        <p class="text-sm text-ink-gray-6 mb-3">
+          {{
+            __(
+              "Snapshots this project's milestones and tasks so you can apply them to future projects."
+            )
+          }}
+        </p>
+        <input
+          v-model="newTemplateName"
+          type="text"
+          :placeholder="__('Template name, e.g. ERP Implementation')"
+          class="w-full text-sm rounded-lg border border-outline-gray-2 bg-surface-white px-3 py-2 text-ink-gray-8 focus:outline-none focus:border-blue-400"
+          maxlength="140"
+        />
+      </template>
+    </Dialog>
   </div>
 </template>
 
@@ -436,6 +562,7 @@ import {
   Breadcrumbs,
   Button,
   Dialog,
+  Dropdown,
   createResource,
   dayjs,
   toast,
@@ -458,6 +585,7 @@ import LucideTrendingUp from "~icons/lucide/trending-up";
 import LucideCalendarRange from "~icons/lucide/calendar-range";
 import LucideChevronRight from "~icons/lucide/chevron-right";
 import LucideSparkles from "~icons/lucide/sparkles";
+import LucideLayoutTemplate from "~icons/lucide/layout-template";
 import { globalStore } from "@/stores/globalStore";
 import { isCustomerPortal } from "@/utils";
 import { __ } from "@/translation";
@@ -556,6 +684,64 @@ function ticketTheme(status: string) {
 }
 
 const milestonesRef = ref<any>(null);
+
+// ---- Project templates ----
+const showApplyTemplateDialog = ref(false);
+const showSaveTemplateDialog = ref(false);
+const selectedTemplate = ref("");
+const newTemplateName = ref("");
+
+const templatesRes = createResource({
+  url: "helpdesk.api.project_template.get_templates",
+  auto: false,
+});
+
+function openApplyTemplate() {
+  selectedTemplate.value = "";
+  templatesRes.reload();
+  showApplyTemplateDialog.value = true;
+}
+
+const applyTemplateRes = createResource({
+  url: "helpdesk.api.project_template.apply_template",
+  onSuccess: (data: any) => {
+    showApplyTemplateDialog.value = false;
+    toast.success(
+      __("Template applied: {0} milestones, {1} tasks created", [
+        String(data?.milestones_created ?? 0),
+        String(data?.tasks_created ?? 0),
+      ])
+    );
+    milestonesRef.value?.reload();
+    taskBoardRef.value?.reload?.();
+    resource.reload();
+  },
+  onError: (e: any) =>
+    toast.error(e?.messages?.[0] || __("Could not apply template")),
+});
+function applyTemplate() {
+  if (!selectedTemplate.value) return;
+  applyTemplateRes.submit({
+    project: props.projectId,
+    template: selectedTemplate.value,
+  });
+}
+
+const saveTemplateRes = createResource({
+  url: "helpdesk.api.project_template.save_as_template",
+  onSuccess: () => {
+    showSaveTemplateDialog.value = false;
+    toast.success(__("Template '{0}' saved", [newTemplateName.value.trim()]));
+    newTemplateName.value = "";
+  },
+  onError: (e: any) =>
+    toast.error(e?.messages?.[0] || __("Could not save template")),
+});
+function saveAsTemplate() {
+  const name = newTemplateName.value.trim();
+  if (!name) return;
+  saveTemplateRes.submit({ project: props.projectId, template_name: name });
+}
 const taskBoardRef = ref<any>(null);
 
 const form = reactive({
