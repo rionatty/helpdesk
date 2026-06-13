@@ -112,9 +112,13 @@ def create_template(template_name: str, description: str | None = None) -> str:
 	return doc.name
 
 
-def _clean_milestone_rows(rows: list) -> list:
+def _clean_milestone_rows(rows) -> list:
+	if not isinstance(rows, list):
+		return []
 	cleaned = []
-	for r in rows or []:
+	for r in rows:
+		if not isinstance(r, dict):
+			continue
 		title = (r.get("title") or "").strip()
 		if not title:
 			continue
@@ -124,30 +128,40 @@ def _clean_milestone_rows(rows: list) -> list:
 				"sequence": cint(r.get("sequence")),
 				"due_after_days": max(0, cint(r.get("due_after_days"))),
 				"customer_visible": cint(r.get("customer_visible")),
-				"description": r.get("description"),
+				"description": r.get("description") or None,
 			}
 		)
 	return cleaned
 
 
-def _clean_task_rows(rows: list) -> list:
+def _clean_task_rows(rows) -> list:
+	if not isinstance(rows, list):
+		return []
 	cleaned = []
-	for r in rows or []:
+	for r in rows:
+		if not isinstance(r, dict):
+			continue
 		subject = (r.get("subject") or "").strip()
 		if not subject:
 			continue
 		assignee = r.get("assigned_to") or None
 		if assignee and not frappe.db.exists("HD Agent", assignee):
 			assignee = None
+		status = r.get("status") or "To Do"
+		if status not in ("To Do", "In Progress", "Done", "Blocked"):
+			status = "To Do"
+		priority = r.get("priority") or "Medium"
+		if priority not in ("Low", "Medium", "High", "Urgent"):
+			priority = "Medium"
 		cleaned.append(
 			{
 				"subject": subject,
 				"milestone_title": (r.get("milestone_title") or "").strip(),
-				"status": r.get("status") or "To Do",
-				"priority": r.get("priority") or "Medium",
+				"status": status,
+				"priority": priority,
 				"assigned_to": assignee,
 				"is_internal": cint(r.get("is_internal")),
-				"description": r.get("description"),
+				"description": r.get("description") or None,
 			}
 		)
 	return cleaned
@@ -179,15 +193,49 @@ def update_template(
 	doc = frappe.get_doc("HD Project Template", name)
 	if description is not None:
 		doc.description = description
-	if milestones is not None:
+
+	milestone_rows = (
+		_clean_milestone_rows(frappe.parse_json(milestones))
+		if milestones is not None
+		else None
+	)
+	task_rows = (
+		_clean_task_rows(frappe.parse_json(tasks)) if tasks is not None else None
+	)
+
+	if milestone_rows is not None:
 		doc.set("milestones", [])
-		for m in _clean_milestone_rows(frappe.parse_json(milestones)):
+		for m in milestone_rows:
 			doc.append("milestones", m)
-	if tasks is not None:
+	if task_rows is not None:
+		# A task must not reference a milestone title that no longer exists, or
+		# the doctype's validate() rejects the whole save. Resolve titles against
+		# the milestones being saved (or the existing ones if unchanged) and drop
+		# any dangling reference instead of failing.
+		if milestone_rows is not None:
+			titles = {m["title"] for m in milestone_rows}
+		else:
+			titles = {(m.title or "").strip() for m in (doc.milestones or [])}
 		doc.set("tasks", [])
-		for t in _clean_task_rows(frappe.parse_json(tasks)):
+		for t in task_rows:
+			if t["milestone_title"] and t["milestone_title"] not in titles:
+				t["milestone_title"] = ""
 			doc.append("tasks", t)
-	doc.save(ignore_permissions=True)
+
+	try:
+		doc.save(ignore_permissions=True)
+	except (frappe.ValidationError, frappe.PermissionError):
+		raise
+	except Exception as e:
+		# Surface the real cause instead of an opaque 500, and keep the full
+		# traceback in the Error Log for diagnosis.
+		frappe.log_error(
+			title="HD Project Template update failed",
+			message=frappe.get_traceback(),
+		)
+		frappe.throw(
+			_("Could not save template: {0}").format(str(e) or type(e).__name__)
+		)
 	return doc.name
 
 
