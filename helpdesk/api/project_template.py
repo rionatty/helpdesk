@@ -86,14 +86,18 @@ def apply_template(project: str, template: str) -> dict:
 		if not subject:
 			continue
 		milestone_title = (row.milestone_title or "").strip()
+		assignee = row.assigned_to
+		if assignee and not frappe.db.exists("HD Agent", assignee):
+			assignee = None
 		doc = frappe.get_doc(
 			{
 				"doctype": "HD Addon Task",
 				"subject": subject,
 				"project": project,
 				"milestone": milestone_map.get(milestone_title),
-				"status": "To Do",
+				"status": row.status or "To Do",
 				"priority": row.priority or "Medium",
+				"assigned_to": assignee,
 				"is_internal": row.is_internal,
 				"description": row.description,
 			}
@@ -139,7 +143,15 @@ def save_as_template(project: str, template_name: str) -> str:
 	tasks = frappe.get_all(
 		"HD Addon Task",
 		filters={"project": project},
-		fields=["subject", "milestone", "priority", "is_internal", "description"],
+		fields=[
+			"subject",
+			"milestone",
+			"status",
+			"priority",
+			"assigned_to",
+			"is_internal",
+			"description",
+		],
 		order_by="creation asc",
 	)
 	if not milestones and not tasks:
@@ -173,7 +185,9 @@ def save_as_template(project: str, template_name: str) -> str:
 			{
 				"subject": t.subject,
 				"milestone_title": milestone_title_by_name.get(t.milestone) or "",
+				"status": t.status or "To Do",
 				"priority": t.priority or "Medium",
+				"assigned_to": t.assigned_to,
 				"is_internal": t.is_internal,
 				"description": t.description,
 			},

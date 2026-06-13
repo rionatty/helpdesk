@@ -7,7 +7,9 @@
  "field_order": [
   "subject",
   "milestone_title",
+  "status",
   "priority",
+  "assigned_to",
   "is_internal",
   "description"
  ],
@@ -27,6 +29,14 @@
    "label": "Milestone Title"
   },
   {
+   "default": "To Do",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Status",
+   "options": "To Do\nIn Progress\nDone\nBlocked"
+  },
+  {
    "default": "Medium",
    "fieldname": "priority",
    "fieldtype": "Select",
@@ -35,10 +45,16 @@
    "options": "Low\nMedium\nHigh\nUrgent"
   },
   {
+   "fieldname": "assigned_to",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Assigned To",
+   "options": "HD Agent"
+  },
+  {
    "default": "0",
    "fieldname": "is_internal",
    "fieldtype": "Check",
-   "in_list_view": 1,
    "label": "Internal Only"
   },
   {
