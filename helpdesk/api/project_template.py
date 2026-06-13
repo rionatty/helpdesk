@@ -5,9 +5,27 @@
 
 import frappe
 from frappe import _
-from frappe.utils import add_days, getdate, nowdate
+from frappe.utils import add_days, cint, getdate, nowdate
 
 from helpdesk.utils import is_agent
+
+# Fields we accept from the editor for each child row — anything else is ignored.
+MILESTONE_ROW_FIELDS = (
+	"title",
+	"sequence",
+	"due_after_days",
+	"customer_visible",
+	"description",
+)
+TASK_ROW_FIELDS = (
+	"subject",
+	"milestone_title",
+	"status",
+	"priority",
+	"assigned_to",
+	"is_internal",
+	"description",
+)
 
 
 def _assert_agent() -> None:
@@ -40,18 +58,166 @@ def get_templates() -> list:
 
 
 @frappe.whitelist()
+def get_template(name: str) -> dict:
+	"""A single template with its milestone and task rows, for the editor."""
+	_assert_agent()
+	if not frappe.db.exists("HD Project Template", name):
+		frappe.throw(_("Template not found"), frappe.DoesNotExistError)
+	doc = frappe.get_doc("HD Project Template", name)
+	return {
+		"name": doc.name,
+		"template_name": doc.template_name,
+		"description": doc.description,
+		"milestones": [
+			{
+				"title": m.title,
+				"sequence": m.sequence or 0,
+				"due_after_days": m.due_after_days or 0,
+				"customer_visible": cint(m.customer_visible),
+				"description": m.description,
+			}
+			for m in sorted(doc.milestones or [], key=lambda r: r.sequence or 0)
+		],
+		"tasks": [
+			{
+				"subject": t.subject,
+				"milestone_title": t.milestone_title or "",
+				"status": t.status or "To Do",
+				"priority": t.priority or "Medium",
+				"assigned_to": t.assigned_to,
+				"is_internal": cint(t.is_internal),
+				"description": t.description,
+			}
+			for t in (doc.tasks or [])
+		],
+	}
+
+
+@frappe.whitelist()
+def create_template(template_name: str, description: str | None = None) -> str:
+	"""Create an empty template. Agents only."""
+	_assert_agent()
+	template_name = (template_name or "").strip()
+	if not template_name:
+		frappe.throw(_("Template name is required"))
+	if frappe.db.exists("HD Project Template", template_name):
+		frappe.throw(_("A template named '{0}' already exists").format(template_name))
+	doc = frappe.get_doc(
+		{
+			"doctype": "HD Project Template",
+			"template_name": template_name,
+			"description": description,
+		}
+	).insert(ignore_permissions=True)
+	return doc.name
+
+
+def _clean_milestone_rows(rows: list) -> list:
+	cleaned = []
+	for r in rows or []:
+		title = (r.get("title") or "").strip()
+		if not title:
+			continue
+		cleaned.append(
+			{
+				"title": title,
+				"sequence": cint(r.get("sequence")),
+				"due_after_days": max(0, cint(r.get("due_after_days"))),
+				"customer_visible": cint(r.get("customer_visible")),
+				"description": r.get("description"),
+			}
+		)
+	return cleaned
+
+
+def _clean_task_rows(rows: list) -> list:
+	cleaned = []
+	for r in rows or []:
+		subject = (r.get("subject") or "").strip()
+		if not subject:
+			continue
+		assignee = r.get("assigned_to") or None
+		if assignee and not frappe.db.exists("HD Agent", assignee):
+			assignee = None
+		cleaned.append(
+			{
+				"subject": subject,
+				"milestone_title": (r.get("milestone_title") or "").strip(),
+				"status": r.get("status") or "To Do",
+				"priority": r.get("priority") or "Medium",
+				"assigned_to": assignee,
+				"is_internal": cint(r.get("is_internal")),
+				"description": r.get("description"),
+			}
+		)
+	return cleaned
+
+
+@frappe.whitelist()
+def update_template(
+	name: str,
+	template_name: str | None = None,
+	description: str | None = None,
+	milestones=None,
+	tasks=None,
+) -> str:
+	"""Rewrite a template's name, description and child rows. Agents only.
+	`milestones` and `tasks` are JSON arrays (full replacement)."""
+	_assert_agent()
+	if not frappe.db.exists("HD Project Template", name):
+		frappe.throw(_("Template not found"), frappe.DoesNotExistError)
+
+	new_name = (template_name or "").strip()
+	if new_name and new_name != name:
+		if frappe.db.exists("HD Project Template", new_name):
+			frappe.throw(
+				_("A template named '{0}' already exists").format(new_name)
+			)
+		frappe.rename_doc("HD Project Template", name, new_name, force=True)
+		name = new_name
+
+	doc = frappe.get_doc("HD Project Template", name)
+	if description is not None:
+		doc.description = description
+	if milestones is not None:
+		doc.set("milestones", [])
+		for m in _clean_milestone_rows(frappe.parse_json(milestones)):
+			doc.append("milestones", m)
+	if tasks is not None:
+		doc.set("tasks", [])
+		for t in _clean_task_rows(frappe.parse_json(tasks)):
+			doc.append("tasks", t)
+	doc.save(ignore_permissions=True)
+	return doc.name
+
+
+@frappe.whitelist()
+def delete_template(name: str) -> bool:
+	"""Delete a template and its rows (child rows cascade). Agents only."""
+	_assert_agent()
+	if not frappe.db.exists("HD Project Template", name):
+		return True
+	frappe.delete_doc("HD Project Template", name, ignore_permissions=True)
+	return True
+
+
+@frappe.whitelist()
 def apply_template(project: str, template: str) -> dict:
 	"""Instantiate a template's milestones + tasks into a project.
 
-	Milestone due dates are offset from today by each row's due_after_days.
-	If a milestone with the same title already exists on the project it is
-	reused (no duplicate), so re-applying a template is safe.
+	Milestone due dates are offset from the project's start date (or today) by
+	each row's due_after_days. Re-applying is safe and idempotent: a milestone
+	is reused when one with the same title already exists, and a task is skipped
+	when one with the same subject + milestone already exists on the project.
 	"""
 	_assert_agent()
 	_assert_project(project)
 	tpl = frappe.get_doc("HD Project Template", template)
 
-	today = getdate(nowdate())
+	# Anchor milestone due dates on the project's start date when it has one,
+	# so "due after N days" is measured from the project start; else from today.
+	base = frappe.db.get_value("HD Project", project, "start_date")
+	today = getdate(base) if base else getdate(nowdate())
 	milestone_map: dict = {}
 	milestones_created = 0
 	tasks_created = 0
@@ -86,6 +252,14 @@ def apply_template(project: str, template: str) -> dict:
 		if not subject:
 			continue
 		milestone_title = (row.milestone_title or "").strip()
+		milestone_name = milestone_map.get(milestone_title)
+		# Idempotent: skip if an identical task already exists on this project,
+		# so re-applying never duplicates tasks (which would also regress a
+		# manually-completed milestone via the task→milestone sync).
+		dup_filters = {"project": project, "subject": subject}
+		dup_filters["milestone"] = milestone_name or ["is", "not set"]
+		if frappe.db.exists("HD Addon Task", dup_filters):
+			continue
 		assignee = row.assigned_to
 		if assignee and not frappe.db.exists("HD Agent", assignee):
 			assignee = None
@@ -94,7 +268,7 @@ def apply_template(project: str, template: str) -> dict:
 				"doctype": "HD Addon Task",
 				"subject": subject,
 				"project": project,
-				"milestone": milestone_map.get(milestone_title),
+				"milestone": milestone_name,
 				"status": row.status or "To Do",
 				"priority": row.priority or "Medium",
 				"assigned_to": assignee,

@@ -123,6 +123,14 @@ const routes = [
     props: true,
   },
   {
+    path: "/project-templates",
+    name: "ProjectTemplates",
+    component: () => import("@/pages/ProjectTemplates.vue"),
+    meta: {
+      agent: true,
+    },
+  },
+  {
     path: "/addons",
     name: "AddonsAgent",
     component: () => import("@/pages/AddonsView.vue"),
@@ -316,6 +324,9 @@ router.beforeEach(async (to, _, next) => {
       name: "TicketCustomer",
       params: { ticketId },
     });
+  } else if (to.meta.agent && !authStore.isAgent) {
+    // Agent-only desk pages (e.g. project templates): non-agents go to projects.
+    next({ name: "ProjectsAgent" });
   } else {
     next();
   }

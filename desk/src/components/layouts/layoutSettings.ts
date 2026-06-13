@@ -3,6 +3,7 @@ import LucideContact2 from "~icons/lucide/contact-2";
 import LucideTicket from "~icons/lucide/ticket";
 import LucideLayoutDashboard from "~icons/lucide/layout-dashboard";
 import LucideFolderKanban from "~icons/lucide/folder-kanban";
+import LucideLayoutTemplate from "~icons/lucide/layout-template";
 import LucidePackage from "~icons/lucide/package";
 import { OrganizationsIcon } from "../icons";
 import PhoneIcon from "../icons/PhoneIcon.vue";
@@ -29,6 +30,11 @@ export const agentPortalSidebarOptions = [
     label: __("Projects"),
     icon: LucideFolderKanban,
     to: "ProjectsAgent",
+  },
+  {
+    label: __("Templates"),
+    icon: LucideLayoutTemplate,
+    to: "ProjectTemplates",
   },
   {
     label: __("Add-ons"),

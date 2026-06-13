@@ -29,6 +29,10 @@
                   label: __('Save as template…'),
                   onClick: () => (showSaveTemplateDialog = true),
                 },
+                {
+                  label: __('Manage templates…'),
+                  onClick: () => router.push({ name: 'ProjectTemplates' }),
+                },
               ]"
             >
               <Button theme="gray" variant="subtle" :label="__('Templates')">

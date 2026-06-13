@@ -161,6 +161,20 @@
       <template #body-content>
         <div class="flex flex-col gap-3.5">
           <FormControl
+            v-if="templateOptions.length > 1"
+            v-model="form.from_template"
+            :label="__('Start from template')"
+            type="select"
+            :options="templateOptions"
+          />
+          <div
+            v-if="form.from_template"
+            class="-mt-1 flex items-center gap-1.5 text-xs text-amber-700 bg-amber-50 rounded-md px-2.5 py-1.5"
+          >
+            <LucideLayoutTemplate class="size-3.5 shrink-0" />
+            {{ __("Milestones and tasks from this template will be added to the new project.") }}
+          </div>
+          <FormControl
             v-model="form.project_name"
             :label="__('Project name')"
             type="text"
@@ -219,10 +233,10 @@
           variant="solid"
           theme="blue"
           class="w-full"
-          :loading="createRes.loading"
+          :loading="createRes.loading || applyTemplateRes.loading"
           @click="submitCreate"
         >
-          {{ __("Create project") }}
+          {{ form.from_template ? __("Create from template") : __("Create project") }}
         </Button>
       </template>
     </Dialog>
@@ -247,6 +261,7 @@ import { __ } from "@/translation";
 import LucideFolderKanban from "~icons/lucide/folder-kanban";
 import LucidePlus from "~icons/lucide/plus";
 import LucideCalendar from "~icons/lucide/calendar";
+import LucideLayoutTemplate from "~icons/lucide/layout-template";
 
 const router = useRouter();
 
@@ -277,6 +292,19 @@ const projects = createResource({
   auto: true,
 });
 watch(customerFilter, () => projects.reload());
+
+// Templates power the "Start from template" picker (agents only).
+const templatesRes = createResource({
+  url: "helpdesk.api.project_template.get_templates",
+  auto: !isCustomerPortal.value,
+});
+const templateOptions = computed(() => [
+  { label: __("None — blank project"), value: "" },
+  ...(templatesRes.data || []).map((t: any) => ({
+    label: t.template_name,
+    value: t.name,
+  })),
+]);
 
 const filtered = computed(() => {
   let rows = projects.data || [];
@@ -310,7 +338,7 @@ function open(name: string) {
 
 // --- Create (agent) ---
 const showCreate = ref(false);
-const form = reactive({
+const BLANK_FORM = {
   project_name: "",
   project_type: "Customer",
   customer: "",
@@ -320,27 +348,39 @@ const form = reactive({
   end_date: "",
   progress: 0,
   description: "",
-});
+  from_template: "",
+};
+const form = reactive({ ...BLANK_FORM });
 function openCreate() {
-  Object.assign(form, {
-    project_name: "",
-    project_type: "Customer",
-    customer: "",
-    team: "",
-    status: "Planned",
-    start_date: "",
-    end_date: "",
-    progress: 0,
-    description: "",
-  });
+  Object.assign(form, BLANK_FORM);
   showCreate.value = true;
+}
+
+// After a project is created, optionally stamp a template's milestones + tasks
+// into it, then navigate to the project.
+const applyTemplateRes = createResource({
+  url: "helpdesk.api.project_template.apply_template",
+  onError: (e: any) =>
+    toast.error(e?.messages?.[0] || __("Project created, but template failed")),
+});
+function goToProject(name: string, silent = false) {
+  showCreate.value = false;
+  // On the apply-failure path applyTemplateRes already toasts a warning, so
+  // skip the success toast to avoid two contradictory messages at once.
+  if (!silent) toast.success(__("Project created"));
+  router.push({ name: "ProjectAgent", params: { projectId: name } });
 }
 const createRes = createResource({
   url: "helpdesk.api.project.create_project",
   onSuccess: (name: string) => {
-    showCreate.value = false;
-    toast.success(__("Project created"));
-    router.push({ name: "ProjectAgent", params: { projectId: name } });
+    if (form.from_template) {
+      applyTemplateRes.submit(
+        { project: name, template: form.from_template },
+        { onSuccess: () => goToProject(name), onError: () => goToProject(name, true) }
+      );
+    } else {
+      goToProject(name);
+    }
   },
   onError: (e: any) =>
     toast.error(e?.messages?.[0] || __("Could not create project")),
@@ -354,7 +394,8 @@ function submitCreate() {
     toast.error(__("Customer is required for customer projects"));
     return;
   }
-  createRes.submit({ ...form });
+  const { from_template, ...projectFields } = form;
+  createRes.submit({ ...projectFields });
 }
 
 usePageMeta(() => ({ title: __("Projects") }));
