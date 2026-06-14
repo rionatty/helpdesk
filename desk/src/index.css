@@ -85,20 +85,20 @@ body {
 /* shadows, elevated surfaces. Light mode only; dark untouched.   */
 /* ============================================================= */
 html:not([data-theme="dark"]) {
-  /* Refined cool surfaces — desaturated blue reads premium */
-  --surface-menu-bar: #dde6f3;
-  --hd-bg: #f3f4f8;
-  --hd-bg-veil: #e6e9f1;
+  /* CyveTech brand surfaces */
+  --surface-menu-bar: #16335e;   /* sidebar — CyveTech navy */
+  --hd-bg: #f2f4f7;
+  --hd-bg-veil: #e8ecf2;
 
-  /* Brand palette — deep navy + warm gold */
-  --hd-navy: #0e2148;
-  --hd-navy-2: #18305c;
-  --hd-navy-3: #1f3d75;
-  --hd-navy-hi: #2b4f96;
-  --hd-gold: #fcc502;
-  --hd-gold-2: #ffd60a;
-  --hd-gold-soft: #fff4c4;
-  --hd-gold-line: rgba(252, 197, 2, 0.6);
+  /* Brand palette — CyveTech navy + gold */
+  --hd-navy:    #16335e;
+  --hd-navy-2:  #0f2344;
+  --hd-navy-3:  #1a3d72;
+  --hd-navy-hi: #2248a0;
+  --hd-gold:      #eaa51a;
+  --hd-gold-2:    #f6921e;
+  --hd-gold-soft: rgba(234, 165, 26, 0.1);
+  --hd-gold-line: rgba(234, 165, 26, 0.55);
 
   /* Slate-tinted shadow ramp (rgb 15 23 42 = slate-900).        */
   /* Layered + low-opacity is the hallmark of executive UIs.     */
@@ -117,10 +117,10 @@ html:not([data-theme="dark"]) {
 }
 
 html:not([data-theme="dark"]) .hd-chrome-bg {
-  background: linear-gradient(180deg, #dde6f3 0%, #ccd9ec 100%);
+  background: linear-gradient(180deg, #16335e 0%, #0f2344 100%);
 }
 html:not([data-theme="dark"]) .hd-chrome-bg-h {
-  background: linear-gradient(90deg, #dde6f3 0%, #ccd9ec 100%);
+  background: linear-gradient(90deg, #16335e 0%, #0f2344 100%);
 }
 /* Dark-mode fallback — chrome elements use the standard dark menu surface
    so the ribbon/sidebars don't render transparent when dark theme is on. */
@@ -290,7 +290,7 @@ html:not([data-theme="dark"]) .hover\:shadow-lg:hover {
   z-index: 1;
 }
 .hd-color-card[data-accent="blue"] {
-  --hd-card-accent: linear-gradient(90deg, #3b82f6, #06b6d4);
+  --hd-card-accent: linear-gradient(90deg, #16335e, #1a3d72);
 }
 .hd-color-card[data-accent="emerald"] {
   --hd-card-accent: linear-gradient(90deg, #10b981, #14b8a6);
@@ -299,7 +299,7 @@ html:not([data-theme="dark"]) .hover\:shadow-lg:hover {
   --hd-card-accent: linear-gradient(90deg, #8b5cf6, #ec4899);
 }
 .hd-color-card[data-accent="amber"] {
-  --hd-card-accent: linear-gradient(90deg, #f59e0b, #f97316);
+  --hd-card-accent: linear-gradient(90deg, #eaa51a, #f6921e);
 }
 .hd-color-card[data-accent="rose"] {
   --hd-card-accent: linear-gradient(90deg, #f43f5e, #fb7185);
@@ -308,7 +308,7 @@ html:not([data-theme="dark"]) .hover\:shadow-lg:hover {
   --hd-card-accent: linear-gradient(90deg, #6366f1, #8b5cf6);
 }
 .hd-color-card[data-accent="blue"]:hover {
-  box-shadow: 0 14px 28px -8px rgba(59, 130, 246, 0.28), var(--hd-elev-2);
+  box-shadow: 0 14px 28px -8px rgba(22, 51, 94, 0.32), var(--hd-elev-2);
 }
 .hd-color-card[data-accent="emerald"]:hover {
   box-shadow: 0 14px 28px -8px rgba(16, 185, 129, 0.28), var(--hd-elev-2);
@@ -317,7 +317,7 @@ html:not([data-theme="dark"]) .hover\:shadow-lg:hover {
   box-shadow: 0 14px 28px -8px rgba(139, 92, 246, 0.28), var(--hd-elev-2);
 }
 .hd-color-card[data-accent="amber"]:hover {
-  box-shadow: 0 14px 28px -8px rgba(245, 158, 11, 0.28), var(--hd-elev-2);
+  box-shadow: 0 14px 28px -8px rgba(234, 165, 26, 0.3), var(--hd-elev-2);
 }
 .hd-color-card[data-accent="rose"]:hover {
   box-shadow: 0 14px 28px -8px rgba(244, 63, 94, 0.28), var(--hd-elev-2);
@@ -330,7 +330,7 @@ html:not([data-theme="dark"]) .hover\:shadow-lg:hover {
 .hd-tinted-bg[data-accent="blue"] {
   background-image: radial-gradient(
     1200px circle at top right,
-    rgba(59, 130, 246, 0.05),
+    rgba(22, 51, 94, 0.06),
     transparent 60%
   );
 }
@@ -351,7 +351,7 @@ html:not([data-theme="dark"]) .hover\:shadow-lg:hover {
 .hd-tinted-bg[data-accent="amber"] {
   background-image: radial-gradient(
     1200px circle at top right,
-    rgba(245, 158, 11, 0.06),
+    rgba(234, 165, 26, 0.06),
     transparent 60%
   );
 }
@@ -363,10 +363,93 @@ html:not([data-theme="dark"]) .hover\:shadow-lg:hover {
   );
 }
 
-/* Sidebar — subtle navy gradient (every page picks this up) */
+/* Sidebar — CyveTech navy */
 html:not([data-theme="dark"]) .hd-sidebar-bg {
-  background-color: #dde6f3;
-  background-image: linear-gradient(180deg, #dde6f3 0%, #ccd9ec 100%);
+  background-color: #16335e;
+  background-image: linear-gradient(180deg, #16335e 0%, #0f2344 100%);
+}
+
+/* ============================================================= */
+/* DARK SIDEBAR TEXT — white text + gold active on navy panel     */
+/* ============================================================= */
+html:not([data-theme="dark"]) .hd-chrome-bg,
+html:not([data-theme="dark"]) .hd-sidebar-bg {
+  color: rgba(255, 255, 255, 0.88);
+}
+/* Override Frappe UI ink tokens inside the navy sidebar */
+html:not([data-theme="dark"]) .hd-chrome-bg,
+html:not([data-theme="dark"]) .hd-chrome-bg *,
+html:not([data-theme="dark"]) .hd-sidebar-bg,
+html:not([data-theme="dark"]) .hd-sidebar-bg * {
+  --ink-gray-9: rgba(255, 255, 255, 0.9);
+  --ink-gray-7: rgba(255, 255, 255, 0.7);
+  --ink-gray-6: rgba(255, 255, 255, 0.6);
+  --ink-gray-5: rgba(255, 255, 255, 0.45);
+  --ink-gray-4: rgba(255, 255, 255, 0.35);
+  --outline-gray-2: rgba(255, 255, 255, 0.1);
+  --outline-gray-3: rgba(255, 255, 255, 0.12);
+}
+/* Explicit Tailwind text overrides (belt-and-suspenders) */
+html:not([data-theme="dark"]) .hd-chrome-bg .text-gray-900,
+html:not([data-theme="dark"]) .hd-chrome-bg .text-gray-800,
+html:not([data-theme="dark"]) .hd-chrome-bg .text-gray-700,
+html:not([data-theme="dark"]) .hd-sidebar-bg .text-gray-900,
+html:not([data-theme="dark"]) .hd-sidebar-bg .text-gray-800,
+html:not([data-theme="dark"]) .hd-sidebar-bg .text-gray-700 {
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+html:not([data-theme="dark"]) .hd-chrome-bg .text-gray-600,
+html:not([data-theme="dark"]) .hd-chrome-bg .text-gray-500,
+html:not([data-theme="dark"]) .hd-sidebar-bg .text-gray-600,
+html:not([data-theme="dark"]) .hd-sidebar-bg .text-gray-500 {
+  color: rgba(255, 255, 255, 0.5) !important;
+}
+/* Icons */
+html:not([data-theme="dark"]) .hd-chrome-bg svg,
+html:not([data-theme="dark"]) .hd-sidebar-bg svg {
+  color: rgba(255, 255, 255, 0.65) !important;
+}
+/* Nav item hover */
+html:not([data-theme="dark"]) .hd-chrome-bg button:hover,
+html:not([data-theme="dark"]) .hd-chrome-bg a:hover,
+html:not([data-theme="dark"]) .hd-sidebar-bg button:hover,
+html:not([data-theme="dark"]) .hd-sidebar-bg a:hover {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+  color: #ffffff !important;
+}
+html:not([data-theme="dark"]) .hd-chrome-bg button:hover svg,
+html:not([data-theme="dark"]) .hd-chrome-bg a:hover svg,
+html:not([data-theme="dark"]) .hd-sidebar-bg button:hover svg,
+html:not([data-theme="dark"]) .hd-sidebar-bg a:hover svg {
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+/* Active / selected nav item — gold highlight */
+html:not([data-theme="dark"]) .hd-chrome-bg .bg-surface-selected,
+html:not([data-theme="dark"]) .hd-chrome-bg [class*="bg-surface-selected"],
+html:not([data-theme="dark"]) .hd-sidebar-bg .bg-surface-selected,
+html:not([data-theme="dark"]) .hd-sidebar-bg [class*="bg-surface-selected"] {
+  background-color: rgba(234, 165, 26, 0.18) !important;
+  color: #eaa51a !important;
+}
+html:not([data-theme="dark"]) .hd-chrome-bg .bg-surface-selected svg,
+html:not([data-theme="dark"]) .hd-sidebar-bg .bg-surface-selected svg {
+  color: #eaa51a !important;
+}
+/* Section-header separators inside sidebar */
+html:not([data-theme="dark"]) .hd-chrome-bg hr,
+html:not([data-theme="dark"]) .hd-sidebar-bg hr {
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+/* Input / search field in sidebar */
+html:not([data-theme="dark"]) .hd-chrome-bg input,
+html:not([data-theme="dark"]) .hd-sidebar-bg input {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+  border-color: rgba(255, 255, 255, 0.14) !important;
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+html:not([data-theme="dark"]) .hd-chrome-bg input::placeholder,
+html:not([data-theme="dark"]) .hd-sidebar-bg input::placeholder {
+  color: rgba(255, 255, 255, 0.4) !important;
 }
 
 /* ===== List rows =====
@@ -382,7 +465,7 @@ html:not([data-theme="dark"]) #list-rows > * {
   transition: box-shadow 200ms ease, background-color 180ms ease;
 }
 html:not([data-theme="dark"]) #list-rows > *:hover {
-  background-color: rgba(59, 130, 246, 0.05);
+  background-color: rgba(22, 51, 94, 0.05);
 }
 
 /* CUSTOMER PORTAL ONLY (.hd-colorful-rows wrapper): cycling full-row wash +
@@ -437,7 +520,7 @@ html:not([data-theme="dark"]) .list-header {
 }
 
 .hd-icon-blue {
-  background: linear-gradient(135deg, #3b82f6, #06b6d4);
+  background: linear-gradient(135deg, #16335e, #2248a0);
 }
 .hd-icon-emerald {
   background: linear-gradient(135deg, #10b981, #14b8a6);
@@ -446,7 +529,7 @@ html:not([data-theme="dark"]) .list-header {
   background: linear-gradient(135deg, #8b5cf6, #ec4899);
 }
 .hd-icon-amber {
-  background: linear-gradient(135deg, #f59e0b, #f97316);
+  background: linear-gradient(135deg, #eaa51a, #f6921e);
 }
 .hd-icon-rose {
   background: linear-gradient(135deg, #f43f5e, #fb7185);
@@ -455,15 +538,15 @@ html:not([data-theme="dark"]) .list-header {
   background: linear-gradient(135deg, #6366f1, #8b5cf6);
 }
 
-/* Slim scrollbars — refined slate-blue thumb in light mode */
+/* Slim scrollbars — navy tint thumb in light mode */
 html:not([data-theme="dark"]) * {
-  scrollbar-color: #c2cee0 transparent;
+  scrollbar-color: rgba(22, 51, 94, 0.22) transparent;
 }
 html:not([data-theme="dark"]) *::-webkit-scrollbar-thumb {
-  background-color: #c2cee0;
+  background-color: rgba(22, 51, 94, 0.22);
 }
 html:not([data-theme="dark"]) *::-webkit-scrollbar-thumb:hover {
-  background-color: #a4b4cc;
+  background-color: rgba(22, 51, 94, 0.38);
 }
 
 /* Dark mode shadows */
