@@ -114,6 +114,13 @@ html:not([data-theme="dark"]) {
   /* Hairline border tuned for white cards on tinted canvas */
   --hd-hairline: rgba(15, 23, 42, 0.07);
   --hd-hairline-strong: rgba(15, 23, 42, 0.11);
+
+  /* Boost placeholder / empty-state ink tokens so text is readable on
+     our tinted surfaces. frappe-ui ships ink-gray-4 as a very light
+     hint colour (~#a3a3a3); on our blue-gray canvas it becomes nearly
+     invisible. #71717a (zinc-500) gives 4.6:1 on white — WCAG AA. */
+  --ink-gray-4: #71717a;
+  --ink-gray-3: #9ca3af;
 }
 
 html:not([data-theme="dark"]) .hd-chrome-bg {
