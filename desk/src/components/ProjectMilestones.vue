@@ -95,6 +95,52 @@
           <p v-if="m.description" class="text-xs text-ink-gray-6 mt-1 whitespace-pre-line">
             {{ m.description }}
           </p>
+          <!-- Task list — customer view only (agents use the full TaskBoard) -->
+          <div
+            v-if="!editable && m.tasks?.length"
+            class="mt-2 flex flex-col gap-0.5"
+          >
+            <div
+              v-for="t in m.tasks"
+              :key="t.subject"
+              class="flex items-center gap-2 text-xs py-0.5"
+            >
+              <span
+                class="size-3.5 rounded-full border-2 flex items-center justify-center shrink-0"
+                :class="
+                  t.status === 'Done'
+                    ? 'border-green-500 bg-green-500'
+                    : t.status === 'In Progress'
+                    ? 'border-blue-400 bg-blue-50'
+                    : t.status === 'Blocked'
+                    ? 'border-red-400 bg-red-50'
+                    : 'border-outline-gray-3 bg-surface-white'
+                "
+              >
+                <LucideCheck
+                  v-if="t.status === 'Done'"
+                  class="size-2 text-white"
+                />
+              </span>
+              <span
+                class="flex-1 min-w-0 truncate"
+                :class="
+                  t.status === 'Done'
+                    ? 'line-through text-ink-gray-4'
+                    : 'text-ink-gray-7'
+                "
+              >
+                {{ t.subject }}
+              </span>
+              <span
+                v-if="t.status !== 'To Do'"
+                class="shrink-0 text-[10px] rounded px-1.5 py-0.5"
+                :class="taskStatusClass(t.status)"
+              >
+                {{ t.status }}
+              </span>
+            </div>
+          </div>
         </button>
       </div>
     </div>
@@ -222,6 +268,16 @@ function statusTheme(status: string) {
 function isOverdue(m: any) {
   if (!m.due_date || m.status === "Completed") return false;
   return dayjs(m.due_date).isBefore(dayjs().startOf("day"));
+}
+
+function taskStatusClass(status: string) {
+  return (
+    {
+      "In Progress": "bg-blue-50 text-blue-700",
+      Done: "bg-green-50 text-green-700",
+      Blocked: "bg-red-50 text-red-700",
+    }[status] || "bg-surface-gray-2 text-ink-gray-6"
+  );
 }
 
 // --- create / edit ---

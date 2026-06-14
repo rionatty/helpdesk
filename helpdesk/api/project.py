@@ -346,19 +346,25 @@ def _get_milestones(project: str) -> list:
 	tasks = frappe.get_all(
 		"HD Addon Task",
 		filters=task_filters,
-		fields=["milestone", "status"],
+		fields=["milestone", "subject", "status"],
+		order_by="creation asc",
 		ignore_permissions=True,
 	)
 	totals: dict = {}
+	task_lists: dict = {}
 	for t in tasks:
 		bucket = totals.setdefault(t.milestone, {"total": 0, "done": 0})
 		bucket["total"] += 1
 		if t.status == "Done":
 			bucket["done"] += 1
+		task_lists.setdefault(t.milestone, []).append(
+			{"subject": t.subject, "status": t.status}
+		)
 	for r in rows:
 		bucket = totals.get(r.name, {"total": 0, "done": 0})
 		r["tasks_total"] = bucket["total"]
 		r["tasks_done"] = bucket["done"]
+		r["tasks"] = task_lists.get(r.name, [])
 	return rows
 
 
