@@ -402,12 +402,32 @@ html:not([data-theme="dark"]) .hd-sidebar-bg * {
 }
 
 /* 3: Nav item hover — SidebarLink root is a div.cursor-pointer,
-   not an <a> or <button>, so we target it directly.
-   The default hover:bg-[rgba(14,33,72,0.06)] is imperceptible
-   on dark navy; replace with a visible white wash. */
+   not an <a> or <button>, so we target it directly. */
 html:not([data-theme="dark"]) .hd-chrome-bg .cursor-pointer:hover,
 html:not([data-theme="dark"]) .hd-sidebar-bg .cursor-pointer:hover {
   background-color: rgba(255, 255, 255, 0.09) !important;
+  color: #ffffff;
+}
+
+/* 5: Buttons inside the chrome header keep dark ink.
+   AppHeader.vue uses hd-chrome-bg, and frappe-ui subtle/secondary
+   buttons have light backgrounds (bg-surface-gray-1 etc.) with
+   text-ink-gray-8. Without this reset the * override above makes
+   them white text on light background = invisible. SidebarLink
+   items are div.cursor-pointer (not button) so this doesn't
+   affect the nav items. */
+html:not([data-theme="dark"]) .hd-chrome-bg button,
+html:not([data-theme="dark"]) .hd-sidebar-bg button {
+  --ink-gray-9: #1d2633;
+  --ink-gray-8: #2d3a4a;
+  --ink-gray-7: #455060;
+  --ink-gray-6: #566070;
+  --ink-gray-5: #6b7280;
+  color: var(--ink-gray-8);
+}
+/* Primary / danger buttons keep their explicit text-white class */
+html:not([data-theme="dark"]) .hd-chrome-bg button[class*="text-white"],
+html:not([data-theme="dark"]) .hd-sidebar-bg button[class*="text-white"] {
   color: #ffffff;
 }
 
