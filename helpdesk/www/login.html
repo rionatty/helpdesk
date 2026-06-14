@@ -182,36 +182,29 @@
       color: rgba(255,255,255,0.55);
       line-height: 1.65;
       max-width: 380px;
-      margin-bottom: 44px;
+      margin-bottom: 40px;
     }
 
-    /* Feature list */
-    .feature-list {
+    /* Trust pillars (Option A — no internal features exposed) */
+    .trust-pillars {
       display: flex;
       flex-direction: column;
-      gap: 18px;
-    }
-    .feature-item {
-      display: flex;
-      align-items: center;
       gap: 14px;
     }
-    .feature-icon {
-      width: 40px; height: 40px;
-      background: rgba(255,255,255,0.06);
-      border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 10px;
-      display: flex; align-items: center; justify-content: center;
-      flex-shrink: 0;
-      color: var(--gold);
-    }
-    .feature-icon svg {
-      width: 17px; height: 17px;
-    }
-    .feature-text {
-      font-size: 14px;
-      color: rgba(255,255,255,0.72);
+    .trust-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
       font-weight: 500;
+      color: rgba(255,255,255,0.55);
+      letter-spacing: 0.1px;
+    }
+    .trust-item svg {
+      width: 15px; height: 15px;
+      color: var(--gold);
+      flex-shrink: 0;
+      opacity: 0.85;
     }
 
     /* Orange accent stripe */
@@ -485,16 +478,16 @@
       <!-- Logo -->
       <div class="logo">
         <svg class="logo-emblem" viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-          <!-- Thick C-ring: open on the right, square ends -->
-          <path d="M46 14 A22 22 0 1 0 46 42"
-                stroke="white" stroke-width="9" stroke-linecap="square" fill="none"/>
-          <!-- Gold dumbbell: horizontal, right head protrudes through C gap -->
-          <!-- Left head -->
-          <rect x="6"  y="22" width="11" height="12" rx="2" fill="#eaa51a"/>
+          <!-- Thick C-ring: open on right, flat ends -->
+          <path d="M48 15 A22 22 0 1 0 48 41"
+                stroke="white" stroke-width="10" stroke-linecap="square" fill="none"/>
+          <!-- Gold dumbbell: left head fully inside C, right head protrudes through gap -->
+          <!-- Left head (circle) -->
+          <circle cx="11" cy="28" r="7" fill="#eaa51a"/>
           <!-- Bar / neck -->
-          <rect x="17" y="25" width="24" height="6"  rx="1" fill="#eaa51a" opacity="0.9"/>
-          <!-- Right head (protrudes through the opening) -->
-          <rect x="41" y="21" width="13" height="14" rx="2" fill="#eaa51a"/>
+          <rect x="18" y="25" width="23" height="6" rx="3" fill="#eaa51a"/>
+          <!-- Right head (circle, protrudes through C gap) -->
+          <circle cx="49" cy="28" r="8" fill="#eaa51a"/>
         </svg>
         <div class="logo-text">
           <div class="logo-wordmark">
@@ -518,57 +511,33 @@
         </h1>
 
         <p class="brand-sub">
-          CyveTech's unified service hub — manage customer engagements,
-          track add-on builds, assign agent tasks, and delight clients
-          from a single dashboard.
+          Track your projects, raise support requests, and stay in sync
+          with your CyveTech team — all in one secure place.
         </p>
 
-        <div class="feature-list">
-          <div class="feature-item">
-            <div class="feature-icon">
-              <!-- Folder-kanban -->
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                   stroke-linecap="round" stroke-linejoin="round">
-                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
-              </svg>
-            </div>
-            <span class="feature-text">Project &amp; milestone management</span>
+        <div class="trust-pillars">
+          <div class="trust-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            </svg>
+            Secure &amp; Private
           </div>
-          <div class="feature-item">
-            <div class="feature-icon">
-              <!-- Ticket / file-text -->
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                   stroke-linecap="round" stroke-linejoin="round">
-                <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/>
-                <path d="M14 2v4a2 2 0 0 0 2 2h4"/>
-                <path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/>
-              </svg>
-            </div>
-            <span class="feature-text">Customer support tickets</span>
+          <div class="trust-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="10"/>
+              <polyline points="12 6 12 12 16 14"/>
+            </svg>
+            Always Available
           </div>
-          <div class="feature-item">
-            <div class="feature-icon">
-              <!-- Code brackets -->
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                   stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="16 18 22 12 16 6"/>
-                <polyline points="8 6 2 12 8 18"/>
-              </svg>
-            </div>
-            <span class="feature-text">Add-on development tracking</span>
-          </div>
-          <div class="feature-item">
-            <div class="feature-icon">
-              <!-- Users -->
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                   stroke-linecap="round" stroke-linejoin="round">
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                <circle cx="9" cy="7" r="4"/>
-                <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-                <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-              </svg>
-            </div>
-            <span class="feature-text">Agent &amp; team task boards</span>
+          <div class="trust-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+              <polyline points="22 4 12 14.01 9 11.01"/>
+            </svg>
+            Reliable Support
           </div>
         </div>
       </div>
