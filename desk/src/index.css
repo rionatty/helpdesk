@@ -86,15 +86,15 @@ body {
 /* ============================================================= */
 html:not([data-theme="dark"]) {
   /* CyveTech brand surfaces */
-  --surface-menu-bar: #0284c7;   /* sidebar — sky blue */
+  --surface-menu-bar: #5B6DD5;   /* sidebar — indigo blue */
   --hd-bg: #f2f4f7;
   --hd-bg-veil: #e8ecf2;
 
-  /* Brand palette — sky blue + gold */
-  --hd-navy:    #0284c7;   /* sky-600 */
-  --hd-navy-2:  #0c4a6e;   /* sky-900 (deep) */
-  --hd-navy-3:  #0ea5e9;   /* sky-500 (lighter) */
-  --hd-navy-hi: #38bdf8;   /* sky-400 (highlight) */
+  /* Brand palette — indigo blue */
+  --hd-navy:    #5B6DD5;   /* indigo mid */
+  --hd-navy-2:  #4A56C0;   /* indigo deep */
+  --hd-navy-3:  #7280E8;   /* indigo light */
+  --hd-navy-hi: #8B97F0;   /* indigo highlight */
   --hd-gold:      #eaa51a;
   --hd-gold-2:    #f6921e;
   --hd-gold-soft: rgba(234, 165, 26, 0.1);
@@ -117,14 +117,10 @@ html:not([data-theme="dark"]) {
 }
 
 html:not([data-theme="dark"]) .hd-chrome-bg {
-  background:
-    radial-gradient(ellipse at 50% 0%, rgba(250, 204, 21, 0.30) 0%, transparent 55%),
-    linear-gradient(180deg, #0ea5e9 0%, #0284c7 55%, #0c4a6e 100%);
+  background: linear-gradient(180deg, #7280E8 0%, #5B6DD5 50%, #4A56C0 100%);
 }
 html:not([data-theme="dark"]) .hd-chrome-bg-h {
-  background:
-    radial-gradient(ellipse at 0% 50%, rgba(250, 204, 21, 0.30) 0%, transparent 55%),
-    linear-gradient(90deg, #0ea5e9 0%, #0284c7 55%, #0c4a6e 100%);
+  background: linear-gradient(90deg, #7280E8 0%, #5B6DD5 50%, #4A56C0 100%);
 }
 /* Dark-mode fallback — chrome elements use the standard dark menu surface
    so the ribbon/sidebars don't render transparent when dark theme is on. */
@@ -367,12 +363,10 @@ html:not([data-theme="dark"]) .hover\:shadow-lg:hover {
   );
 }
 
-/* Sidebar — sky blue + yellow warm glow */
+/* Sidebar — indigo blue */
 html:not([data-theme="dark"]) .hd-sidebar-bg {
-  background-color: #0284c7;
-  background-image:
-    radial-gradient(ellipse at 50% 0%, rgba(250, 204, 21, 0.30) 0%, transparent 55%),
-    linear-gradient(180deg, #0ea5e9 0%, #0284c7 55%, #0c4a6e 100%);
+  background-color: #5B6DD5;
+  background-image: linear-gradient(180deg, #7280E8 0%, #5B6DD5 50%, #4A56C0 100%);
 }
 
 /* ============================================================= */
