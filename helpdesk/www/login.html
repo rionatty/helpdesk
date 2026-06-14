@@ -100,13 +100,69 @@
       pointer-events: none;
     }
 
+    /* ---- Dot grid tech texture ---- */
+    .brand-panel::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image: radial-gradient(circle, rgba(255,255,255,0.045) 1px, transparent 1px);
+      background-size: 28px 28px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ---- Particle network canvas (neural-net effect) ---- */
+    .tech-canvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    /* ---- Horizontal scan lines (data-pulse effect) ---- */
+    .scan-line {
+      position: absolute;
+      left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg,
+        transparent 0%, rgba(234,165,26,0.22) 35%,
+        rgba(234,165,26,0.32) 65%, transparent 100%);
+      top: 0;
+      animation: scanMove 14s linear infinite;
+      pointer-events: none;
+      z-index: 1;
+    }
+    @keyframes scanMove {
+      0%   { transform: translateY(0); }
+      100% { transform: translateY(1000px); }
+    }
+
+    /* ---- Floating code fragment labels ---- */
+    .tech-float {
+      position: absolute;
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      color: rgba(234,165,26,0.55);
+      background: rgba(234,165,26,0.07);
+      border: 1px solid rgba(234,165,26,0.18);
+      padding: 3px 8px;
+      border-radius: 5px;
+      pointer-events: none;
+      z-index: 1;
+      white-space: nowrap;
+    }
+
     /* ---- Logo ---- */
     .logo {
       display: flex;
       align-items: center;
       gap: 14px;
       position: relative;
-      z-index: 1;
+      z-index: 2;
     }
 
     /* Actual CyveTech logo image — white card so the logo colours show correctly
@@ -129,7 +185,7 @@
       justify-content: center;
       padding: 52px 0 40px;
       position: relative;
-      z-index: 1;
+      z-index: 2;
     }
 
     .brand-badge {
@@ -227,7 +283,7 @@
       align-items: center;
       gap: 10px;
       position: relative;
-      z-index: 1;
+      z-index: 2;
     }
     .brand-footer-text {
       font-size: 12px;
@@ -491,6 +547,19 @@
         <circle cx="112" cy="105.5" r="24" fill="#eaa51a"/>
         <circle cx="181" cy="105.5" r="24" fill="#eaa51a"/>
       </svg>
+
+      <!-- Particle network canvas + scan lines -->
+      <canvas id="techCanvas" class="tech-canvas" aria-hidden="true"></canvas>
+      <div class="scan-line" aria-hidden="true"></div>
+      <div class="scan-line" aria-hidden="true" style="animation-delay:-5s;opacity:.5"></div>
+      <div class="scan-line" aria-hidden="true" style="animation-delay:-9.5s;opacity:.3"></div>
+
+      <!-- Floating code chips in the right (C-ring) zone -->
+      <div class="tech-float" aria-hidden="true" style="top:13%;right:22%">&lt;/&gt;</div>
+      <div class="tech-float" aria-hidden="true" style="top:35%;right:8%">AI</div>
+      <div class="tech-float" aria-hidden="true" style="bottom:41%;right:25%">01101001</div>
+      <div class="tech-float" aria-hidden="true" style="bottom:28%;right:9%">{ ... }</div>
+      <div class="tech-float" aria-hidden="true" style="top:59%;right:31%">&gt; _</div>
 
       <!-- Logo -->
       <div class="logo">
@@ -794,6 +863,87 @@
 
     /* ---- Auto-focus ---- */
     usrInput.focus();
+  })();
+  </script>
+
+  <!-- Particle network animation (neural-net / AI visual) -->
+  <script>
+  (function () {
+    'use strict';
+    var canvas = document.getElementById('techCanvas');
+    if (!canvas) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+    var ctx = canvas.getContext('2d');
+    var panel = canvas.parentElement;
+    var W = 0, H = 0;
+
+    function resize() {
+      W = canvas.width  = panel.offsetWidth;
+      H = canvas.height = panel.offsetHeight;
+    }
+    resize();
+    window.addEventListener('resize', resize);
+
+    var N    = 28;
+    var LINK = 148;
+    var pts  = [];
+    for (var i = 0; i < N; i++) {
+      pts.push({
+        x:  Math.random() * W,
+        y:  Math.random() * H,
+        vx: (Math.random() - 0.5) * 0.38,
+        vy: (Math.random() - 0.5) * 0.38,
+        r:  Math.random() * 1.4 + 0.8,
+        ph: Math.random() * Math.PI * 2,
+      });
+    }
+
+    function tick() {
+      ctx.clearRect(0, 0, W, H);
+
+      for (var i = 0; i < N; i++) {
+        var p = pts[i];
+        p.x  += p.vx;
+        p.y  += p.vy;
+        p.ph += 0.014;
+        if (p.x < 0) { p.x = 0; p.vx *= -1; }
+        if (p.x > W) { p.x = W; p.vx *= -1; }
+        if (p.y < 0) { p.y = 0; p.vy *= -1; }
+        if (p.y > H) { p.y = H; p.vy *= -1; }
+      }
+
+      /* connections */
+      ctx.lineWidth = 0.7;
+      for (var i = 0; i < N; i++) {
+        for (var j = i + 1; j < N; j++) {
+          var dx = pts[i].x - pts[j].x;
+          var dy = pts[i].y - pts[j].y;
+          var d  = Math.sqrt(dx * dx + dy * dy);
+          if (d < LINK) {
+            ctx.strokeStyle = 'rgba(234,165,26,' + ((1 - d / LINK) * 0.18) + ')';
+            ctx.beginPath();
+            ctx.moveTo(pts[i].x, pts[i].y);
+            ctx.lineTo(pts[j].x, pts[j].y);
+            ctx.stroke();
+          }
+        }
+      }
+
+      /* nodes */
+      for (var i = 0; i < N; i++) {
+        var p   = pts[i];
+        var glow = 0.32 + Math.sin(p.ph) * 0.14;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(255,255,255,' + glow + ')';
+        ctx.fill();
+      }
+
+      requestAnimationFrame(tick);
+    }
+
+    requestAnimationFrame(tick);
   })();
   </script>
 </body>
