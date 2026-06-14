@@ -517,6 +517,24 @@ html:not([data-theme="dark"]) *::-webkit-scrollbar-thumb:hover {
   scrollbar-color: var(--outline-gray-3) transparent;
 }
 
+/* ================================================================ */
+/* INPUT TEXT VISIBILITY — ensure typed text is always dark in light  */
+/* mode. frappe-ui inputs inherit color from parents but browsers can */
+/* fall back to OS-theme rendering for native form elements. We pin   */
+/* ink-gray-9 explicitly so text is always readable on any surface.  */
+/* ================================================================ */
+html:not([data-theme="dark"]) input,
+html:not([data-theme="dark"]) select,
+html:not([data-theme="dark"]) textarea {
+  color: var(--ink-gray-9);
+}
+
+/* Tiptap / ProseMirror contenteditable — same guarantee for editors */
+html:not([data-theme="dark"]) [contenteditable="true"],
+html:not([data-theme="dark"]) .ProseMirror {
+  color: var(--ink-gray-9);
+}
+
 *::-webkit-scrollbar {
   width: 6px;
   height: 6px;
