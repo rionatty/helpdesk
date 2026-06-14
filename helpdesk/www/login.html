@@ -68,8 +68,8 @@
     }
 
     /* Large CyveTech "C" emblem watermark — fills the empty right area.
-       Uses the white-ring/gold-dumbbell variant so the C shape is visible
-       on the navy panel (the original navy ring is invisible navy-on-navy). */
+       Drawn as a crisp inline SVG (vector, so razor-sharp at any size); the
+       ring is white so the C reads on the navy panel, dumbbell stays gold. */
     .brand-c {
       position: absolute;
       right: -110px;
@@ -77,7 +77,6 @@
       transform: translateY(-50%);
       width: 600px;
       height: 600px;
-      background: url('/assets/helpdesk/images/cyvetech-c-light.png') no-repeat center / contain;
       opacity: 0.28;
       pointer-events: none;
       z-index: 0;
@@ -485,7 +484,13 @@
     ============================================================ -->
     <div class="brand-panel">
       <div class="deco-arc"></div>
-      <div class="brand-c"></div>
+      <!-- CyveTech "C" emblem watermark (vector, matches the real logo) -->
+      <svg class="brand-c" viewBox="0 0 212 212" fill="none" aria-hidden="true">
+        <path d="M165 141.4 A76.5 76.5 0 1 1 165 69.6" stroke="#ffffff" stroke-width="39"/>
+        <line x1="112" y1="105.5" x2="181" y2="105.5" stroke="#eaa51a" stroke-width="16"/>
+        <circle cx="112" cy="105.5" r="24" fill="#eaa51a"/>
+        <circle cx="181" cy="105.5" r="24" fill="#eaa51a"/>
+      </svg>
 
       <!-- Logo -->
       <div class="logo">
