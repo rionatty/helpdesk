@@ -68,8 +68,8 @@
     }
 
     /* Large CyveTech "C" emblem watermark — fills the empty right area.
-       Positioned in the lighter (navy-mid) part of the gradient so the
-       navy ring reads as a subtly darker shape and the gold dumbbell pops. */
+       Uses the white-ring/gold-dumbbell variant so the C shape is visible
+       on the navy panel (the original navy ring is invisible navy-on-navy). */
     .brand-c {
       position: absolute;
       right: -110px;
@@ -77,8 +77,8 @@
       transform: translateY(-50%);
       width: 600px;
       height: 600px;
-      background: url('/assets/helpdesk/images/cyvetech-c.png') no-repeat center / contain;
-      opacity: 0.20;
+      background: url('/assets/helpdesk/images/cyvetech-c-light.png') no-repeat center / contain;
+      opacity: 0.28;
       pointer-events: none;
       z-index: 0;
     }
@@ -447,10 +447,10 @@
     /* ================================================================
        RESPONSIVE
     ================================================================ */
-    /* The big "C" watermark only has room to sit in the empty right area
-       on wide screens. On narrower panels it would crowd the headline,
-       so hide it below 1280px (the page already looks complete without it). */
-    @media (max-width: 1280px) {
+    /* The big "C" watermark only has room to sit clear of the headline on
+       wide monitors. On narrower panels it would crowd the text, so hide it
+       below 1600px (the page already looks complete without it). */
+    @media (max-width: 1600px) {
       .brand-c { display: none; }
     }
 
