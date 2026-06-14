@@ -55,7 +55,10 @@
     ================================================================ */
     .brand-panel {
       flex: 1.15;
-      background: linear-gradient(155deg, var(--navy-dark) 0%, var(--navy) 55%, var(--navy-mid) 100%);
+      background:
+        radial-gradient(circle at 78% 12%, rgba(246,146,30,0.12) 0%, transparent 42%),
+        radial-gradient(circle at 12% 88%, rgba(234,165,26,0.07) 0%, transparent 40%),
+        linear-gradient(155deg, var(--navy-dark) 0%, var(--navy) 55%, var(--navy-mid) 100%);
       padding: 52px 52px;
       display: flex;
       flex-direction: column;
@@ -105,12 +108,13 @@
     /* Actual CyveTech logo image — white card so the logo colours show correctly
        on the dark navy panel regardless of PNG background */
     .logo-img {
-      height: 48px;
+      height: 58px;
       width: auto;
       display: block;
-      background: rgba(255,255,255,0.96);
-      padding: 7px 16px;
-      border-radius: 10px;
+      background: #ffffff;
+      padding: 10px 20px;
+      border-radius: 12px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.22);
     }
 
     /* ---- Brand main block ---- */
@@ -176,22 +180,30 @@
     .trust-pillars {
       display: flex;
       flex-direction: column;
-      gap: 14px;
+      gap: 16px;
     }
     .trust-item {
       display: flex;
       align-items: center;
-      gap: 10px;
-      font-size: 13px;
+      gap: 13px;
+      font-size: 14px;
       font-weight: 500;
-      color: rgba(255,255,255,0.55);
+      color: rgba(255,255,255,0.82);
       letter-spacing: 0.1px;
     }
-    .trust-item svg {
-      width: 15px; height: 15px;
-      color: var(--gold);
+    .trust-item .ico {
+      width: 32px; height: 32px;
       flex-shrink: 0;
-      opacity: 0.85;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 9px;
+      background: rgba(234,165,26,0.13);
+      border: 1px solid rgba(234,165,26,0.22);
+    }
+    .trust-item .ico svg {
+      width: 16px; height: 16px;
+      color: var(--gold);
     }
 
     /* Orange accent stripe */
@@ -491,26 +503,32 @@
 
         <div class="trust-pillars">
           <div class="trust-item">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-            </svg>
+            <span class="ico">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                   stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+              </svg>
+            </span>
             Secure &amp; Private
           </div>
           <div class="trust-item">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <circle cx="12" cy="12" r="10"/>
-              <polyline points="12 6 12 12 16 14"/>
-            </svg>
+            <span class="ico">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                   stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="10"/>
+                <polyline points="12 6 12 12 16 14"/>
+              </svg>
+            </span>
             Always Available
           </div>
           <div class="trust-item">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-              <polyline points="22 4 12 14.01 9 11.01"/>
-            </svg>
+            <span class="ico">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                   stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                <polyline points="22 4 12 14.01 9 11.01"/>
+              </svg>
+            </span>
             Reliable Support
           </div>
         </div>
