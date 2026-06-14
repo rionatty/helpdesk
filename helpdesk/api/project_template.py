@@ -172,8 +172,8 @@ def update_template(
 	name: str,
 	template_name: str | None = None,
 	description: str | None = None,
-	milestones=None,
-	tasks=None,
+	milestones: str | None = None,
+	tasks: str | None = None,
 ) -> str:
 	"""Rewrite a template's name, description and child rows. Agents only.
 	`milestones` and `tasks` are JSON arrays (full replacement)."""
