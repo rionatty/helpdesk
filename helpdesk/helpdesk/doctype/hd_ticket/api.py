@@ -41,6 +41,20 @@ def new(doc: dict, attachments: list[dict] = []):
 
 
 @frappe.whitelist()
+def get_my_customer() -> str | None:
+    """Return the single HD Customer linked to the current portal user, or None.
+    Used by the new-ticket form to pre-fill the customer field on submission."""
+    user = frappe.session.user
+    if not user or user == "Guest":
+        return None
+    contact = frappe.db.get_value("Contact", {"email_id": user})
+    if not contact:
+        return None
+    customers = get_customer(contact)
+    return customers[0] if len(customers) == 1 else None
+
+
+@frappe.whitelist()
 def get_one(name: str, is_customer_portal: bool = False):
     frappe.has_permission("HD Ticket", "read", name, throw=True)
     QBContact = frappe.qb.DocType("Contact")

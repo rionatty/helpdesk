@@ -99,6 +99,18 @@
           </template>
         </UniInput>
       </div>
+      <!-- Customer (agent only) -->
+      <div v-if="!isCustomerPortal" class="flex flex-col gap-2">
+        <span class="block text-sm font-medium text-ink-gray-7">
+          {{ __("Customer") }}
+        </span>
+        <FormControl
+          v-model="selectedCustomer"
+          type="select"
+          :options="customerOptions"
+        />
+      </div>
+
       <!-- Related project / add-on (optional) -->
       <div
         v-if="projectOptions.length > 1 || addonOptions.length > 1"
@@ -298,6 +310,35 @@ const addonOptions = computed(() => [
   })),
 ]);
 
+// Customer — agents pick from a dropdown; portal users have theirs auto-fetched.
+const selectedCustomer = ref("");
+const myCustomer = ref<string | null>(null);
+
+const customersRes = createListResource({
+  doctype: "HD Customer",
+  fields: ["name", "customer_name"],
+  pageLength: 500,
+  auto: !isCustomerPortal.value,
+});
+const customerOptions = computed(() => [
+  { label: __("None"), value: "" },
+  ...(customersRes.data || []).map((c: any) => ({
+    label: c.customer_name || c.name,
+    value: c.name,
+  })),
+]);
+
+// For portal users, silently resolve their customer to pass with the ticket.
+if (isCustomerPortal.value) {
+  createResource({
+    url: "helpdesk.helpdesk.doctype.hd_ticket.api.get_my_customer",
+    auto: true,
+    onSuccess: (c: string | null) => {
+      myCustomer.value = c || null;
+    },
+  });
+}
+
 const template = createResource({
   url: "helpdesk.helpdesk.doctype.hd_ticket_template.api.get_one",
   makeParams: () => ({
@@ -373,6 +414,15 @@ const ticket = createResource({
       template: props.templateId,
       ...(selectedAddon.value ? { addon: selectedAddon.value } : {}),
       ...(selectedProject.value ? { project: selectedProject.value } : {}),
+      // Portal: pass the resolved customer so it's set even if Contact links
+      // are not fully configured on the server.
+      ...(isCustomerPortal.value && myCustomer.value
+        ? { customer: myCustomer.value }
+        : {}),
+      // Agent: pass the manually chosen customer.
+      ...(!isCustomerPortal.value && selectedCustomer.value
+        ? { customer: selectedCustomer.value }
+        : {}),
       ...templateFields,
     },
     attachments: attachments.value,
