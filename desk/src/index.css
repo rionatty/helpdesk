@@ -86,15 +86,15 @@ body {
 /* ============================================================= */
 html:not([data-theme="dark"]) {
   /* CyveTech brand surfaces */
-  --surface-menu-bar: #16335e;   /* sidebar — CyveTech navy */
+  --surface-menu-bar: #1a4b8c;   /* sidebar — lightened royal blue */
   --hd-bg: #f2f4f7;
   --hd-bg-veil: #e8ecf2;
 
-  /* Brand palette — CyveTech navy + gold */
-  --hd-navy:    #16335e;
-  --hd-navy-2:  #0f2344;
-  --hd-navy-3:  #1a3d72;
-  --hd-navy-hi: #2248a0;
+  /* Brand palette — CyveTech royal blue + gold */
+  --hd-navy:    #1a4b8c;   /* lightened from #16335e */
+  --hd-navy-2:  #0f2d5e;   /* deep navy (gradient base) */
+  --hd-navy-3:  #2259b8;   /* lighter accent */
+  --hd-navy-hi: #2e72d2;   /* highlight / link */
   --hd-gold:      #eaa51a;
   --hd-gold-2:    #f6921e;
   --hd-gold-soft: rgba(234, 165, 26, 0.1);
@@ -117,10 +117,14 @@ html:not([data-theme="dark"]) {
 }
 
 html:not([data-theme="dark"]) .hd-chrome-bg {
-  background: linear-gradient(180deg, #16335e 0%, #0f2344 100%);
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(234, 165, 26, 0.13) 0%, transparent 58%),
+    linear-gradient(180deg, #1e53a0 0%, #0f2d5e 100%);
 }
 html:not([data-theme="dark"]) .hd-chrome-bg-h {
-  background: linear-gradient(90deg, #16335e 0%, #0f2344 100%);
+  background:
+    radial-gradient(ellipse at 0% 50%, rgba(234, 165, 26, 0.13) 0%, transparent 58%),
+    linear-gradient(90deg, #1e53a0 0%, #0f2d5e 100%);
 }
 /* Dark-mode fallback — chrome elements use the standard dark menu surface
    so the ribbon/sidebars don't render transparent when dark theme is on. */
@@ -363,10 +367,12 @@ html:not([data-theme="dark"]) .hover\:shadow-lg:hover {
   );
 }
 
-/* Sidebar — CyveTech navy */
+/* Sidebar — lightened royal blue with warm gold shimmer at top */
 html:not([data-theme="dark"]) .hd-sidebar-bg {
-  background-color: #16335e;
-  background-image: linear-gradient(180deg, #16335e 0%, #0f2344 100%);
+  background-color: #1a4b8c;
+  background-image:
+    radial-gradient(ellipse at 50% 0%, rgba(234, 165, 26, 0.13) 0%, transparent 58%),
+    linear-gradient(180deg, #1e53a0 0%, #0f2d5e 100%);
 }
 
 /* ============================================================= */
