@@ -103,27 +103,15 @@
       z-index: 1;
     }
 
-    /* SVG logo emblem */
-    .logo-emblem {
-      width: 52px;
-      height: 52px;
-      flex-shrink: 0;
-    }
-
-    .logo-text { line-height: 1; }
-    .logo-wordmark {
-      font-size: 28px;
-      font-weight: 800;
-      letter-spacing: -0.5px;
-    }
-    .logo-wordmark .cyve { color: #ffffff; }
-    .logo-wordmark .tech { color: var(--gold); }
-    .logo-tagline {
-      font-size: 11px;
-      color: rgba(255,255,255,0.42);
-      letter-spacing: 0.5px;
-      margin-top: 3px;
-      font-style: italic;
+    /* Actual CyveTech logo image — white card so the logo colours show correctly
+       on the dark navy panel regardless of PNG background */
+    .logo-img {
+      height: 48px;
+      width: auto;
+      display: block;
+      background: rgba(255,255,255,0.96);
+      padding: 7px 16px;
+      border-radius: 10px;
     }
 
     /* ---- Brand main block ---- */
@@ -477,24 +465,11 @@
 
       <!-- Logo -->
       <div class="logo">
-        <svg class="logo-emblem" viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-          <!-- Thick C-ring: open on right, flat ends -->
-          <path d="M48 15 A22 22 0 1 0 48 41"
-                stroke="white" stroke-width="10" stroke-linecap="square" fill="none"/>
-          <!-- Gold dumbbell: left head fully inside C, right head protrudes through gap -->
-          <!-- Left head (circle) -->
-          <circle cx="11" cy="28" r="7" fill="#eaa51a"/>
-          <!-- Bar / neck -->
-          <rect x="18" y="25" width="23" height="6" rx="3" fill="#eaa51a"/>
-          <!-- Right head (circle, protrudes through C gap) -->
-          <circle cx="49" cy="28" r="8" fill="#eaa51a"/>
-        </svg>
-        <div class="logo-text">
-          <div class="logo-wordmark">
-            <span class="cyve">Cyve</span><span class="tech">Tech</span>
-          </div>
-          <div class="logo-tagline">We Tech, You Thrive!</div>
-        </div>
+        <img
+          src="/assets/helpdesk/images/cyvetech-logo.png"
+          alt="CyveTech — We Tech, You Thrive!"
+          class="logo-img"
+        />
       </div>
 
       <!-- Main brand content -->
