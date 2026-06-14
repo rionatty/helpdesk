@@ -12,5 +12,3 @@ def get_context(context):
 		raise frappe.Redirect
 
 	context.title = "Sign In — CyveTech Support Desk"
-	# Make the redirect target available to the template (JS reads it too).
-	context.redirect_to = frappe.local.request.args.get("redirect-to") or "/helpdesk"
