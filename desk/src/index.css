@@ -116,11 +116,12 @@ html:not([data-theme="dark"]) {
   --hd-hairline-strong: rgba(15, 23, 42, 0.11);
 
   /* Boost placeholder / empty-state ink tokens so text is readable on
-     our tinted surfaces. frappe-ui ships ink-gray-4 as a very light
-     hint colour (~#a3a3a3); on our blue-gray canvas it becomes nearly
-     invisible. #71717a (zinc-500) gives 4.6:1 on white — WCAG AA. */
-  --ink-gray-4: #71717a;
+     our tinted surfaces. frappe-ui ships ink-gray-4 at ~#a3a3a3 which
+     reads near-invisible on bg-surface-gray-2 inputs. Push to a value
+     that passes WCAG AA even on gray backgrounds:
+       #52525b (zinc-600) → 7.3:1 on white, ~6.5:1 on #f5f5f5. */
   --ink-gray-3: #9ca3af;
+  --ink-gray-4: #52525b;
 }
 
 html:not([data-theme="dark"]) .hd-chrome-bg {
