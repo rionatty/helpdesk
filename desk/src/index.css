@@ -373,7 +373,7 @@ html:not([data-theme="dark"]) .hover\:shadow-lg:hover {
 
 /* Sidebar — slate navy with gold-accent active items */
 html:not([data-theme="dark"]) .hd-sidebar-bg {
-  background-color: #1a2540;
+  background-color: #1a3a6b;
   background-image: none;
 
   /* Re-scope ink tokens so nav text/icons read on dark bg */
