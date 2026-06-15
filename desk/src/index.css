@@ -371,10 +371,29 @@ html:not([data-theme="dark"]) .hover\:shadow-lg:hover {
   );
 }
 
-/* Sidebar — subtle navy gradient (every page picks this up) */
+/* Sidebar — slate navy with gold-accent active items */
 html:not([data-theme="dark"]) .hd-sidebar-bg {
-  background-color: #dde6f3;
-  background-image: linear-gradient(180deg, #dde6f3 0%, #ccd9ec 100%);
+  background-color: #1a2540;
+  background-image: none;
+
+  /* Re-scope ink tokens so nav text/icons read on dark bg */
+  --ink-gray-9: rgba(255, 255, 255, 0.90);
+  --ink-gray-8: rgba(255, 255, 255, 0.80);
+  --ink-gray-7: rgba(255, 255, 255, 0.60);
+  --ink-gray-6: rgba(255, 255, 255, 0.50);
+  --ink-gray-5: rgba(255, 255, 255, 0.38);
+  --ink-gray-4: rgba(255, 255, 255, 0.28);
+  --ink-gray-3: rgba(255, 255, 255, 0.18);
+  /* Right-edge separator: subtle white line on dark bg */
+  --outline-gray-modals: rgba(255, 255, 255, 0.08);
+  /* Active item bg (bg-[var(--hd-navy)]): gold tint.
+     The gold 3-px stripe + gold icon are already in SidebarLink. */
+  --hd-navy: rgba(252, 197, 2, 0.15);
+}
+
+/* Inactive nav item hover: white glow replaces the near-invisible navy tint */
+html:not([data-theme="dark"]) .hd-sidebar-bg .mx-2.h-7:hover:not(.shadow-sm) {
+  background-color: rgba(255, 255, 255, 0.07) !important;
 }
 
 /* ===== List rows =====
