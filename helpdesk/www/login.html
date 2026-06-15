@@ -991,22 +991,21 @@
         credentials: 'same-origin',
       })
       .then(function (resp) {
-        return resp.json().then(function (data) {
-          return { ok: resp.ok, status: resp.status, data: data };
-        });
-      })
-      .then(function (res) {
-        if (res.ok && res.data.message === 'Logged In') {
-          /* Brief flash of success before navigation */
+        /* Check HTTP status BEFORE parsing body. On success Frappe may
+           return 200 JSON, or follow a redirect to an HTML page — either
+           way resp.ok is the reliable signal. Only parse JSON for errors. */
+        if (resp.ok) {
           btn.querySelector('.btn-label').textContent = 'Signing in…';
           window.location.href = getRedirectTo();
-        } else {
-          var msg = extractError(res.data) || 'Invalid email or password.';
+          return;
+        }
+        return resp.json().then(function (data) {
+          var msg = extractError(data) || 'Invalid email or password.';
           showError(msg);
           setLoading(false);
           pwdInput.value = '';
           pwdInput.focus();
-        }
+        });
       })
       .catch(function () {
         showError('Connection error. Please check your network and try again.');
