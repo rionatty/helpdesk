@@ -44,3 +44,47 @@ def search_contacts(
         ignore_permissions=False,
         strict=False,
     )
+
+
+@frappe.whitelist(methods=["GET"])
+def get_customer_contacts(customer: str) -> list[dict]:
+    """Return all Contacts that have a Dynamic Link to the given HD Customer."""
+    parent_names = frappe.get_all(
+        "Dynamic Link",
+        filters={
+            "parenttype": "Contact",
+            "link_doctype": "HD Customer",
+            "link_name": customer,
+        },
+        pluck="parent",
+    )
+    if not parent_names:
+        return []
+    return frappe.get_all(
+        "Contact",
+        filters={"name": ["in", parent_names]},
+        fields=["name", "full_name", "email_id", "image", "user"],
+    )
+
+
+@frappe.whitelist(methods=["POST"])
+def add_contact_to_customer(contact: str, customer: str) -> None:
+    """Link a Contact to an HD Customer via a Dynamic Link (idempotent)."""
+    doc = frappe.get_doc("Contact", contact)
+    for link in doc.links:
+        if link.link_doctype == "HD Customer" and link.link_name == customer:
+            return
+    doc.append("links", {"link_doctype": "HD Customer", "link_name": customer})
+    doc.save()
+
+
+@frappe.whitelist(methods=["POST"])
+def remove_contact_from_customer(contact: str, customer: str) -> None:
+    """Remove the HD Customer Dynamic Link from a Contact."""
+    doc = frappe.get_doc("Contact", contact)
+    doc.links = [
+        lnk
+        for lnk in doc.links
+        if not (lnk.link_doctype == "HD Customer" and lnk.link_name == customer)
+    ]
+    doc.save()
