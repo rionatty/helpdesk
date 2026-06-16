@@ -186,13 +186,13 @@ async function loadContacts() {
     customer: props.name,
   });
   customerContacts.value = result || [];
+  // Refresh search options so newly linked contacts are excluded
+  await refreshSearchOptions(lastQuery.value);
 }
 
-async function onSearchQuery(q: string) {
-  if (!q) {
-    contactSearchOptions.value = [];
-    return;
-  }
+const lastQuery = ref("");
+
+async function refreshSearchOptions(q = "") {
   const results = await call("helpdesk.api.contact.search_contacts", { txt: q });
   const linked = new Set(customerContacts.value.map((c) => c.name));
   contactSearchOptions.value = (results || [])
@@ -201,6 +201,11 @@ async function onSearchQuery(q: string) {
       label: r.full_name || r.email_id,
       value: r.name,
     }));
+}
+
+async function onSearchQuery(q: string) {
+  lastQuery.value = q;
+  await refreshSearchOptions(q);
 }
 
 async function onContactSelected(opt: any) {
