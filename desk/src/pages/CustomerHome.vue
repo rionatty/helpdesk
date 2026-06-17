@@ -213,6 +213,27 @@
             <LucideChevronRight class="size-4" />
           </RouterLink>
         </div>
+        <!-- Project stats ribbon -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 px-4 md:px-8">
+          <RouterLink
+            v-for="s in projectStats"
+            :key="s.label"
+            :to="{ name: 'ProjectsCustomer' }"
+            class="executive-card executive-card-hover hd-color-card flex flex-col gap-2 px-4 py-4 pt-5"
+            :data-accent="s.accent"
+          >
+            <div
+              class="size-9 rounded-xl flex items-center justify-center shadow-md ring-1 ring-inset ring-white/40"
+              :class="s.iconBg"
+            >
+              <LucideFolderKanban class="size-4 text-white" />
+            </div>
+            <div>
+              <div class="text-xl font-bold text-ink-gray-9">{{ s.count }}</div>
+              <div class="text-sm font-medium text-ink-gray-8">{{ __(s.label) }}</div>
+            </div>
+          </RouterLink>
+        </div>
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 px-4 md:px-8">
           <RouterLink
             v-for="p in myProjects.data.slice(0, 3)"
@@ -268,6 +289,27 @@
           >
             {{ __("View all") }}
             <LucideChevronRight class="size-4" />
+          </RouterLink>
+        </div>
+        <!-- Add-on stats ribbon -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 px-4 md:px-8">
+          <RouterLink
+            v-for="s in addonStats"
+            :key="s.label"
+            :to="{ name: 'AddonsCustomer' }"
+            class="executive-card executive-card-hover hd-color-card flex flex-col gap-2 px-4 py-4 pt-5"
+            :data-accent="s.accent"
+          >
+            <div
+              class="size-9 rounded-xl flex items-center justify-center shadow-md ring-1 ring-inset ring-white/40"
+              :class="s.iconBg"
+            >
+              <LucidePackage class="size-4 text-white" />
+            </div>
+            <div>
+              <div class="text-xl font-bold text-ink-gray-9">{{ s.count }}</div>
+              <div class="text-sm font-medium text-ink-gray-8">{{ __(s.label) }}</div>
+            </div>
           </RouterLink>
         </div>
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 px-4 md:px-8">
@@ -593,6 +635,30 @@ function addonStatusTheme(status: string): string {
     { Active: "green", Trial: "blue", Suspended: "orange", Retired: "gray" }[status] || "gray"
   );
 }
+
+const projectStats = computed(() => {
+  const projects = (myProjects.data as any[]) || [];
+  return [
+    { label: "Active", count: projects.filter((p) => p.status === "Active").length, iconBg: "hd-icon-blue", accent: "blue" },
+    { label: "On Hold", count: projects.filter((p) => p.status === "On Hold").length, iconBg: "hd-icon-amber", accent: "amber" },
+    { label: "Completed", count: projects.filter((p) => p.status === "Completed").length, iconBg: "hd-icon-emerald", accent: "emerald" },
+    { label: "Total", count: projects.length, iconBg: "hd-icon-violet", accent: "violet" },
+  ];
+});
+
+const addonStats = computed(() => {
+  const addons = (myAddons.data as any[]) || [];
+  const today = new Date().toISOString().split("T")[0];
+  const in30 = new Date();
+  in30.setDate(in30.getDate() + 30);
+  const in30Str = in30.toISOString().split("T")[0];
+  return [
+    { label: "Active", count: addons.filter((a) => a.status === "Active").length, iconBg: "hd-icon-emerald", accent: "emerald" },
+    { label: "Trial", count: addons.filter((a) => a.status === "Trial").length, iconBg: "hd-icon-blue", accent: "blue" },
+    { label: "Expiring Soon", count: addons.filter((a) => a.renewal_date && a.renewal_date >= today && a.renewal_date <= in30Str).length, iconBg: "hd-icon-amber", accent: "amber" },
+    { label: "Total", count: addons.length, iconBg: "hd-icon-violet", accent: "violet" },
+  ];
+});
 
 const actionCards = [
   {
