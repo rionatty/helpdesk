@@ -400,6 +400,15 @@
         </div>
       </div>
 
+      <!-- Attachments -->
+      <div class="executive-card p-5">
+        <DocAttachments
+          doctype="HD Project"
+          :docname="projectId"
+          :editable="editable"
+        />
+      </div>
+
       <!-- Discussion -->
       <div class="executive-card p-5">
         <ProjectComments :project-id="projectId" />
@@ -574,6 +583,7 @@ import {
 } from "frappe-ui";
 import { useRouter } from "vue-router";
 import { LayoutHeader, Link } from "@/components";
+import DocAttachments from "@/components/DocAttachments.vue";
 import ProjectComments from "@/components/ProjectComments.vue";
 import ProjectMilestones from "@/components/ProjectMilestones.vue";
 import TaskBoard from "@/components/TaskBoard.vue";

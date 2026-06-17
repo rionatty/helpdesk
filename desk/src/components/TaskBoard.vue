@@ -340,6 +340,15 @@
             </p>
           </div>
 
+          <!-- Attachments -->
+          <div class="border-t border-outline-gray-1 pt-3">
+            <DocAttachments
+              doctype="HD Addon Task"
+              :docname="selected.name"
+              :editable="editable"
+            />
+          </div>
+
           <!-- Comments -->
           <div class="border-t border-outline-gray-1 pt-3 flex flex-col gap-3">
             <div class="text-sm font-semibold text-ink-gray-8">
@@ -404,6 +413,7 @@ import {
   dayjs,
   toast,
 } from "frappe-ui";
+import DocAttachments from "@/components/DocAttachments.vue";
 import { timeAgo } from "@/utils";
 import { __ } from "@/translation";
 import LucidePlus from "~icons/lucide/plus";

@@ -207,6 +207,15 @@
         />
       </div>
 
+      <!-- Attachments -->
+      <div class="executive-card p-5">
+        <DocAttachments
+          doctype="HD Addon"
+          :docname="addonId"
+          :editable="editable"
+        />
+      </div>
+
       <!-- Linked tickets -->
       <div class="executive-card p-5 flex flex-col gap-2">
         <div class="text-sm font-semibold text-ink-gray-8">
@@ -250,6 +259,7 @@ import {
 import { useRouter } from "vue-router";
 import { LayoutHeader } from "@/components";
 import AddonFeatures from "@/components/AddonFeatures.vue";
+import DocAttachments from "@/components/DocAttachments.vue";
 import TaskBoard from "@/components/TaskBoard.vue";
 import { globalStore } from "@/stores/globalStore";
 import { isCustomerPortal } from "@/utils";
