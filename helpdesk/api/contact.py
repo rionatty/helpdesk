@@ -23,7 +23,7 @@ def get_my_companies() -> list[dict]:
 	)
 
 
-@frappe.whitelist(methods=["GET"])
+@frappe.whitelist()
 def search_contacts(
     txt: str,
 ) -> list[dict[Literal["full_name", "name", "email_id"], str]]:
@@ -46,7 +46,7 @@ def search_contacts(
     )
 
 
-@frappe.whitelist(methods=["GET"])
+@frappe.whitelist()
 def get_customer_contacts(customer: str) -> list[dict]:
     """Return all Contacts that have a Dynamic Link to the given HD Customer."""
     parent_names = frappe.get_all(
@@ -67,7 +67,7 @@ def get_customer_contacts(customer: str) -> list[dict]:
     )
 
 
-@frappe.whitelist(methods=["POST"])
+@frappe.whitelist()
 def add_contact_to_customer(contact: str, customer: str) -> None:
     """Link a Contact to an HD Customer via a Dynamic Link (idempotent)."""
     doc = frappe.get_doc("Contact", contact)
@@ -78,7 +78,7 @@ def add_contact_to_customer(contact: str, customer: str) -> None:
     doc.save()
 
 
-@frappe.whitelist(methods=["POST"])
+@frappe.whitelist()
 def remove_contact_from_customer(contact: str, customer: str) -> None:
     """Remove the HD Customer Dynamic Link from a Contact."""
     doc = frappe.get_doc("Contact", contact)
