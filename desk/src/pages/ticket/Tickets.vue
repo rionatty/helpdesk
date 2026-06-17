@@ -66,25 +66,166 @@
           </Button>
         </RouterLink>
       </div>
-      <!-- Portal: quick stats -->
-      <div class="flex flex-wrap gap-2.5 mt-4">
-        <div class="flex items-center gap-1.5 text-sm bg-surface-white rounded-lg px-3 py-1.5 border border-outline-gray-1 shadow-sm">
-          <span class="size-2 rounded-full bg-blue-500 inline-block shrink-0" />
-          <span class="font-semibold text-ink-gray-9">{{ portalOpenCount }}</span>
-          <span class="text-ink-gray-5">{{ __("Open") }}</span>
+      <!-- Portal: stat tiles -->
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-4">
+        <div class="executive-card hd-color-card flex flex-col gap-2 px-4 pt-5 pb-4" data-accent="blue">
+          <div class="flex items-center justify-between gap-2">
+            <div class="size-8 rounded-xl hd-icon-blue flex items-center justify-center shadow-md ring-1 ring-inset ring-white/40">
+              <LucideTicket class="size-4 text-white" />
+            </div>
+            <span class="text-2xl font-bold text-ink-gray-9">{{ portalOpenCount }}</span>
+          </div>
+          <div class="text-xs font-semibold text-ink-gray-7">{{ __("Open") }}</div>
+          <div class="text-[11px] text-ink-gray-4">{{ __("Awaiting resolution") }}</div>
         </div>
-        <div class="flex items-center gap-1.5 text-sm bg-surface-white rounded-lg px-3 py-1.5 border border-outline-gray-1 shadow-sm">
-          <span class="size-2 rounded-full bg-emerald-500 inline-block shrink-0" />
-          <span class="font-semibold text-ink-gray-9">{{ portalResolvedCount }}</span>
-          <span class="text-ink-gray-5">{{ __("Resolved (30 days)") }}</span>
+        <div class="executive-card hd-color-card flex flex-col gap-2 px-4 pt-5 pb-4" data-accent="amber">
+          <div class="flex items-center justify-between gap-2">
+            <div class="size-8 rounded-xl hd-icon-amber flex items-center justify-center shadow-md ring-1 ring-inset ring-white/40">
+              <LucideMessageSquare class="size-4 text-white" />
+            </div>
+            <span class="text-2xl font-bold text-ink-gray-9">{{ portalRepliedCount }}</span>
+          </div>
+          <div class="text-xs font-semibold text-ink-gray-7">{{ __("Replied") }}</div>
+          <div class="text-[11px] text-ink-gray-4">{{ __("Awaiting your response") }}</div>
         </div>
-        <div class="flex items-center gap-1.5 text-sm bg-surface-white rounded-lg px-3 py-1.5 border border-outline-gray-1 shadow-sm">
-          <span class="size-2 rounded-full bg-violet-500 inline-block shrink-0" />
-          <span class="font-semibold text-ink-gray-9">{{ portalTotalCount }}</span>
-          <span class="text-ink-gray-5">{{ __("All tickets") }}</span>
+        <div class="executive-card hd-color-card flex flex-col gap-2 px-4 pt-5 pb-4" data-accent="emerald">
+          <div class="flex items-center justify-between gap-2">
+            <div class="size-8 rounded-xl hd-icon-emerald flex items-center justify-center shadow-md ring-1 ring-inset ring-white/40">
+              <LucideCircleCheck class="size-4 text-white" />
+            </div>
+            <span class="text-2xl font-bold text-ink-gray-9">{{ portalResolvedCount }}</span>
+          </div>
+          <div class="text-xs font-semibold text-ink-gray-7">{{ __("Resolved") }}</div>
+          <div class="text-[11px] text-ink-gray-4">{{ __("Last 30 days") }}</div>
+        </div>
+        <div class="executive-card hd-color-card flex flex-col gap-2 px-4 pt-5 pb-4" data-accent="violet">
+          <div class="flex items-center justify-between gap-2">
+            <div class="size-8 rounded-xl hd-icon-violet flex items-center justify-center shadow-md ring-1 ring-inset ring-white/40">
+              <LucideArchive class="size-4 text-white" />
+            </div>
+            <span class="text-2xl font-bold text-ink-gray-9">{{ portalTotalCount }}</span>
+          </div>
+          <div class="text-xs font-semibold text-ink-gray-7">{{ __("All Tickets") }}</div>
+          <div class="text-[11px] text-ink-gray-4">{{ __("All time") }}</div>
         </div>
       </div>
     </div>
+
+    <!-- Agent: queue overview dashboard -->
+    <div v-if="!isCustomerPortal" class="px-4 md:px-6 pt-4 pb-2">
+      <div class="flex items-center gap-2 mb-3 px-0.5">
+        <div class="size-1.5 rounded-full bg-gradient-to-r from-blue-500 to-violet-500" />
+        <span class="text-[11px] font-semibold text-ink-gray-5 uppercase tracking-wider">
+          {{ __("Queue Overview") }}
+        </span>
+      </div>
+      <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+
+        <!-- Open -->
+        <div class="executive-card hd-color-card flex flex-col gap-2 px-4 pt-5 pb-4" data-accent="blue">
+          <div class="flex items-center justify-between gap-2">
+            <div class="size-8 rounded-xl hd-icon-blue flex items-center justify-center shadow-md ring-1 ring-inset ring-white/40">
+              <LucideTicket class="size-4 text-white" />
+            </div>
+            <span class="text-2xl font-bold text-ink-gray-9">{{ agentOpenCount }}</span>
+          </div>
+          <div class="text-xs font-semibold text-ink-gray-7">{{ __("Open") }}</div>
+          <div class="text-[11px] text-ink-gray-4">{{ __("Unresolved") }}</div>
+        </div>
+
+        <!-- Unassigned -->
+        <div
+          class="executive-card flex flex-col gap-2 px-4 pt-5 pb-4"
+          :class="agentUnassignedCount ? 'ring-1 ring-amber-200' : ''"
+        >
+          <div class="flex items-center justify-between gap-2">
+            <div
+              class="size-8 rounded-xl flex items-center justify-center shadow-md"
+              :class="agentUnassignedCount ? 'bg-amber-100' : 'bg-surface-gray-2'"
+            >
+              <LucideUserX class="size-4" :class="agentUnassignedCount ? 'text-amber-600' : 'text-ink-gray-4'" />
+            </div>
+            <span class="text-2xl font-bold" :class="agentUnassignedCount ? 'text-amber-700' : 'text-ink-gray-9'">
+              {{ agentUnassignedCount }}
+            </span>
+          </div>
+          <div class="text-xs font-semibold text-ink-gray-7">{{ __("Unassigned") }}</div>
+          <div class="text-[11px]" :class="agentUnassignedCount ? 'text-amber-600' : 'text-ink-gray-4'">
+            {{ agentUnassignedCount ? __("Need an agent") : __("All assigned") }}
+          </div>
+        </div>
+
+        <!-- Urgent -->
+        <div
+          class="executive-card flex flex-col gap-2 px-4 pt-5 pb-4"
+          :class="agentUrgentCount ? 'ring-1 ring-red-200' : ''"
+        >
+          <div class="flex items-center justify-between gap-2">
+            <div
+              class="size-8 rounded-xl flex items-center justify-center shadow-md"
+              :class="agentUrgentCount ? 'bg-red-100' : 'bg-surface-gray-2'"
+            >
+              <LucideAlertCircle class="size-4" :class="agentUrgentCount ? 'text-red-500' : 'text-ink-gray-4'" />
+            </div>
+            <span class="text-2xl font-bold" :class="agentUrgentCount ? 'text-red-600' : 'text-ink-gray-9'">
+              {{ agentUrgentCount }}
+            </span>
+          </div>
+          <div class="text-xs font-semibold text-ink-gray-7">{{ __("Urgent") }}</div>
+          <div class="text-[11px]" :class="agentUrgentCount ? 'text-red-500' : 'text-ink-gray-4'">
+            {{ agentUrgentCount ? __("High priority") : __("None urgent") }}
+          </div>
+        </div>
+
+        <!-- SLA Failed -->
+        <div
+          class="executive-card flex flex-col gap-2 px-4 pt-5 pb-4"
+          :class="agentSlaFailedCount ? 'ring-1 ring-red-300' : ''"
+        >
+          <div class="flex items-center justify-between gap-2">
+            <div
+              class="size-8 rounded-xl flex items-center justify-center shadow-md"
+              :class="agentSlaFailedCount ? 'bg-red-100' : 'bg-surface-gray-2'"
+            >
+              <LucideTimerOff class="size-4" :class="agentSlaFailedCount ? 'text-red-500' : 'text-ink-gray-4'" />
+            </div>
+            <span class="text-2xl font-bold" :class="agentSlaFailedCount ? 'text-red-600' : 'text-ink-gray-9'">
+              {{ agentSlaFailedCount }}
+            </span>
+          </div>
+          <div class="text-xs font-semibold text-ink-gray-7">{{ __("SLA Failed") }}</div>
+          <div class="text-[11px]" :class="agentSlaFailedCount ? 'text-red-500 font-medium' : 'text-ink-gray-4'">
+            {{ agentSlaFailedCount ? __("Breached") : __("All on track") }}
+          </div>
+        </div>
+
+        <!-- Resolved today -->
+        <div class="executive-card hd-color-card flex flex-col gap-2 px-4 pt-5 pb-4" data-accent="emerald">
+          <div class="flex items-center justify-between gap-2">
+            <div class="size-8 rounded-xl hd-icon-emerald flex items-center justify-center shadow-md ring-1 ring-inset ring-white/40">
+              <LucideCircleCheck class="size-4 text-white" />
+            </div>
+            <span class="text-2xl font-bold text-ink-gray-9">{{ agentResolvedTodayCount }}</span>
+          </div>
+          <div class="text-xs font-semibold text-ink-gray-7">{{ __("Resolved Today") }}</div>
+          <div class="text-[11px] text-ink-gray-4">{{ __("Closed today") }}</div>
+        </div>
+
+        <!-- My open -->
+        <div class="executive-card hd-color-card flex flex-col gap-2 px-4 pt-5 pb-4" data-accent="violet">
+          <div class="flex items-center justify-between gap-2">
+            <div class="size-8 rounded-xl hd-icon-violet flex items-center justify-center shadow-md ring-1 ring-inset ring-white/40">
+              <LucideUserCheck class="size-4 text-white" />
+            </div>
+            <span class="text-2xl font-bold text-ink-gray-9">{{ agentMyOpenCount }}</span>
+          </div>
+          <div class="text-xs font-semibold text-ink-gray-7">{{ __("My Open") }}</div>
+          <div class="text-[11px] text-ink-gray-4">{{ __("Assigned to me") }}</div>
+        </div>
+
+      </div>
+    </div>
+
     <div
       :class="
         isCustomerPortal
@@ -209,9 +350,57 @@ const _portalTotalRes = createResource({
   makeParams: () => ({ doctype: "HD Ticket", filters: { raised_by: userId } }),
   auto: isCustomerPortal.value,
 });
+const _portalRepliedRes = createResource({
+  url: "frappe.client.get_count",
+  makeParams: () => ({
+    doctype: "HD Ticket",
+    filters: { raised_by: userId, status: "Replied" },
+  }),
+  auto: isCustomerPortal.value,
+});
 const portalOpenCount = computed(() => _portalOpenRes.data ?? 0);
 const portalResolvedCount = computed(() => _portalResolvedRes.data ?? 0);
 const portalTotalCount = computed(() => _portalTotalRes.data ?? 0);
+const portalRepliedCount = computed(() => _portalRepliedRes.data ?? 0);
+
+// Agent queue stats (agent side only)
+const _agentToday = computed(() => new Date().toISOString().split("T")[0]);
+const _agentOpenRes = createResource({
+  url: "frappe.client.get_count",
+  makeParams: () => ({ doctype: "HD Ticket", filters: { status_category: ["!=", "Resolved"] } }),
+  auto: !isCustomerPortal.value,
+});
+const _agentUnassignedRes = createResource({
+  url: "frappe.client.get_count",
+  makeParams: () => ({ doctype: "HD Ticket", filters: { status_category: ["!=", "Resolved"], _assign: ["is", "not set"] } }),
+  auto: !isCustomerPortal.value,
+});
+const _agentUrgentRes = createResource({
+  url: "frappe.client.get_count",
+  makeParams: () => ({ doctype: "HD Ticket", filters: { status_category: ["!=", "Resolved"], priority: "Urgent" } }),
+  auto: !isCustomerPortal.value,
+});
+const _agentSlaFailedRes = createResource({
+  url: "frappe.client.get_count",
+  makeParams: () => ({ doctype: "HD Ticket", filters: { agreement_status: "Failed", status_category: ["!=", "Resolved"] } }),
+  auto: !isCustomerPortal.value,
+});
+const _agentResolvedTodayRes = createResource({
+  url: "frappe.client.get_count",
+  makeParams: () => ({ doctype: "HD Ticket", filters: { status_category: "Resolved", resolution_date: [">=", _agentToday.value] } }),
+  auto: !isCustomerPortal.value,
+});
+const _agentMyOpenRes = createResource({
+  url: "frappe.client.get_count",
+  makeParams: () => ({ doctype: "HD Ticket", filters: { status_category: ["!=", "Resolved"], _assign: ["like", `%${userId}%`] } }),
+  auto: !isCustomerPortal.value,
+});
+const agentOpenCount = computed(() => _agentOpenRes.data ?? 0);
+const agentUnassignedCount = computed(() => _agentUnassignedRes.data ?? 0);
+const agentUrgentCount = computed(() => _agentUrgentRes.data ?? 0);
+const agentSlaFailedCount = computed(() => _agentSlaFailedRes.data ?? 0);
+const agentResolvedTodayCount = computed(() => _agentResolvedTodayRes.data ?? 0);
+const agentMyOpenCount = computed(() => _agentMyOpenRes.data ?? 0);
 
 const listViewRef = ref(null);
 const showExportModal = ref(false);
