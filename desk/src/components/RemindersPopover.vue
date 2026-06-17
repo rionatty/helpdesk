@@ -118,30 +118,101 @@
                 {{ r.reference_name }}
               </RouterLink>
             </div>
-            <!-- Dismiss -->
-            <button
-              class="shrink-0 mt-0.5 size-6 rounded flex items-center justify-center text-ink-gray-4 hover:bg-surface-gray-3 hover:text-green-600 transition-colors"
-              :title="__('Dismiss')"
-              @click.stop="dismiss(r.name)"
-            >
-              <LucideCheck class="size-3.5" />
-            </button>
+            <!-- Actions: mark done + dismiss -->
+            <div class="flex items-center gap-0.5 shrink-0 mt-0.5">
+              <button
+                class="size-6 rounded flex items-center justify-center text-ink-gray-4 hover:bg-emerald-50 hover:text-emerald-600 transition-colors"
+                :title="__('Mark as done')"
+                @click.stop="markDone(r.name)"
+              >
+                <LucideCheckCheck class="size-3.5" />
+              </button>
+              <button
+                class="size-6 rounded flex items-center justify-center text-ink-gray-4 hover:bg-surface-gray-3 hover:text-red-500 transition-colors"
+                :title="__('Dismiss')"
+                @click.stop="dismiss(r.name)"
+              >
+                <LucideX class="size-3.5" />
+              </button>
+            </div>
           </div>
         </div>
       </div>
     </Transition>
   </div>
+
+  <!-- Realtime popup (bottom-right) -->
+  <Teleport to="body">
+    <Transition name="slide-up">
+      <div
+        v-if="realtimePopup"
+        class="fixed bottom-5 right-5 z-[9999] w-80 rounded-xl border border-outline-gray-1 bg-surface-white shadow-2xl overflow-hidden"
+      >
+        <div class="flex items-center justify-between px-4 py-2.5 bg-violet-600">
+          <div class="flex items-center gap-2">
+            <LucideBell class="size-3.5 text-white" />
+            <span class="text-xs font-semibold text-white">{{ __("Reminder") }}</span>
+          </div>
+          <button
+            class="size-5 rounded flex items-center justify-center text-white/70 hover:text-white transition-colors"
+            @click="closePopup"
+          >
+            <LucideX class="size-3.5" />
+          </button>
+        </div>
+        <div class="px-4 py-3">
+          <p class="text-sm text-ink-gray-9 font-medium leading-snug">
+            {{ realtimePopup.message }}
+          </p>
+          <RouterLink
+            v-if="realtimePopup.reference_name"
+            :to="referenceRoute(realtimePopup)"
+            class="text-xs text-blue-600 hover:underline mt-1 block"
+            @click="closePopup"
+          >
+            {{ realtimePopup.reference_doctype }} · {{ realtimePopup.reference_name }}
+          </RouterLink>
+          <div class="flex gap-2 mt-3">
+            <button
+              class="flex-1 text-xs font-medium py-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors flex items-center justify-center gap-1"
+              @click="popupMarkDone"
+            >
+              <LucideCheckCheck class="size-3.5" />
+              {{ __("Mark done") }}
+            </button>
+            <button
+              class="flex-1 text-xs font-medium py-1.5 rounded-lg bg-surface-gray-2 text-ink-gray-7 hover:bg-surface-gray-3 transition-colors"
+              @click="popupDismiss"
+            >
+              {{ __("Dismiss") }}
+            </button>
+          </div>
+        </div>
+        <!-- Progress bar for auto-dismiss -->
+        <div class="h-0.5 bg-surface-gray-2">
+          <div
+            class="h-full bg-violet-400 transition-all ease-linear"
+            :style="{ width: popupProgress + '%', transitionDuration: '1s' }"
+          />
+        </div>
+      </div>
+    </Transition>
+  </Teleport>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from "vue";
 import { RouterLink } from "vue-router";
 import { call, createResource, dayjs, toast } from "frappe-ui";
+import { globalStore } from "@/stores/globalStore";
 import { __ } from "@/translation";
 import LucideBell from "~icons/lucide/bell";
 import LucideBellOff from "~icons/lucide/bell-off";
-import LucideCheck from "~icons/lucide/check";
+import LucideCheckCheck from "~icons/lucide/check-check";
 import LucidePlus from "~icons/lucide/plus";
+import LucideX from "~icons/lucide/x";
+
+const { $socket } = globalStore();
 
 const isOpen = ref(false);
 const showForm = ref(false);
@@ -149,6 +220,8 @@ const newMsg = ref("");
 const newAt = ref("");
 const savingNew = ref(false);
 const containerRef = ref<HTMLElement | null>(null);
+
+// ── Reminder list ─────────────────────────────────────────────────────────────
 
 const remindersRes = createResource({
   url: "helpdesk.api.reminder.get_my_reminders",
@@ -187,6 +260,8 @@ function referenceRoute(r: any): any {
   return "/";
 }
 
+// ── Actions ───────────────────────────────────────────────────────────────────
+
 async function saveNew() {
   if (!newMsg.value.trim() || !newAt.value) return;
   savingNew.value = true;
@@ -207,6 +282,15 @@ async function saveNew() {
   }
 }
 
+async function markDone(name: string) {
+  try {
+    await call("helpdesk.api.reminder.mark_performed", { name });
+    remindersRes.reload();
+  } catch (e: any) {
+    toast.error(e?.messages?.[0] || __("Could not update"));
+  }
+}
+
 async function dismiss(name: string) {
   try {
     await call("helpdesk.api.reminder.dismiss_reminder", { name });
@@ -216,22 +300,78 @@ async function dismiss(name: string) {
   }
 }
 
-// Close on click outside
+// ── Realtime popup ────────────────────────────────────────────────────────────
+
+const realtimePopup = ref<any>(null);
+const popupProgress = ref(100);
+let popupTimer: ReturnType<typeof setTimeout> | null = null;
+let progressTimer: ReturnType<typeof setInterval> | null = null;
+
+function onReminderDue(data: any) {
+  // Show the popup
+  realtimePopup.value = data;
+  remindersRes.reload();
+
+  // Auto-dismiss after 30 s
+  popupProgress.value = 100;
+  if (popupTimer) clearTimeout(popupTimer);
+  if (progressTimer) clearInterval(progressTimer);
+
+  let elapsed = 0;
+  progressTimer = setInterval(() => {
+    elapsed += 1;
+    popupProgress.value = Math.max(0, 100 - (elapsed / 30) * 100);
+  }, 1000);
+
+  popupTimer = setTimeout(() => {
+    closePopup();
+  }, 30_000);
+}
+
+function closePopup() {
+  realtimePopup.value = null;
+  if (popupTimer) { clearTimeout(popupTimer); popupTimer = null; }
+  if (progressTimer) { clearInterval(progressTimer); progressTimer = null; }
+}
+
+async function popupMarkDone() {
+  if (!realtimePopup.value) return;
+  try {
+    await call("helpdesk.api.reminder.mark_performed", { name: realtimePopup.value.name });
+    remindersRes.reload();
+  } catch {}
+  closePopup();
+}
+
+async function popupDismiss() {
+  if (!realtimePopup.value) return;
+  try {
+    await call("helpdesk.api.reminder.dismiss_reminder", { name: realtimePopup.value.name });
+    remindersRes.reload();
+  } catch {}
+  closePopup();
+}
+
+// ── Lifecycle ─────────────────────────────────────────────────────────────────
+
 function onClickOutside(e: MouseEvent) {
   if (containerRef.value && !containerRef.value.contains(e.target as Node)) {
     isOpen.value = false;
   }
 }
 
-// Poll every 2 min so the badge count stays current
 let poll: ReturnType<typeof setInterval>;
 onMounted(() => {
   document.addEventListener("mousedown", onClickOutside);
   poll = setInterval(() => remindersRes.reload(), 120_000);
+  $socket.on("helpdesk:reminder_due", onReminderDue);
 });
 onUnmounted(() => {
   document.removeEventListener("mousedown", onClickOutside);
   clearInterval(poll);
+  $socket.off("helpdesk:reminder_due", onReminderDue);
+  if (popupTimer) clearTimeout(popupTimer);
+  if (progressTimer) clearInterval(progressTimer);
 });
 </script>
 
@@ -244,5 +384,14 @@ onUnmounted(() => {
 .pop-leave-to {
   opacity: 0;
   transform: translateY(-6px) scale(0.97);
+}
+.slide-up-enter-active,
+.slide-up-leave-active {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+.slide-up-enter-from,
+.slide-up-leave-to {
+  opacity: 0;
+  transform: translateY(16px);
 }
 </style>

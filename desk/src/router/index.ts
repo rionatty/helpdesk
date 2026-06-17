@@ -142,6 +142,11 @@ const routes = [
     props: true,
   },
   {
+    path: "/reminders",
+    name: "RemindersAgent",
+    component: () => import("@/pages/RemindersPage.vue"),
+  },
+  {
     path: "/call-logs",
     name: "CallLogs",
     component: () => import("@/pages/call-logs/CallLogs.vue"),
@@ -230,6 +235,15 @@ const routes = [
     name: "AddonCustomer",
     component: () => import("@/pages/AddonView.vue"),
     props: true,
+    meta: {
+      public: true,
+      auth: true,
+    },
+  },
+  {
+    path: "/my-reminders",
+    name: "RemindersCustomer",
+    component: () => import("@/pages/RemindersPage.vue"),
     meta: {
       public: true,
       auth: true,

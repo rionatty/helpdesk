@@ -10,7 +10,8 @@
   "remind_at",
   "reference_doctype",
   "reference_name",
-  "status"
+  "status",
+  "send_email"
  ],
  "fields": [
   {
@@ -45,7 +46,13 @@
    "fieldtype": "Select",
    "in_list_view": 1,
    "label": "Status",
-   "options": "Pending\nNotified\nDismissed"
+   "options": "Pending\nNotified\nPerformed\nDismissed"
+  },
+  {
+   "default": "0",
+   "fieldname": "send_email",
+   "fieldtype": "Check",
+   "label": "Send Email"
   }
  ],
  "index_web_pages_for_search": 0,

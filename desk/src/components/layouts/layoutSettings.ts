@@ -5,6 +5,7 @@ import LucideLayoutDashboard from "~icons/lucide/layout-dashboard";
 import LucideFolderKanban from "~icons/lucide/folder-kanban";
 import LucideLayoutTemplate from "~icons/lucide/layout-template";
 import LucidePackage from "~icons/lucide/package";
+import LucideBell from "~icons/lucide/bell";
 import { OrganizationsIcon } from "../icons";
 import PhoneIcon from "../icons/PhoneIcon.vue";
 import LucideHome from "~icons/lucide/home";
@@ -40,6 +41,11 @@ export const agentPortalSidebarOptions = [
     label: __("Add-ons"),
     icon: LucidePackage,
     to: "AddonsAgent",
+  },
+  {
+    label: __("Reminders"),
+    icon: LucideBell,
+    to: "RemindersAgent",
   },
   {
     label: __("Knowledge Base"),
@@ -83,6 +89,11 @@ export const customerPortalSidebarOptions = [
     label: __("Add-ons"),
     icon: LucidePackage,
     to: "AddonsCustomer",
+  },
+  {
+    label: __("Reminders"),
+    icon: LucideBell,
+    to: "RemindersCustomer",
   },
   {
     label: __("Knowledge Base"),
