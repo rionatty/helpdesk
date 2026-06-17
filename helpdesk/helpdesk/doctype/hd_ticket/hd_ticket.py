@@ -482,6 +482,24 @@ class HDTicket(Document):
         for comment in comments:
             frappe.db.delete("HD Ticket Comment", comment)
 
+        for participant in frappe.db.get_all(
+            "HD Ticket Participant", {"ticket": self.name}
+        ):
+            frappe.db.delete("HD Ticket Participant", participant)
+
+        for subtask in frappe.db.get_all("HD Ticket Subtask", {"ticket": self.name}):
+            frappe.db.delete("HD Ticket Subtask", subtask)
+
+        for feedback in frappe.db.get_all(
+            "HD Email Feedback", {"ticket": self.name}
+        ):
+            frappe.db.delete("HD Email Feedback", feedback)
+
+        for addon_task in frappe.db.get_all(
+            "HD Addon Task", {"ticket": self.name}
+        ):
+            frappe.db.delete("HD Addon Task", addon_task)
+
     def skip_email_workflow(self):
         skip: str = frappe.get_value("HD Settings", None, "skip_email_workflow") or "0"
 

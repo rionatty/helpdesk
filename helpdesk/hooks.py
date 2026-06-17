@@ -115,6 +115,10 @@ override_doctype_class = {
 ignore_links_on_delete = [
     "HD Notification",
     "HD Ticket Comment",
+    "HD Ticket Participant",
+    "HD Ticket Subtask",
+    "HD Email Feedback",
+    "HD Addon Task",
 ]
 
 # setup wizard
