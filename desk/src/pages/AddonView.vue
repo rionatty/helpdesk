@@ -135,61 +135,152 @@
       </div>
 
       <!-- Dashboard -->
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div class="executive-card hd-color-card p-5 pt-6" data-accent="blue">
-          <div class="flex items-center gap-2 mb-2">
-            <LucideListChecks class="size-4 text-blue-600" />
-            <span class="text-sm font-semibold text-ink-gray-8">
-              {{ __("Features") }}
-            </span>
+      <div class="flex flex-col gap-3">
+        <!-- Section label -->
+        <div class="flex items-center gap-2 px-0.5">
+          <div class="size-1.5 rounded-full bg-gradient-to-r from-blue-500 to-violet-500" />
+          <span class="text-[11px] font-semibold text-ink-gray-5 uppercase tracking-wider">
+            {{ __("Add-on Health Dashboard") }}
+          </span>
+        </div>
+
+        <!-- Row 1 — Task status -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <!-- Pending -->
+          <div class="executive-card hd-color-card flex flex-col gap-2 px-4 pt-5 pb-4" data-accent="amber">
+            <div class="flex items-center justify-between gap-2">
+              <div class="size-8 rounded-xl hd-icon-amber flex items-center justify-center shadow-md ring-1 ring-inset ring-white/40">
+                <LucideCircleDot class="size-4 text-white" />
+              </div>
+              <span class="text-2xl font-bold text-ink-gray-9">{{ addonTaskBreakdown.todo }}</span>
+            </div>
+            <div class="text-xs font-semibold text-ink-gray-7">{{ __("Tasks Pending") }}</div>
+            <div class="h-1.5 w-full rounded-full bg-surface-gray-3 overflow-hidden">
+              <div class="h-full bg-amber-400 rounded-full transition-all duration-700" :style="{ width: addonTaskBreakdown.todoPct + '%' }" />
+            </div>
+            <div class="text-[11px] text-ink-gray-4">{{ addonTaskBreakdown.todoPct }}% &nbsp;·&nbsp; {{ addonTaskBreakdown.total }} total</div>
           </div>
-          <div class="text-2xl font-bold text-ink-gray-9">
-            {{ dash.features_total }}
+
+          <!-- In Progress -->
+          <div class="executive-card hd-color-card flex flex-col gap-2 px-4 pt-5 pb-4" data-accent="blue">
+            <div class="flex items-center justify-between gap-2">
+              <div class="size-8 rounded-xl hd-icon-blue flex items-center justify-center shadow-md ring-1 ring-inset ring-white/40">
+                <LucideLoader2 class="size-4 text-white" />
+              </div>
+              <span class="text-2xl font-bold text-ink-gray-9">{{ addonTaskBreakdown.inprogress }}</span>
+            </div>
+            <div class="text-xs font-semibold text-ink-gray-7">{{ __("Tasks In Progress") }}</div>
+            <div class="h-1.5 w-full rounded-full bg-surface-gray-3 overflow-hidden">
+              <div class="h-full bg-blue-500 rounded-full transition-all duration-700" :style="{ width: addonTaskBreakdown.inprogressPct + '%' }" />
+            </div>
+            <div class="text-[11px] text-ink-gray-4">{{ addonTaskBreakdown.inprogressPct }}% of tasks</div>
           </div>
-          <div class="flex flex-wrap gap-1.5 mt-2">
-            <span
-              v-for="(n, s) in dash.features_by_status"
-              :key="s"
-              class="text-[11px] rounded-full px-2 py-0.5 bg-surface-gray-2 text-ink-gray-7"
-            >
-              {{ s }}: {{ n }}
-            </span>
+
+          <!-- Done -->
+          <div class="executive-card hd-color-card flex flex-col gap-2 px-4 pt-5 pb-4" data-accent="emerald">
+            <div class="flex items-center justify-between gap-2">
+              <div class="size-8 rounded-xl hd-icon-emerald flex items-center justify-center shadow-md ring-1 ring-inset ring-white/40">
+                <LucideCircleCheck class="size-4 text-white" />
+              </div>
+              <span class="text-2xl font-bold text-ink-gray-9">{{ addonTaskBreakdown.done }}</span>
+            </div>
+            <div class="text-xs font-semibold text-ink-gray-7">{{ __("Tasks Done") }}</div>
+            <div class="h-1.5 w-full rounded-full bg-surface-gray-3 overflow-hidden">
+              <div class="h-full bg-emerald-500 rounded-full transition-all duration-700" :style="{ width: addonTaskBreakdown.donePct + '%' }" />
+            </div>
+            <div class="text-[11px] text-ink-gray-4">{{ addonTaskBreakdown.donePct }}% complete</div>
+          </div>
+
+          <!-- Blocked -->
+          <div
+            class="executive-card flex flex-col gap-2 px-4 pt-5 pb-4"
+            :class="addonTaskBreakdown.blocked ? 'ring-1 ring-red-200' : ''"
+          >
+            <div class="flex items-center justify-between gap-2">
+              <div
+                class="size-8 rounded-xl flex items-center justify-center shadow-md"
+                :class="addonTaskBreakdown.blocked ? 'bg-red-100' : 'bg-surface-gray-2'"
+              >
+                <LucideCircleX class="size-4" :class="addonTaskBreakdown.blocked ? 'text-red-500' : 'text-ink-gray-4'" />
+              </div>
+              <span class="text-2xl font-bold" :class="addonTaskBreakdown.blocked ? 'text-red-600' : 'text-ink-gray-9'">
+                {{ addonTaskBreakdown.blocked }}
+              </span>
+            </div>
+            <div class="text-xs font-semibold text-ink-gray-7">{{ __("Tasks Blocked") }}</div>
+            <div class="text-[11px]" :class="addonTaskBreakdown.blocked ? 'text-red-500' : 'text-ink-gray-4'">
+              {{ addonTaskBreakdown.blocked ? addonTaskBreakdown.blocked + " need attention" : "All clear" }}
+            </div>
           </div>
         </div>
 
-        <div class="executive-card hd-color-card p-5 pt-6" data-accent="violet">
-          <div class="flex items-center gap-2 mb-2">
-            <LucideClipboardList class="size-4 text-violet-600" />
-            <span class="text-sm font-semibold text-ink-gray-8">
-              {{ __("Tasks") }}
-            </span>
+        <!-- Row 2 — Features + Tickets + Renewal -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <!-- Features in progress -->
+          <div class="executive-card hd-color-card flex flex-col gap-2 px-4 pt-5 pb-4" data-accent="violet">
+            <div class="flex items-center justify-between gap-2">
+              <div class="size-8 rounded-xl hd-icon-violet flex items-center justify-center shadow-md ring-1 ring-inset ring-white/40">
+                <LucideSparkles class="size-4 text-white" />
+              </div>
+              <span class="text-2xl font-bold text-ink-gray-9">{{ addonFeatureBreakdown.inprogress }}</span>
+            </div>
+            <div class="text-xs font-semibold text-ink-gray-7">{{ __("Features Active") }}</div>
+            <div class="text-[11px] text-ink-gray-4">
+              {{ addonFeatureBreakdown.planned }} planned &nbsp;·&nbsp; {{ addonFeatureBreakdown.total }} total
+            </div>
+            <div v-if="addonFeatureBreakdown.deprecated" class="text-[11px] text-ink-gray-4">
+              {{ addonFeatureBreakdown.deprecated }} deprecated
+            </div>
           </div>
-          <div class="text-2xl font-bold text-ink-gray-9">
-            {{ dash.tasks_total }}
-          </div>
-          <div class="flex flex-wrap gap-1.5 mt-2">
-            <span
-              v-for="(n, s) in dash.tasks_by_status"
-              :key="s"
-              class="text-[11px] rounded-full px-2 py-0.5 bg-surface-gray-2 text-ink-gray-7"
-            >
-              {{ s }}: {{ n }}
-            </span>
-          </div>
-        </div>
 
-        <div class="executive-card hd-color-card p-5 pt-6" data-accent="emerald">
-          <div class="flex items-center gap-2 mb-2">
-            <LucideTicket class="size-4 text-emerald-600" />
-            <span class="text-sm font-semibold text-ink-gray-8">
-              {{ __("Tickets") }}
-            </span>
+          <!-- Features released -->
+          <div class="executive-card hd-color-card flex flex-col gap-2 px-4 pt-5 pb-4" data-accent="emerald">
+            <div class="flex items-center justify-between gap-2">
+              <div class="size-8 rounded-xl hd-icon-emerald flex items-center justify-center shadow-md ring-1 ring-inset ring-white/40">
+                <LucideRocket class="size-4 text-white" />
+              </div>
+              <span class="text-2xl font-bold text-ink-gray-9">{{ addonFeatureBreakdown.released }}</span>
+            </div>
+            <div class="text-xs font-semibold text-ink-gray-7">{{ __("Features Released") }}</div>
+            <div class="h-1.5 w-full rounded-full bg-surface-gray-3 overflow-hidden">
+              <div
+                class="h-full bg-emerald-500 rounded-full transition-all duration-700"
+                :style="{ width: addonFeatureBreakdown.total ? Math.round(addonFeatureBreakdown.released / addonFeatureBreakdown.total * 100) + '%' : '0%' }"
+              />
+            </div>
+            <div class="text-[11px] text-ink-gray-4">{{ addonFeatureBreakdown.released }} / {{ addonFeatureBreakdown.total }}</div>
           </div>
-          <div class="text-2xl font-bold text-ink-gray-9">
-            {{ dash.tickets_total }}
+
+          <!-- Open tickets -->
+          <div class="executive-card hd-color-card flex flex-col gap-2 px-4 pt-5 pb-4" data-accent="blue">
+            <div class="flex items-center justify-between gap-2">
+              <div class="size-8 rounded-xl hd-icon-blue flex items-center justify-center shadow-md ring-1 ring-inset ring-white/40">
+                <LucideTicket class="size-4 text-white" />
+              </div>
+              <span class="text-2xl font-bold text-ink-gray-9">{{ addonOpenTickets }}</span>
+            </div>
+            <div class="text-xs font-semibold text-ink-gray-7">{{ __("Open Tickets") }}</div>
+            <div class="text-[11px] text-ink-gray-4">{{ dash.tickets_total }} {{ __("total linked") }}</div>
           </div>
-          <div class="text-xs text-ink-gray-5 mt-2">
-            {{ __("Linked to this add-on") }}
+
+          <!-- Renewal countdown -->
+          <div
+            class="executive-card flex flex-col gap-2 px-4 pt-5 pb-4"
+            :class="renewalInfo.textClass === 'text-red-500' ? 'ring-1 ring-red-200' : ''"
+          >
+            <div class="flex items-center justify-between gap-2">
+              <div class="size-8 rounded-xl flex items-center justify-center shadow-md" :class="renewalInfo.bgClass">
+                <LucideCalendarClock class="size-4" :class="renewalInfo.iconColor" />
+              </div>
+              <span class="text-lg font-bold leading-tight text-right" :class="renewalInfo.textClass">
+                {{ renewalInfo.label }}
+              </span>
+            </div>
+            <div class="text-xs font-semibold text-ink-gray-7">{{ __("Renewal") }}</div>
+            <div class="h-1.5 w-full rounded-full bg-surface-gray-3 overflow-hidden">
+              <div class="h-full rounded-full transition-all duration-700" :class="renewalInfo.barClass" :style="{ width: renewalInfo.barPct + '%' }" />
+            </div>
+            <div class="text-[11px]" :class="renewalInfo.textClass">{{ renewalInfo.sub }}</div>
           </div>
         </div>
       </div>
@@ -302,6 +393,7 @@ import {
   Button,
   call,
   createResource,
+  dayjs,
   toast,
   usePageMeta,
 } from "frappe-ui";
@@ -320,6 +412,16 @@ import LucideListChecks from "~icons/lucide/list-checks";
 import LucideClipboardList from "~icons/lucide/clipboard-list";
 import LucideUsers from "~icons/lucide/users";
 import LucideX from "~icons/lucide/x";
+import LucideCircleDot from "~icons/lucide/circle-dot";
+import LucideLoader2 from "~icons/lucide/loader-2";
+import LucideCircleCheck from "~icons/lucide/circle-check";
+import LucideCircleX from "~icons/lucide/circle-x";
+import LucideSparkles from "~icons/lucide/sparkles";
+import LucideRocket from "~icons/lucide/rocket";
+import LucideCalendarClock from "~icons/lucide/calendar-clock";
+import LucideActivity from "~icons/lucide/activity";
+import LucideAlertTriangle from "~icons/lucide/alert-triangle";
+import LucideFlag from "~icons/lucide/flag";
 
 interface P {
   addonId: string;
@@ -402,6 +504,56 @@ const dash = computed(
       tickets_total: 0,
     }
 );
+
+const addonTaskBreakdown = computed(() => {
+  const s = dash.value.tasks_by_status || {};
+  const total = Math.max(dash.value.tasks_total || 0, 1);
+  const todo = s["To Do"] || 0;
+  const inprogress = s["In Progress"] || 0;
+  const done = s["Done"] || 0;
+  const blocked = s["Blocked"] || 0;
+  return {
+    todo, inprogress, done, blocked,
+    total: dash.value.tasks_total || 0,
+    todoPct: Math.round((todo / total) * 100),
+    inprogressPct: Math.round((inprogress / total) * 100),
+    donePct: Math.round((done / total) * 100),
+  };
+});
+
+const addonFeatureBreakdown = computed(() => {
+  const s = dash.value.features_by_status || {};
+  return {
+    planned: s["Planned"] || 0,
+    inprogress: s["In Progress"] || 0,
+    released: s["Released"] || 0,
+    deprecated: s["Deprecated"] || 0,
+    total: dash.value.features_total || 0,
+  };
+});
+
+const addonOpenTickets = computed(
+  () =>
+    (resource.data?.tickets || []).filter(
+      (t: any) => t.status !== "Resolved" && t.status !== "Closed"
+    ).length
+);
+
+const renewalInfo = computed(() => {
+  const rd = resource.data?.renewal_date;
+  if (!rd)
+    return { label: "Not set", sub: "No renewal date", bgClass: "bg-surface-gray-2", iconColor: "text-ink-gray-4", textClass: "text-ink-gray-5", barClass: "bg-surface-gray-3", barPct: 0 };
+  const days = dayjs(rd).startOf("day").diff(dayjs().startOf("day"), "day");
+  if (days < 0)
+    return { label: Math.abs(days) + "d overdue", sub: "Renewal past due!", bgClass: "bg-red-100", iconColor: "text-red-500", textClass: "text-red-500", barClass: "bg-red-500", barPct: 100 };
+  if (days === 0)
+    return { label: "Due today", sub: "Action required", bgClass: "bg-red-100", iconColor: "text-red-500", textClass: "text-red-500", barClass: "bg-red-400", barPct: 100 };
+  if (days <= 30)
+    return { label: days + " days", sub: "Until renewal", bgClass: "bg-amber-100", iconColor: "text-amber-600", textClass: "text-amber-600", barClass: "bg-amber-400", barPct: Math.round((1 - days / 30) * 100) };
+  if (days <= 90)
+    return { label: days + " days", sub: "Until renewal", bgClass: "bg-blue-100", iconColor: "text-blue-600", textClass: "text-blue-600", barClass: "bg-blue-500", barPct: Math.round((1 - days / 90) * 100) };
+  return { label: days + " days", sub: "Until renewal", bgClass: "bg-emerald-100", iconColor: "text-emerald-600", textClass: "text-emerald-600", barClass: "bg-emerald-500", barPct: 0 };
+});
 
 const breadcrumbs = computed(() => [
   {

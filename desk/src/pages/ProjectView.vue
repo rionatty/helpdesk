@@ -281,6 +281,160 @@
         </div>
       </div>
 
+      <!-- ── Health Dashboard ── -->
+      <div class="flex flex-col gap-3">
+        <!-- Section label -->
+        <div class="flex items-center gap-2 px-0.5">
+          <div class="size-1.5 rounded-full bg-gradient-to-r from-blue-500 to-violet-500" />
+          <span class="text-[11px] font-semibold text-ink-gray-5 uppercase tracking-wider">
+            {{ __("Task & Milestone Breakdown") }}
+          </span>
+        </div>
+
+        <!-- Row 1 — Task status -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <!-- Pending -->
+          <div class="executive-card hd-color-card flex flex-col gap-2 px-4 pt-5 pb-4" data-accent="amber">
+            <div class="flex items-center justify-between gap-2">
+              <div class="size-8 rounded-xl hd-icon-amber flex items-center justify-center shadow-md ring-1 ring-inset ring-white/40">
+                <LucideCircleDot class="size-4 text-white" />
+              </div>
+              <span class="text-2xl font-bold text-ink-gray-9">{{ taskBreakdown.todo }}</span>
+            </div>
+            <div class="text-xs font-semibold text-ink-gray-7">{{ __("Pending") }}</div>
+            <div class="h-1.5 w-full rounded-full bg-surface-gray-3 overflow-hidden">
+              <div class="h-full bg-amber-400 rounded-full transition-all duration-700" :style="{ width: taskBreakdown.todoPct + '%' }" />
+            </div>
+            <div class="text-[11px] text-ink-gray-4">{{ taskBreakdown.todoPct }}% &nbsp;·&nbsp; {{ taskBreakdown.total }} {{ __("total") }}</div>
+          </div>
+
+          <!-- In Progress -->
+          <div class="executive-card hd-color-card flex flex-col gap-2 px-4 pt-5 pb-4" data-accent="blue">
+            <div class="flex items-center justify-between gap-2">
+              <div class="size-8 rounded-xl hd-icon-blue flex items-center justify-center shadow-md ring-1 ring-inset ring-white/40">
+                <LucideLoader2 class="size-4 text-white" />
+              </div>
+              <span class="text-2xl font-bold text-ink-gray-9">{{ taskBreakdown.inprogress }}</span>
+            </div>
+            <div class="text-xs font-semibold text-ink-gray-7">{{ __("In Progress") }}</div>
+            <div class="h-1.5 w-full rounded-full bg-surface-gray-3 overflow-hidden">
+              <div class="h-full bg-blue-500 rounded-full transition-all duration-700" :style="{ width: taskBreakdown.inprogressPct + '%' }" />
+            </div>
+            <div class="text-[11px] text-ink-gray-4">{{ taskBreakdown.inprogressPct }}% of tasks</div>
+          </div>
+
+          <!-- Done -->
+          <div class="executive-card hd-color-card flex flex-col gap-2 px-4 pt-5 pb-4" data-accent="emerald">
+            <div class="flex items-center justify-between gap-2">
+              <div class="size-8 rounded-xl hd-icon-emerald flex items-center justify-center shadow-md ring-1 ring-inset ring-white/40">
+                <LucideCircleCheck class="size-4 text-white" />
+              </div>
+              <span class="text-2xl font-bold text-ink-gray-9">{{ taskBreakdown.done }}</span>
+            </div>
+            <div class="text-xs font-semibold text-ink-gray-7">{{ __("Done") }}</div>
+            <div class="h-1.5 w-full rounded-full bg-surface-gray-3 overflow-hidden">
+              <div class="h-full bg-emerald-500 rounded-full transition-all duration-700" :style="{ width: taskBreakdown.donePct + '%' }" />
+            </div>
+            <div class="text-[11px] text-ink-gray-4">{{ taskBreakdown.donePct }}% complete</div>
+          </div>
+
+          <!-- Blocked / Overdue -->
+          <div
+            class="executive-card flex flex-col gap-2 px-4 pt-5 pb-4 transition-all"
+            :class="taskBreakdown.blocked || taskBreakdown.overdue ? 'ring-1 ring-red-200' : ''"
+          >
+            <div class="flex items-center justify-between gap-2">
+              <div
+                class="size-8 rounded-xl flex items-center justify-center shadow-md"
+                :class="taskBreakdown.blocked ? 'bg-red-100' : 'bg-surface-gray-2'"
+              >
+                <LucideCircleX class="size-4" :class="taskBreakdown.blocked ? 'text-red-500' : 'text-ink-gray-4'" />
+              </div>
+              <span class="text-2xl font-bold" :class="taskBreakdown.blocked ? 'text-red-600' : 'text-ink-gray-9'">
+                {{ taskBreakdown.blocked }}
+              </span>
+            </div>
+            <div class="text-xs font-semibold text-ink-gray-7">{{ __("Blocked") }}</div>
+            <div class="text-[11px]" :class="taskBreakdown.blocked ? 'text-red-500' : 'text-ink-gray-4'">
+              {{ taskBreakdown.blocked ? taskBreakdown.blocked + " need attention" : "Nothing blocked" }}
+            </div>
+            <div v-if="taskBreakdown.overdue" class="flex items-center gap-1 text-[11px] text-red-500 font-semibold">
+              <LucideAlertTriangle class="size-2.5 shrink-0" />
+              {{ taskBreakdown.overdue }} overdue
+            </div>
+          </div>
+        </div>
+
+        <!-- Row 2 — Milestones + Tickets + Health -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <!-- Active milestones -->
+          <div class="executive-card hd-color-card flex flex-col gap-2 px-4 pt-5 pb-4" data-accent="violet">
+            <div class="flex items-center justify-between gap-2">
+              <div class="size-8 rounded-xl hd-icon-violet flex items-center justify-center shadow-md ring-1 ring-inset ring-white/40">
+                <LucideFlag class="size-4 text-white" />
+              </div>
+              <span class="text-2xl font-bold text-ink-gray-9">{{ milestoneBreakdown.inprogress }}</span>
+            </div>
+            <div class="text-xs font-semibold text-ink-gray-7">{{ __("Milestones Active") }}</div>
+            <div class="text-[11px] text-ink-gray-4">
+              {{ milestoneBreakdown.upcoming }} upcoming &nbsp;·&nbsp; {{ milestoneBreakdown.total }} total
+            </div>
+            <div v-if="milestoneBreakdown.missed" class="text-[11px] text-red-500 font-semibold">
+              <LucideAlertTriangle class="size-2.5 inline shrink-0 mr-0.5" />{{ milestoneBreakdown.missed }} missed
+            </div>
+          </div>
+
+          <!-- Milestones done -->
+          <div class="executive-card hd-color-card flex flex-col gap-2 px-4 pt-5 pb-4" data-accent="emerald">
+            <div class="flex items-center justify-between gap-2">
+              <div class="size-8 rounded-xl hd-icon-emerald flex items-center justify-center shadow-md ring-1 ring-inset ring-white/40">
+                <LucideTrophy class="size-4 text-white" />
+              </div>
+              <span class="text-2xl font-bold text-ink-gray-9">{{ milestoneBreakdown.completed }}</span>
+            </div>
+            <div class="text-xs font-semibold text-ink-gray-7">{{ __("Milestones Done") }}</div>
+            <div class="h-1.5 w-full rounded-full bg-surface-gray-3 overflow-hidden">
+              <div
+                class="h-full bg-emerald-500 rounded-full transition-all duration-700"
+                :style="{ width: milestoneBreakdown.total ? Math.round(milestoneBreakdown.completed / milestoneBreakdown.total * 100) + '%' : '0%' }"
+              />
+            </div>
+            <div class="text-[11px] text-ink-gray-4">{{ milestoneBreakdown.completed }} / {{ milestoneBreakdown.total }}</div>
+          </div>
+
+          <!-- Open tickets -->
+          <div class="executive-card hd-color-card flex flex-col gap-2 px-4 pt-5 pb-4" data-accent="blue">
+            <div class="flex items-center justify-between gap-2">
+              <div class="size-8 rounded-xl hd-icon-blue flex items-center justify-center shadow-md ring-1 ring-inset ring-white/40">
+                <LucideTicket class="size-4 text-white" />
+              </div>
+              <span class="text-2xl font-bold text-ink-gray-9">{{ openTickets }}</span>
+            </div>
+            <div class="text-xs font-semibold text-ink-gray-7">{{ __("Open Tickets") }}</div>
+            <div class="text-[11px] text-ink-gray-4">{{ resource.data.tickets?.length || 0 }} {{ __("total linked") }}</div>
+          </div>
+
+          <!-- Project health -->
+          <div class="executive-card flex flex-col gap-2 px-4 pt-5 pb-4 ring-1" :class="projectHealth.ringClass">
+            <div class="flex items-center justify-between gap-2">
+              <div class="size-8 rounded-xl flex items-center justify-center shadow-md" :class="projectHealth.bgClass">
+                <LucideActivity class="size-4" :class="projectHealth.colorClass" />
+              </div>
+              <span class="text-sm font-bold" :class="projectHealth.colorClass">
+                {{ __(projectHealth.label) }}
+              </span>
+            </div>
+            <div class="text-xs font-semibold text-ink-gray-7">{{ __("Health") }}</div>
+            <div class="h-1.5 w-full rounded-full bg-surface-gray-3 overflow-hidden">
+              <div class="h-full rounded-full transition-all duration-700" :class="projectHealth.barClass" :style="{ width: projectHealth.score + '%' }" />
+            </div>
+            <div class="text-[11px] text-ink-gray-4">
+              {{ taskBreakdown.overdue ? taskBreakdown.overdue + " overdue tasks" : "No overdue tasks" }}
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Assigned Agents -->
       <div v-if="editable || members.length" class="executive-card p-5 flex flex-col gap-3">
         <div class="flex items-center gap-2">
@@ -651,6 +805,14 @@ import LucideChevronRight from "~icons/lucide/chevron-right";
 import LucideSparkles from "~icons/lucide/sparkles";
 import LucideLayoutTemplate from "~icons/lucide/layout-template";
 import LucideX from "~icons/lucide/x";
+import LucideCircleDot from "~icons/lucide/circle-dot";
+import LucideLoader2 from "~icons/lucide/loader-2";
+import LucideCircleCheck from "~icons/lucide/circle-check";
+import LucideCircleX from "~icons/lucide/circle-x";
+import LucideTrophy from "~icons/lucide/trophy";
+import LucideActivity from "~icons/lucide/activity";
+import LucideAlertTriangle from "~icons/lucide/alert-triangle";
+import LucideCalendarClock from "~icons/lucide/calendar-clock";
 import { globalStore } from "@/stores/globalStore";
 import { isCustomerPortal } from "@/utils";
 import { __ } from "@/translation";
@@ -699,6 +861,55 @@ const taskStats = computed(() => {
     total: rows.length,
     done: rows.filter((t: any) => t.status === "Done").length,
   };
+});
+
+const taskBreakdown = computed(() => {
+  const tasks = resource.data?.tasks || [];
+  const today = dayjs().format("YYYY-MM-DD");
+  const todo = tasks.filter((t: any) => t.status === "To Do").length;
+  const inprogress = tasks.filter((t: any) => t.status === "In Progress").length;
+  const done = tasks.filter((t: any) => t.status === "Done").length;
+  const blocked = tasks.filter((t: any) => t.status === "Blocked").length;
+  const total = Math.max(tasks.length, 1);
+  const overdue = tasks.filter(
+    (t: any) => t.status !== "Done" && t.end_date && t.end_date < today
+  ).length;
+  return {
+    todo, inprogress, done, blocked, overdue,
+    todoPct: Math.round((todo / total) * 100),
+    inprogressPct: Math.round((inprogress / total) * 100),
+    donePct: Math.round((done / total) * 100),
+    total: tasks.length,
+  };
+});
+
+const milestoneBreakdown = computed(() => {
+  const ms = resource.data?.milestones || [];
+  return {
+    upcoming: ms.filter((m: any) => m.status === "Upcoming").length,
+    inprogress: ms.filter((m: any) => m.status === "In Progress").length,
+    completed: ms.filter((m: any) => m.status === "Completed").length,
+    missed: ms.filter((m: any) => m.status === "Missed").length,
+    total: ms.length,
+  };
+});
+
+const openTickets = computed(
+  () =>
+    (resource.data?.tickets || []).filter(
+      (t: any) => t.status !== "Resolved" && t.status !== "Closed"
+    ).length
+);
+
+const projectHealth = computed(() => {
+  const { blocked, overdue } = taskBreakdown.value;
+  const { missed } = milestoneBreakdown.value;
+  const issues = blocked + overdue + missed;
+  if (issues === 0)
+    return { label: "On Track", colorClass: "text-emerald-600", bgClass: "bg-emerald-100", barClass: "bg-emerald-500", ringClass: "ring-emerald-200", score: 100 };
+  if (issues <= 2)
+    return { label: "At Risk", colorClass: "text-amber-600", bgClass: "bg-amber-100", barClass: "bg-amber-400", ringClass: "ring-amber-200", score: 65 };
+  return { label: "Off Track", colorClass: "text-red-500", bgClass: "bg-red-100", barClass: "bg-red-500", ringClass: "ring-red-200", score: 30 };
 });
 
 const timeline = computed(() => {
