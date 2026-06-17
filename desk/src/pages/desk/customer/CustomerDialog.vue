@@ -193,13 +193,15 @@ async function loadContacts() {
 const lastQuery = ref("");
 
 async function refreshSearchOptions(q = "") {
-  const results = await call("helpdesk.api.contact.search_contacts", { txt: q });
-  const linked = new Set(customerContacts.value.map((c) => c.name));
+  const results = await call("helpdesk.api.contact.search_assignable", { txt: q });
+  const linkedEmails = new Set(customerContacts.value.map((c) => c.email_id));
+  const linkedNames = new Set(customerContacts.value.map((c) => c.name));
   contactSearchOptions.value = (results || [])
-    .filter((r) => !linked.has(r.name))
+    .filter((r) => !linkedEmails.has(r.email_id) && !linkedNames.has(r.name))
     .map((r) => ({
-      label: r.full_name || r.email_id,
+      label: `${r.full_name} (${r.email_id})`,
       value: r.name,
+      recordType: r.record_type,
     }));
 }
 
@@ -211,8 +213,9 @@ async function onSearchQuery(q: string) {
 async function onContactSelected(opt: any) {
   if (!opt?.value) return;
   try {
-    await call("helpdesk.api.contact.add_contact_to_customer", {
-      contact: opt.value,
+    await call("helpdesk.api.contact.add_assignable_to_customer", {
+      identifier: opt.value,
+      record_type: opt.recordType,
       customer: props.name,
     });
     contactSearchOptions.value = [];
