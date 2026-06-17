@@ -66,6 +66,24 @@
           </Button>
         </RouterLink>
       </div>
+      <!-- Portal: quick stats -->
+      <div class="flex flex-wrap gap-2.5 mt-4">
+        <div class="flex items-center gap-1.5 text-sm bg-surface-white rounded-lg px-3 py-1.5 border border-outline-gray-1 shadow-sm">
+          <span class="size-2 rounded-full bg-blue-500 inline-block shrink-0" />
+          <span class="font-semibold text-ink-gray-9">{{ portalOpenCount }}</span>
+          <span class="text-ink-gray-5">{{ __("Open") }}</span>
+        </div>
+        <div class="flex items-center gap-1.5 text-sm bg-surface-white rounded-lg px-3 py-1.5 border border-outline-gray-1 shadow-sm">
+          <span class="size-2 rounded-full bg-emerald-500 inline-block shrink-0" />
+          <span class="font-semibold text-ink-gray-9">{{ portalResolvedCount }}</span>
+          <span class="text-ink-gray-5">{{ __("Resolved (30 days)") }}</span>
+        </div>
+        <div class="flex items-center gap-1.5 text-sm bg-surface-white rounded-lg px-3 py-1.5 border border-outline-gray-1 shadow-sm">
+          <span class="size-2 rounded-full bg-violet-500 inline-block shrink-0" />
+          <span class="font-semibold text-ink-gray-9">{{ portalTotalCount }}</span>
+          <span class="text-ink-gray-5">{{ __("All tickets") }}</span>
+        </div>
+      </div>
     </div>
     <div
       :class="
@@ -132,6 +150,7 @@ import { getIcon, isCustomerPortal, shortDuration } from "@/utils";
 import {
   Avatar,
   Badge,
+  createResource,
   dayjs,
   FeatherIcon,
   toast,
@@ -162,6 +181,37 @@ const hasActiveFilters = computed(
 
 const { $dialog, $socket } = globalStore();
 const { isManager, userId } = useAuthStore();
+
+// Customer portal: ticket stat chips
+const _p30 = computed(() => {
+  const d = new Date();
+  d.setDate(d.getDate() - 30);
+  return d.toISOString().split("T")[0];
+});
+const _portalOpenRes = createResource({
+  url: "frappe.client.get_count",
+  makeParams: () => ({
+    doctype: "HD Ticket",
+    filters: { raised_by: userId, status_category: ["!=", "Resolved"] },
+  }),
+  auto: isCustomerPortal.value,
+});
+const _portalResolvedRes = createResource({
+  url: "frappe.client.get_count",
+  makeParams: () => ({
+    doctype: "HD Ticket",
+    filters: { raised_by: userId, status_category: "Resolved", resolution_date: [">=", _p30.value] },
+  }),
+  auto: isCustomerPortal.value,
+});
+const _portalTotalRes = createResource({
+  url: "frappe.client.get_count",
+  makeParams: () => ({ doctype: "HD Ticket", filters: { raised_by: userId } }),
+  auto: isCustomerPortal.value,
+});
+const portalOpenCount = computed(() => _portalOpenRes.data ?? 0);
+const portalResolvedCount = computed(() => _portalResolvedRes.data ?? 0);
+const portalTotalCount = computed(() => _portalTotalRes.data ?? 0);
 
 const listViewRef = ref(null);
 const showExportModal = ref(false);
