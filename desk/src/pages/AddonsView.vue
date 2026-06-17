@@ -28,14 +28,29 @@
     <div
       class="w-full max-w-screen-xl mx-auto px-4 md:px-6 lg:px-8 py-6 flex flex-col gap-5 flex-1 overflow-y-auto"
     >
-      <Link
-        v-if="!isCustomerPortal"
-        class="form-control w-56"
-        doctype="HD Customer"
-        :placeholder="__('Filter by customer')"
-        v-model="customerFilter"
-        :hide-me="true"
-      />
+      <div class="flex flex-wrap items-center gap-3">
+        <Link
+          v-if="!isCustomerPortal"
+          class="form-control w-56"
+          doctype="HD Customer"
+          :placeholder="__('Filter by customer')"
+          v-model="customerFilter"
+          :hide-me="true"
+        />
+        <button
+          v-if="!isCustomerPortal"
+          type="button"
+          class="px-3 py-1 rounded-full text-xs font-medium border transition-colors"
+          :class="
+            mineFilter
+              ? 'bg-violet-600 border-violet-600 text-white'
+              : 'border-outline-gray-2 text-ink-gray-6 hover:border-outline-gray-3'
+          "
+          @click="mineFilter = !mineFilter"
+        >
+          {{ __("Assigned to me") }}
+        </button>
+      </div>
 
       <div v-if="addons.loading" class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div
@@ -192,13 +207,17 @@ const router = useRouter();
 const STATUSES = ["Active", "Trial", "Suspended", "Retired"];
 const statusOptions = STATUSES.map((s) => ({ label: s, value: s }));
 const customerFilter = ref("");
+const mineFilter = ref(false);
 
 const addons = createResource({
   url: "helpdesk.api.addon.get_addons",
-  makeParams: () => ({ customer: customerFilter.value || undefined }),
+  makeParams: () => ({
+    customer: customerFilter.value || undefined,
+    mine: mineFilter.value || undefined,
+  }),
   auto: true,
 });
-watch(customerFilter, () => addons.reload());
+watch([customerFilter, mineFilter], () => addons.reload());
 
 function statusTheme(status: string) {
   return (

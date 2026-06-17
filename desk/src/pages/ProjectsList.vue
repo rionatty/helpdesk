@@ -38,6 +38,19 @@
           v-model="customerFilter"
           :hide-me="true"
         />
+        <button
+          v-if="!isCustomerPortal"
+          type="button"
+          class="px-3 py-1 rounded-full text-xs font-medium border transition-colors"
+          :class="
+            mineFilter
+              ? 'bg-violet-600 border-violet-600 text-white'
+              : 'border-outline-gray-2 text-ink-gray-6 hover:border-outline-gray-3'
+          "
+          @click="mineFilter = !mineFilter"
+        >
+          {{ __("Assigned to me") }}
+        </button>
         <div class="flex items-center gap-1.5 flex-wrap">
           <button
             v-for="s in statusFilters"
@@ -285,13 +298,17 @@ const typeFilters = [
 const statusFilter = ref("");
 const typeFilter = ref("");
 const customerFilter = ref("");
+const mineFilter = ref(false);
 
 const projects = createResource({
   url: "helpdesk.api.project.get_projects",
-  makeParams: () => ({ customer: customerFilter.value || undefined }),
+  makeParams: () => ({
+    customer: customerFilter.value || undefined,
+    mine: mineFilter.value || undefined,
+  }),
   auto: true,
 });
-watch(customerFilter, () => projects.reload());
+watch([customerFilter, mineFilter], () => projects.reload());
 
 // Templates power the "Start from template" picker (agents only).
 const templatesRes = createResource({

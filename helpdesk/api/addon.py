@@ -39,9 +39,9 @@ def _assert_agent() -> None:
 
 
 @frappe.whitelist()
-def get_addons(customer: str | None = None) -> list:
-	"""List add-ons. Agents see all (optionally by customer); customers see
-	only their company's add-ons."""
+def get_addons(customer: str | None = None, mine: bool = False) -> list:
+	"""List add-ons. Agents see all (optionally by customer/mine); customers
+	see only their company's add-ons."""
 	filters: dict = {}
 	if customer:
 		filters["customer"] = customer
@@ -50,6 +50,17 @@ def get_addons(customer: str | None = None) -> list:
 		if not companies:
 			return []
 		filters["customer"] = ["in", companies]
+	if mine and is_agent():
+		me = frappe.session.user
+		my_addons = frappe.get_all(
+			"HD Addon Member",
+			filters={"agent": me},
+			pluck="addon",
+			ignore_permissions=True,
+		)
+		if not my_addons:
+			return []
+		filters["name"] = ["in", my_addons]
 	return frappe.get_all(
 		"HD Addon",
 		filters=filters,
@@ -106,12 +117,52 @@ def update_addon(name: str, **fields) -> bool:
 def delete_addon(name: str) -> bool:
 	"""Delete an add-on and its features/tasks (incl. their comments). Agents only."""
 	_assert_agent()
+	frappe.db.delete("HD Addon Member", {"addon": name})
 	frappe.db.delete("HD Addon Feature", {"addon": name})
 	tasks = frappe.get_all("HD Addon Task", filters={"addon": name}, pluck="name")
 	if tasks:
 		frappe.db.delete("HD Task Comment", {"task": ["in", tasks]})
 		frappe.db.delete("HD Addon Task", {"addon": name})
 	frappe.delete_doc("HD Addon", name, ignore_permissions=True)
+	return True
+
+
+@frappe.whitelist()
+def get_addon_members(addon: str) -> list[dict]:
+	"""List agents assigned to an add-on. Agents only."""
+	_assert_agent()
+	rows = frappe.get_all(
+		"HD Addon Member",
+		filters={"addon": addon},
+		fields=["name", "agent"],
+		ignore_permissions=True,
+	)
+	for r in rows:
+		r["agent_name"] = (
+			frappe.db.get_value("HD Agent", r.agent, "agent_name") or r.agent
+		)
+	return rows
+
+
+@frappe.whitelist()
+def add_addon_member(addon: str, agent: str) -> str:
+	"""Assign an agent to an add-on. Agents only. Silently skips duplicates."""
+	_assert_agent()
+	if not frappe.db.exists("HD Addon", addon):
+		frappe.throw(_("Add-on not found"), frappe.DoesNotExistError)
+	if frappe.db.exists("HD Addon Member", {"addon": addon, "agent": agent}):
+		return ""
+	doc = frappe.get_doc(
+		{"doctype": "HD Addon Member", "addon": addon, "agent": agent}
+	).insert(ignore_permissions=True)
+	return doc.name
+
+
+@frappe.whitelist()
+def remove_addon_member(name: str) -> bool:
+	"""Remove an agent assignment from an add-on. Agents only."""
+	_assert_agent()
+	frappe.delete_doc("HD Addon Member", name, ignore_permissions=True)
 	return True
 
 

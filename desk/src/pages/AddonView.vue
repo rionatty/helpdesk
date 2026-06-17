@@ -207,6 +207,48 @@
         />
       </div>
 
+      <!-- Assigned Agents -->
+      <div v-if="editable || members.length" class="executive-card p-5 flex flex-col gap-3">
+        <div class="flex items-center gap-2">
+          <div
+            class="size-7 rounded-lg bg-violet-100 text-violet-700 flex items-center justify-center"
+          >
+            <LucideUsers class="size-4" />
+          </div>
+          <span class="text-sm font-semibold text-ink-gray-8">
+            {{ __("Assigned Agents") }}
+          </span>
+          <span v-if="members.length" class="text-xs text-ink-gray-5">
+            · {{ members.length }}
+          </span>
+        </div>
+
+        <div class="flex flex-wrap gap-2">
+          <div
+            v-for="m in members"
+            :key="m.name"
+            class="flex items-center gap-1.5 rounded-full px-2.5 py-1 bg-surface-gray-1 border border-outline-gray-1 text-sm text-ink-gray-8"
+          >
+            <Avatar size="xs" :label="m.agent_name" />
+            <span>{{ m.agent_name }}</span>
+            <button
+              v-if="editable"
+              class="text-ink-gray-4 hover:text-red-500 transition-colors"
+              @click="removeMember(m.name)"
+            >
+              <LucideX class="size-3" />
+            </button>
+          </div>
+          <p v-if="!members.length" class="text-sm text-ink-gray-4">
+            {{ __("No agents assigned yet.") }}
+          </p>
+        </div>
+
+        <div v-if="editable" class="max-w-xs">
+          <Link doctype="HD Agent" v-model="addAgentVal" :hide-me="true" />
+        </div>
+      </div>
+
       <!-- Attachments -->
       <div class="executive-card p-5">
         <DocAttachments
@@ -247,17 +289,19 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive } from "vue";
+import { computed, reactive, ref, watch } from "vue";
 import {
+  Avatar,
   Badge,
   Breadcrumbs,
   Button,
+  call,
   createResource,
   toast,
   usePageMeta,
 } from "frappe-ui";
 import { useRouter } from "vue-router";
-import { LayoutHeader } from "@/components";
+import { LayoutHeader, Link } from "@/components";
 import AddonFeatures from "@/components/AddonFeatures.vue";
 import DocAttachments from "@/components/DocAttachments.vue";
 import TaskBoard from "@/components/TaskBoard.vue";
@@ -268,6 +312,8 @@ import LucidePackage from "~icons/lucide/package";
 import LucideTicket from "~icons/lucide/ticket";
 import LucideListChecks from "~icons/lucide/list-checks";
 import LucideClipboardList from "~icons/lucide/clipboard-list";
+import LucideUsers from "~icons/lucide/users";
+import LucideX from "~icons/lucide/x";
 
 interface P {
   addonId: string;
@@ -278,6 +324,40 @@ const { $dialog } = globalStore();
 
 const STATUSES = ["Active", "Trial", "Suspended", "Retired"];
 const editable = computed(() => !isCustomerPortal.value);
+
+// --- Assigned agents ---
+const members = ref<any[]>([]);
+const addAgentVal = ref<string | null>(null);
+
+const membersRes = createResource({
+  url: "helpdesk.api.addon.get_addon_members",
+  makeParams: () => ({ addon: props.addonId }),
+  auto: true,
+  onSuccess: (data: any) => { members.value = data || []; },
+});
+
+watch(addAgentVal, async (val) => {
+  if (!val) return;
+  try {
+    await call("helpdesk.api.addon.add_addon_member", {
+      addon: props.addonId,
+      agent: val,
+    });
+    membersRes.reload();
+  } catch (e: any) {
+    toast.error(e?.messages?.[0] || __("Could not add agent"));
+  }
+  addAgentVal.value = null;
+});
+
+async function removeMember(name: string) {
+  try {
+    await call("helpdesk.api.addon.remove_addon_member", { name });
+    membersRes.reload();
+  } catch (e: any) {
+    toast.error(e?.messages?.[0] || __("Could not remove agent"));
+  }
+}
 
 const form = reactive({
   addon_name: "",

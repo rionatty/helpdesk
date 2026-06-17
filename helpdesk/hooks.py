@@ -120,6 +120,7 @@ ignore_links_on_delete = [
     "HD Email Feedback",
     "HD Addon Task",
     "HD Project Member",
+    "HD Addon Member",
 ]
 
 # setup wizard

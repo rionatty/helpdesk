@@ -148,9 +148,11 @@ def _get_comments(project: str) -> list:
 
 @frappe.whitelist()
 def get_projects(
-	customer: str | None = None, project_type: str | None = None
+	customer: str | None = None,
+	project_type: str | None = None,
+	mine: bool = False,
 ) -> list:
-	"""List projects. Agents see all (optionally filtered by customer/type);
+	"""List projects. Agents see all (optionally filtered by customer/type/mine);
 	customers see only their company's customer projects."""
 	filters: dict = {}
 	if customer:
@@ -162,6 +164,24 @@ def get_projects(
 		if not companies:
 			return []
 		filters["customer"] = ["in", companies]
+	if mine and is_agent():
+		me = frappe.session.user
+		member_projects = frappe.get_all(
+			"HD Project Member",
+			filters={"agent": me},
+			pluck="project",
+			ignore_permissions=True,
+		)
+		lead_projects = frappe.get_all(
+			"HD Project",
+			filters={"lead": me},
+			pluck="name",
+			ignore_permissions=True,
+		)
+		my_projects = list(set(member_projects) | set(lead_projects))
+		if not my_projects:
+			return []
+		filters["name"] = ["in", my_projects]
 	rows = frappe.get_all(
 		"HD Project",
 		filters=filters,
