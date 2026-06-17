@@ -119,6 +119,7 @@ ignore_links_on_delete = [
     "HD Ticket Subtask",
     "HD Email Feedback",
     "HD Addon Task",
+    "HD Project Member",
 ]
 
 # setup wizard

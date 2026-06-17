@@ -264,6 +264,7 @@ def delete_project(name: str) -> bool:
 	"""Delete a project with its comments, milestones and tasks. Agents only."""
 	_assert_agent()
 	frappe.db.delete("HD Project Comment", {"project": name})
+	frappe.db.delete("HD Project Member", {"project": name})
 	tasks = frappe.get_all(
 		"HD Addon Task", filters={"project": name}, pluck="name"
 	)
@@ -431,6 +432,45 @@ def delete_milestone(name: str) -> bool:
 			doctype, {"milestone": name}, "milestone", None, update_modified=False
 		)
 	frappe.delete_doc("HD Milestone", name, ignore_permissions=True)
+	return True
+
+
+@frappe.whitelist()
+def get_project_members(project: str) -> list[dict]:
+	"""List agents assigned to a project. Agents only."""
+	_assert_agent()
+	rows = frappe.get_all(
+		"HD Project Member",
+		filters={"project": project},
+		fields=["name", "agent"],
+		ignore_permissions=True,
+	)
+	for r in rows:
+		r["agent_name"] = (
+			frappe.db.get_value("HD Agent", r.agent, "agent_name") or r.agent
+		)
+	return rows
+
+
+@frappe.whitelist()
+def add_project_member(project: str, agent: str) -> str:
+	"""Assign an agent to a project. Agents only. Silently skips duplicates."""
+	_assert_agent()
+	if not frappe.db.exists("HD Project", project):
+		frappe.throw(_("Project not found"), frappe.DoesNotExistError)
+	if frappe.db.exists("HD Project Member", {"project": project, "agent": agent}):
+		return ""
+	doc = frappe.get_doc(
+		{"doctype": "HD Project Member", "project": project, "agent": agent}
+	).insert(ignore_permissions=True)
+	return doc.name
+
+
+@frappe.whitelist()
+def remove_project_member(name: str) -> bool:
+	"""Remove an agent assignment from a project. Agents only."""
+	_assert_agent()
+	frappe.delete_doc("HD Project Member", name, ignore_permissions=True)
 	return True
 
 
