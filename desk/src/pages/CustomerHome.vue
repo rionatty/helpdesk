@@ -199,6 +199,106 @@
       <!-- Customer analytics charts -->
       <CustomerAnalytics />
 
+      <!-- Your Projects -->
+      <section v-if="myProjects.data?.length" class="flex flex-col gap-4">
+        <div class="flex items-center justify-between px-4 md:px-8">
+          <h3 class="executive-heading text-lg text-ink-gray-9">
+            {{ __("Your Projects") }}
+          </h3>
+          <RouterLink
+            :to="{ name: 'ProjectsCustomer' }"
+            class="text-sm font-medium text-blue-600 hover:text-blue-700 flex items-center gap-1"
+          >
+            {{ __("View all") }}
+            <LucideChevronRight class="size-4" />
+          </RouterLink>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 px-4 md:px-8">
+          <RouterLink
+            v-for="p in myProjects.data.slice(0, 3)"
+            :key="p.name"
+            :to="{ name: 'ProjectCustomer', params: { projectId: p.name } }"
+            class="executive-card executive-card-hover p-4 flex flex-col gap-3"
+          >
+            <div class="flex items-start justify-between gap-2">
+              <div class="flex items-center gap-2.5 min-w-0">
+                <div class="size-8 rounded-lg bg-gradient-to-br from-blue-500 to-violet-500 flex items-center justify-center shrink-0">
+                  <LucideFolderKanban class="size-4 text-white" />
+                </div>
+                <span class="font-medium text-ink-gray-9 truncate text-sm">
+                  {{ p.project_name }}
+                </span>
+              </div>
+              <Badge
+                :label="p.status"
+                :theme="projectStatusTheme(p.status)"
+                variant="subtle"
+                class="shrink-0"
+              />
+            </div>
+            <div>
+              <div class="flex items-center justify-between text-xs text-ink-gray-5 mb-1">
+                <span>{{ __("Progress") }}</span>
+                <span class="font-medium text-ink-gray-7">{{ p.progress || 0 }}%</span>
+              </div>
+              <div class="h-1.5 w-full rounded-full bg-surface-gray-3 overflow-hidden">
+                <div
+                  class="h-full rounded-full bg-gradient-to-r from-blue-500 to-violet-500 transition-all"
+                  :style="{ width: (p.progress || 0) + '%' }"
+                />
+              </div>
+            </div>
+            <div v-if="p.end_date" class="text-xs text-ink-gray-5 flex items-center gap-1">
+              <LucideCalendar class="size-3.5" />
+              {{ __("Target") }}: {{ p.end_date }}
+            </div>
+          </RouterLink>
+        </div>
+      </section>
+
+      <!-- Your Add-ons -->
+      <section v-if="myAddons.data?.length" class="flex flex-col gap-4">
+        <div class="flex items-center justify-between px-4 md:px-8">
+          <h3 class="executive-heading text-lg text-ink-gray-9">
+            {{ __("Your Add-ons") }}
+          </h3>
+          <RouterLink
+            :to="{ name: 'AddonsCustomer' }"
+            class="text-sm font-medium text-blue-600 hover:text-blue-700 flex items-center gap-1"
+          >
+            {{ __("View all") }}
+            <LucideChevronRight class="size-4" />
+          </RouterLink>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 px-4 md:px-8">
+          <RouterLink
+            v-for="a in myAddons.data.slice(0, 3)"
+            :key="a.name"
+            :to="{ name: 'AddonCustomer', params: { addonId: a.name } }"
+            class="executive-card executive-card-hover p-4 flex items-center gap-3"
+          >
+            <div class="size-10 rounded-xl bg-gradient-to-br from-blue-500 to-violet-500 flex items-center justify-center shrink-0 shadow-sm">
+              <LucidePackage class="size-5 text-white" />
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="font-medium text-ink-gray-9 truncate text-sm">
+                {{ a.addon_name }}
+              </div>
+              <div class="text-xs text-ink-gray-5 mt-0.5">
+                {{ a.version ? "v" + a.version : "—" }}
+                <span v-if="a.renewal_date"> · {{ __("Renews") }} {{ a.renewal_date }}</span>
+              </div>
+            </div>
+            <Badge
+              :label="a.status"
+              :theme="addonStatusTheme(a.status)"
+              variant="subtle"
+              class="shrink-0"
+            />
+          </RouterLink>
+        </div>
+      </section>
+
       <!-- 4 action cards -->
       <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <RouterLink
@@ -350,13 +450,14 @@
 import { computed } from "vue";
 import {
   Avatar,
+  Badge,
   Button,
   createListResource,
   createResource,
   dayjs,
   usePageMeta,
 } from "frappe-ui";
-import { useRouter } from "vue-router";
+import { RouterLink, useRouter } from "vue-router";
 import { LayoutHeader } from "@/components";
 import CustomerAnalytics from "@/components/CustomerAnalytics.vue";
 import { useConfigStore } from "@/stores/config";
@@ -383,6 +484,9 @@ import LucideStar from "~icons/lucide/star";
 import LucideCheckCircle from "~icons/lucide/check-circle";
 import LucideCheckCheck from "~icons/lucide/check-check";
 import LucideHistory from "~icons/lucide/history";
+import LucideFolderKanban from "~icons/lucide/folder-kanban";
+import LucidePackage from "~icons/lucide/package";
+import LucideCalendar from "~icons/lucide/calendar";
 
 const router = useRouter();
 const config = useConfigStore();
@@ -468,6 +572,27 @@ const recentTickets = createListResource({
 const openTicketsCount = computed(() => openTickets.data ?? 0);
 const totalTicketsCount = computed(() => totalTickets.data ?? 0);
 const resolvedThisMonthCount = computed(() => resolvedThisMonth.data ?? 0);
+
+// Projects & Add-ons for the portal customer
+const myProjects = createResource({
+  url: "helpdesk.api.project.get_projects",
+  auto: true,
+});
+const myAddons = createResource({
+  url: "helpdesk.api.addon.get_addons",
+  auto: true,
+});
+
+function projectStatusTheme(status: string): string {
+  return (
+    { Planned: "gray", Active: "blue", "On Hold": "orange", Completed: "green", Cancelled: "red" }[status] || "gray"
+  );
+}
+function addonStatusTheme(status: string): string {
+  return (
+    { Active: "green", Trial: "blue", Suspended: "orange", Retired: "gray" }[status] || "gray"
+  );
+}
 
 const actionCards = [
   {

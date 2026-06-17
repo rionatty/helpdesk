@@ -38,6 +38,9 @@ scheduler_events = {
         "helpdesk.search.build_index_if_not_exists",
         "helpdesk.search.download_corpus",
     ],
+    "hourly": [
+        "helpdesk.api.reminder.send_due_reminders",
+    ],
     "daily": [
         "helpdesk.helpdesk.doctype.hd_ticket.hd_ticket.close_tickets_after_n_days"
     ],
@@ -121,6 +124,7 @@ ignore_links_on_delete = [
     "HD Addon Task",
     "HD Project Member",
     "HD Addon Member",
+    "HD Reminder",
 ]
 
 # setup wizard

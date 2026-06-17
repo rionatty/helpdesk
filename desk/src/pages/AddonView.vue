@@ -9,6 +9,11 @@
       </template>
       <template #right-header>
         <div class="flex items-center gap-2">
+          <ReminderButton
+            v-if="resource.data"
+            doctype="HD Addon"
+            :docname="addonId"
+          />
           <Button
             theme="blue"
             variant="subtle"
@@ -304,6 +309,7 @@ import { useRouter } from "vue-router";
 import { LayoutHeader, Link } from "@/components";
 import AddonFeatures from "@/components/AddonFeatures.vue";
 import DocAttachments from "@/components/DocAttachments.vue";
+import ReminderButton from "@/components/ReminderButton.vue";
 import TaskBoard from "@/components/TaskBoard.vue";
 import { globalStore } from "@/stores/globalStore";
 import { isCustomerPortal } from "@/utils";
@@ -332,7 +338,7 @@ const addAgentVal = ref<string | null>(null);
 const membersRes = createResource({
   url: "helpdesk.api.addon.get_addon_members",
   makeParams: () => ({ addon: props.addonId }),
-  auto: true,
+  auto: editable.value,
   onSuccess: (data: any) => { members.value = data || []; },
 });
 

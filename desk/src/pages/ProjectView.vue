@@ -9,6 +9,11 @@
       </template>
       <template #right-header>
         <div class="flex items-center gap-2">
+          <ReminderButton
+            v-if="resource.data"
+            doctype="HD Project"
+            :docname="projectId"
+          />
           <Button
             v-if="resource.data && (!isInternal || editable)"
             theme="blue"
@@ -630,6 +635,7 @@ import { LayoutHeader, Link } from "@/components";
 import DocAttachments from "@/components/DocAttachments.vue";
 import ProjectComments from "@/components/ProjectComments.vue";
 import ProjectMilestones from "@/components/ProjectMilestones.vue";
+import ReminderButton from "@/components/ReminderButton.vue";
 import TaskBoard from "@/components/TaskBoard.vue";
 import LucideTags from "~icons/lucide/tags";
 import LucideEyeOff from "~icons/lucide/eye-off";
@@ -751,7 +757,7 @@ const addAgentVal = ref<string | null>(null);
 const membersRes = createResource({
   url: "helpdesk.api.project.get_project_members",
   makeParams: () => ({ project: props.projectId }),
-  auto: true,
+  auto: editable.value,
   onSuccess: (data: any) => { members.value = data || []; },
 });
 
