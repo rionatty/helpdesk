@@ -323,45 +323,21 @@ const hasActiveFilters = computed(
 const { $dialog, $socket } = globalStore();
 const { isManager, userId } = useAuthStore();
 
-// Customer portal: ticket stat chips
-const _p30 = computed(() => {
-  const d = new Date();
-  d.setDate(d.getDate() - 30);
-  return d.toISOString().split("T")[0];
-});
-const _portalOpenRes = createResource({
-  url: "frappe.client.get_count",
-  makeParams: () => ({
-    doctype: "HD Ticket",
-    filters: { raised_by: userId, status_category: ["!=", "Resolved"] },
-  }),
+// Customer portal: ticket stat chips. Scoped server-side by HD Ticket's
+// permission_query (the user's own tickets + their whole customer org's
+// tickets) so the chips match the list below. Filtering by raised_by here
+// previously showed 0 even when the list had rows raised by other contacts
+// of the same customer.
+const _portalStatsRes = createResource({
+  url: "helpdesk.api.ticket.get_customer_ticket_stats",
   auto: isCustomerPortal.value,
 });
-const _portalResolvedRes = createResource({
-  url: "frappe.client.get_count",
-  makeParams: () => ({
-    doctype: "HD Ticket",
-    filters: { raised_by: userId, status_category: "Resolved", resolution_date: [">=", _p30.value] },
-  }),
-  auto: isCustomerPortal.value,
-});
-const _portalTotalRes = createResource({
-  url: "frappe.client.get_count",
-  makeParams: () => ({ doctype: "HD Ticket", filters: { raised_by: userId } }),
-  auto: isCustomerPortal.value,
-});
-const _portalRepliedRes = createResource({
-  url: "frappe.client.get_count",
-  makeParams: () => ({
-    doctype: "HD Ticket",
-    filters: { raised_by: userId, status: "Replied" },
-  }),
-  auto: isCustomerPortal.value,
-});
-const portalOpenCount = computed(() => _portalOpenRes.data ?? 0);
-const portalResolvedCount = computed(() => _portalResolvedRes.data ?? 0);
-const portalTotalCount = computed(() => _portalTotalRes.data ?? 0);
-const portalRepliedCount = computed(() => _portalRepliedRes.data ?? 0);
+const portalOpenCount = computed(() => _portalStatsRes.data?.open ?? 0);
+const portalResolvedCount = computed(
+  () => _portalStatsRes.data?.resolved_30d ?? 0
+);
+const portalTotalCount = computed(() => _portalStatsRes.data?.total ?? 0);
+const portalRepliedCount = computed(() => _portalStatsRes.data?.replied ?? 0);
 
 // Agent queue stats (agent side only)
 const _agentToday = computed(() => new Date().toISOString().split("T")[0]);

@@ -16,12 +16,13 @@ def get_customer_ticket_stats() -> dict:
     """
     tickets = frappe.get_list(
         "HD Ticket",
-        fields=["status_category", "resolution_date"],
+        fields=["status", "status_category", "resolution_date"],
         limit_page_length=0,
     )
     cutoff = add_days(getdate(nowdate()), -30)
     total = len(tickets)
     open_count = sum(1 for t in tickets if t.status_category != "Resolved")
+    replied = sum(1 for t in tickets if t.status == "Replied")
     resolved_30d = sum(
         1
         for t in tickets
@@ -29,7 +30,12 @@ def get_customer_ticket_stats() -> dict:
         and t.resolution_date
         and getdate(t.resolution_date) >= cutoff
     )
-    return {"total": total, "open": open_count, "resolved_30d": resolved_30d}
+    return {
+        "total": total,
+        "open": open_count,
+        "replied": replied,
+        "resolved_30d": resolved_30d,
+    }
 
 
 @frappe.whitelist()
