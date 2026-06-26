@@ -563,57 +563,29 @@ const popularArticles = createListResource({
   auto: true,
 });
 
-const myEmail = computed(() => authStore.userId);
-
-// Reliable integer counts via frappe.client.get_count (not list totalCount,
-// which is unreliable in frappe-ui beta and underreports with pageLength:1).
-const openTickets = createResource({
-  url: "frappe.client.get_count",
-  makeParams: () => ({
-    doctype: "HD Ticket",
-    filters: {
-      raised_by: myEmail.value,
-      status_category: ["!=", "Resolved"],
-    },
-  }),
+// Ticket stats are scoped server-side by HD Ticket's permission_query — the
+// signed-in user's own tickets plus every ticket of the customer org they
+// belong to — matching exactly what the portal Tickets list shows. Filtering
+// only by raised_by here previously hid tickets raised by other contacts of
+// the same customer (and showed 0 if the stored raised_by didn't match).
+const ticketStats = createResource({
+  url: "helpdesk.api.ticket.get_customer_ticket_stats",
   auto: true,
 });
-const totalTickets = createResource({
-  url: "frappe.client.get_count",
-  makeParams: () => ({
-    doctype: "HD Ticket",
-    filters: { raised_by: myEmail.value },
-  }),
-  auto: true,
-});
-const thirtyDaysAgo = computed(() => {
-  const d = new Date();
-  d.setDate(d.getDate() - 30);
-  return d.toISOString().split("T")[0];
-});
-const resolvedThisMonth = createResource({
-  url: "frappe.client.get_count",
-  makeParams: () => ({
-    doctype: "HD Ticket",
-    filters: {
-      raised_by: myEmail.value,
-      status_category: "Resolved",
-      resolution_date: [">=", thirtyDaysAgo.value],
-    },
-  }),
-  auto: true,
-});
+// No explicit filter: frappe.client.get_list still applies the permission
+// query, so this shows the customer's tickets (not just this user's).
 const recentTickets = createListResource({
   doctype: "HD Ticket",
   fields: ["name", "subject", "status", "modified"],
-  filters: computed(() => ({ raised_by: myEmail.value })),
   orderBy: "modified desc",
   pageLength: 5,
   auto: true,
 });
-const openTicketsCount = computed(() => openTickets.data ?? 0);
-const totalTicketsCount = computed(() => totalTickets.data ?? 0);
-const resolvedThisMonthCount = computed(() => resolvedThisMonth.data ?? 0);
+const openTicketsCount = computed(() => ticketStats.data?.open ?? 0);
+const totalTicketsCount = computed(() => ticketStats.data?.total ?? 0);
+const resolvedThisMonthCount = computed(
+  () => ticketStats.data?.resolved_30d ?? 0
+);
 
 // Projects & Add-ons for the portal customer
 const myProjects = createResource({

@@ -1,7 +1,35 @@
 import frappe
 from frappe import _
+from frappe.utils import add_days, getdate, nowdate
 
 from helpdesk.utils import agent_only
+
+
+@frappe.whitelist()
+def get_customer_ticket_stats() -> dict:
+    """Ticket stats for the customer portal home page.
+
+    Scoped exactly like the portal Tickets list: HD Ticket's permission_query
+    limits results to the signed-in user's own tickets plus every ticket
+    belonging to the customer organisation(s) they are a contact of. Using
+    frappe.get_list (not get_all) is what enforces that permission query.
+    """
+    tickets = frappe.get_list(
+        "HD Ticket",
+        fields=["status_category", "resolution_date"],
+        limit_page_length=0,
+    )
+    cutoff = add_days(getdate(nowdate()), -30)
+    total = len(tickets)
+    open_count = sum(1 for t in tickets if t.status_category != "Resolved")
+    resolved_30d = sum(
+        1
+        for t in tickets
+        if t.status_category == "Resolved"
+        and t.resolution_date
+        and getdate(t.resolution_date) >= cutoff
+    )
+    return {"total": total, "open": open_count, "resolved_30d": resolved_30d}
 
 
 @frappe.whitelist()
