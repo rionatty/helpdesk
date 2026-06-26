@@ -101,7 +101,6 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { createListResource, dayjs, ECharts } from "frappe-ui";
-import { useAuthStore } from "@/stores/auth";
 import { useTicketStatusStore } from "@/stores/ticketStatus";
 import { dataTheme, formatTime } from "@/utils";
 import { __ } from "@/translation";
@@ -121,9 +120,12 @@ interface TicketRow {
   feedback_rating?: number;
 }
 
-const authStore = useAuthStore();
 const { getStatus } = useTicketStatusStore();
 
+// No raised_by filter: frappe.client.get_list applies HD Ticket's
+// permission_query, scoping results to the customer org's tickets — the same
+// scope as the Home tiles and the Tickets list. Filtering by raised_by here
+// previously showed "No data yet" even when the customer had tickets.
 const resource = createListResource({
   doctype: "HD Ticket",
   fields: [
@@ -134,7 +136,6 @@ const resource = createListResource({
     "resolution_time",
     "feedback_rating",
   ],
-  filters: computed(() => ({ raised_by: authStore.userId })),
   orderBy: "creation desc",
   pageLength: 500,
   auto: true,
