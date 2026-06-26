@@ -172,7 +172,11 @@ class HDTicket(Document):
 
         # Telemetry Event
         self.capture_ticket_created_telemetry_events()
-        publish_event("helpdesk:new-ticket")
+        publish_event("helpdesk:new-ticket", data={
+            "ticket_id": self.name,
+            "subject": self.subject or "",
+            "customer": self.raised_by_contact or self.raised_by or "",
+        })
 
         if self.get("description"):
             self.create_communication_via_contact(self.description, new_ticket=True)
