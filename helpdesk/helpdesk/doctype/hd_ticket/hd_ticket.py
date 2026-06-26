@@ -178,6 +178,9 @@ class HDTicket(Document):
             "customer": self.raised_by_contact or self.raised_by or "",
         })
 
+        # Email all Agent Managers as soon as a new ticket arrives
+        self.notify_managers_new_ticket()
+
         if self.get("description"):
             self.create_communication_via_contact(self.description, new_ticket=True)
             self.handle_inline_media_new_ticket()
@@ -876,6 +879,73 @@ class HDTicket(Document):
             frappe.throw(
                 _("Could not send an acknowledgement email due to: {0}").format(e)
             )
+
+    def notify_managers_new_ticket(self):
+        """Email every enabled Agent Manager the moment a new ticket arrives."""
+        # Skip bulk imports and the bundled sample ticket
+        if frappe.flags.initial_sync or self.subject == "Welcome to Helpdesk":
+            return
+
+        manager_ids = frappe.get_all(
+            "Has Role",
+            filters={"role": "Agent Manager", "parenttype": "User"},
+            pluck="parent",
+        )
+        if not manager_ids:
+            return
+
+        recipients = frappe.get_all(
+            "User",
+            filters=[
+                ["name", "in", manager_ids],
+                ["enabled", "=", 1],
+                ["name", "not in", ["Administrator", "Guest"]],
+            ],
+            pluck="email",
+        )
+        # Dedupe and don't notify the requester if they happen to be a manager
+        recipients = list({e for e in recipients if e and e != self.raised_by})
+        if not recipients:
+            return
+
+        url = f"{frappe.utils.get_url()}/helpdesk/tickets/{self.name}"
+        customer = frappe.utils.escape_html(
+            self.raised_by_contact or self.raised_by or _("Unknown")
+        )
+        subject = frappe.utils.escape_html(self.subject or "")
+        priority = frappe.utils.escape_html(self.priority or "-")
+        team = frappe.utils.escape_html(self.agent_group or "-")
+
+        message = f"""
+            <p>A new support ticket has just been submitted.</p>
+            <table style="border-collapse:collapse;margin:12px 0">
+                <tr><td style="padding:4px 16px 4px 0"><strong>Ticket</strong></td><td>#{self.name}</td></tr>
+                <tr><td style="padding:4px 16px 4px 0"><strong>Subject</strong></td><td>{subject}</td></tr>
+                <tr><td style="padding:4px 16px 4px 0"><strong>From</strong></td><td>{customer}</td></tr>
+                <tr><td style="padding:4px 16px 4px 0"><strong>Priority</strong></td><td>{priority}</td></tr>
+                <tr><td style="padding:4px 16px 4px 0"><strong>Team</strong></td><td>{team}</td></tr>
+            </table>
+            <p>
+                <a href="{url}" style="display:inline-block;background:#2563eb;color:#fff;
+                   padding:8px 18px;border-radius:6px;text-decoration:none;font-weight:600">
+                   View ticket
+                </a>
+            </p>
+        """
+
+        try:
+            frappe.sendmail(
+                recipients=recipients,
+                subject=_("New Ticket #{0}: {1}").format(self.name, self.subject or ""),
+                message=message,
+                reference_doctype="HD Ticket",
+                reference_name=self.name,
+                now=True,
+                expose_recipients="header",
+                email_headers={"X-Auto-Generated": "hd-new-ticket-manager"},
+            )
+        except Exception:
+            frappe.log_error(title=f"Failed to notify managers of ticket {self.name}")
 
     @frappe.whitelist()
     def mark_seen(self):
