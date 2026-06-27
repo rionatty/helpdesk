@@ -147,7 +147,16 @@
         <!-- Row 1 — Task status -->
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <!-- Pending -->
-          <div class="executive-card hd-color-card flex flex-col gap-2 px-4 pt-5 pb-4" data-accent="amber">
+          <div
+            class="executive-card executive-card-hover hd-color-card flex flex-col gap-2 px-4 pt-5 pb-4 cursor-pointer"
+            data-accent="amber"
+            role="button"
+            tabindex="0"
+            :title="__('Jump to tasks')"
+            @click="scrollToSection(tasksSection)"
+            @keydown.enter="scrollToSection(tasksSection)"
+            @keydown.space.prevent="scrollToSection(tasksSection)"
+          >
             <div class="flex items-center justify-between gap-2">
               <div class="size-8 rounded-xl hd-icon-amber flex items-center justify-center shadow-md ring-1 ring-inset ring-white/40">
                 <LucideCircleDot class="size-4 text-white" />
@@ -162,7 +171,16 @@
           </div>
 
           <!-- In Progress -->
-          <div class="executive-card hd-color-card flex flex-col gap-2 px-4 pt-5 pb-4" data-accent="blue">
+          <div
+            class="executive-card executive-card-hover hd-color-card flex flex-col gap-2 px-4 pt-5 pb-4 cursor-pointer"
+            data-accent="blue"
+            role="button"
+            tabindex="0"
+            :title="__('Jump to tasks')"
+            @click="scrollToSection(tasksSection)"
+            @keydown.enter="scrollToSection(tasksSection)"
+            @keydown.space.prevent="scrollToSection(tasksSection)"
+          >
             <div class="flex items-center justify-between gap-2">
               <div class="size-8 rounded-xl hd-icon-blue flex items-center justify-center shadow-md ring-1 ring-inset ring-white/40">
                 <LucideLoader2 class="size-4 text-white" />
@@ -177,7 +195,16 @@
           </div>
 
           <!-- Done -->
-          <div class="executive-card hd-color-card flex flex-col gap-2 px-4 pt-5 pb-4" data-accent="emerald">
+          <div
+            class="executive-card executive-card-hover hd-color-card flex flex-col gap-2 px-4 pt-5 pb-4 cursor-pointer"
+            data-accent="emerald"
+            role="button"
+            tabindex="0"
+            :title="__('Jump to tasks')"
+            @click="scrollToSection(tasksSection)"
+            @keydown.enter="scrollToSection(tasksSection)"
+            @keydown.space.prevent="scrollToSection(tasksSection)"
+          >
             <div class="flex items-center justify-between gap-2">
               <div class="size-8 rounded-xl hd-icon-emerald flex items-center justify-center shadow-md ring-1 ring-inset ring-white/40">
                 <LucideCircleCheck class="size-4 text-white" />
@@ -193,8 +220,14 @@
 
           <!-- Blocked -->
           <div
-            class="executive-card flex flex-col gap-2 px-4 pt-5 pb-4"
+            class="executive-card executive-card-hover flex flex-col gap-2 px-4 pt-5 pb-4 cursor-pointer"
             :class="addonTaskBreakdown.blocked ? 'ring-1 ring-red-200' : ''"
+            role="button"
+            tabindex="0"
+            :title="__('Jump to tasks')"
+            @click="scrollToSection(tasksSection)"
+            @keydown.enter="scrollToSection(tasksSection)"
+            @keydown.space.prevent="scrollToSection(tasksSection)"
           >
             <div class="flex items-center justify-between gap-2">
               <div
@@ -217,7 +250,16 @@
         <!-- Row 2 — Features + Tickets + Renewal -->
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <!-- Features in progress -->
-          <div class="executive-card hd-color-card flex flex-col gap-2 px-4 pt-5 pb-4" data-accent="violet">
+          <div
+            class="executive-card executive-card-hover hd-color-card flex flex-col gap-2 px-4 pt-5 pb-4 cursor-pointer"
+            data-accent="violet"
+            role="button"
+            tabindex="0"
+            :title="__('Jump to features')"
+            @click="scrollToSection(featuresSection)"
+            @keydown.enter="scrollToSection(featuresSection)"
+            @keydown.space.prevent="scrollToSection(featuresSection)"
+          >
             <div class="flex items-center justify-between gap-2">
               <div class="size-8 rounded-xl hd-icon-violet flex items-center justify-center shadow-md ring-1 ring-inset ring-white/40">
                 <LucideSparkles class="size-4 text-white" />
@@ -234,7 +276,16 @@
           </div>
 
           <!-- Features released -->
-          <div class="executive-card hd-color-card flex flex-col gap-2 px-4 pt-5 pb-4" data-accent="emerald">
+          <div
+            class="executive-card executive-card-hover hd-color-card flex flex-col gap-2 px-4 pt-5 pb-4 cursor-pointer"
+            data-accent="emerald"
+            role="button"
+            tabindex="0"
+            :title="__('Jump to features')"
+            @click="scrollToSection(featuresSection)"
+            @keydown.enter="scrollToSection(featuresSection)"
+            @keydown.space.prevent="scrollToSection(featuresSection)"
+          >
             <div class="flex items-center justify-between gap-2">
               <div class="size-8 rounded-xl hd-icon-emerald flex items-center justify-center shadow-md ring-1 ring-inset ring-white/40">
                 <LucideRocket class="size-4 text-white" />
@@ -252,7 +303,16 @@
           </div>
 
           <!-- Open tickets -->
-          <div class="executive-card hd-color-card flex flex-col gap-2 px-4 pt-5 pb-4" data-accent="blue">
+          <div
+            class="executive-card executive-card-hover hd-color-card flex flex-col gap-2 px-4 pt-5 pb-4 cursor-pointer"
+            data-accent="blue"
+            role="button"
+            tabindex="0"
+            :title="__('Jump to linked tickets')"
+            @click="scrollToSection(ticketsSection)"
+            @keydown.enter="scrollToSection(ticketsSection)"
+            @keydown.space.prevent="scrollToSection(ticketsSection)"
+          >
             <div class="flex items-center justify-between gap-2">
               <div class="size-8 rounded-xl hd-icon-blue flex items-center justify-center shadow-md ring-1 ring-inset ring-white/40">
                 <LucideTicket class="size-4 text-white" />
@@ -286,7 +346,7 @@
       </div>
 
       <!-- Features -->
-      <div class="executive-card p-5">
+      <div ref="featuresSection" class="executive-card p-5">
         <AddonFeatures
           :addon-id="addonId"
           :editable="editable"
@@ -295,7 +355,7 @@
       </div>
 
       <!-- Tasks -->
-      <div class="executive-card p-5">
+      <div ref="tasksSection" class="executive-card p-5">
         <TaskBoard
           :addon-id="addonId"
           :editable="editable"
@@ -355,7 +415,7 @@
       </div>
 
       <!-- Linked tickets -->
-      <div class="executive-card p-5 flex flex-col gap-2">
+      <div ref="ticketsSection" class="executive-card p-5 flex flex-col gap-2">
         <div class="text-sm font-semibold text-ink-gray-8">
           {{ __("Linked tickets") }}
         </div>
@@ -619,6 +679,14 @@ function openTicket(name: string) {
     name: isCustomerPortal.value ? "TicketCustomer" : "TicketAgent",
     params: { ticketId: name },
   });
+}
+
+// Dashboard tiles scroll to the section they summarise.
+const featuresSection = ref<HTMLElement | null>(null);
+const tasksSection = ref<HTMLElement | null>(null);
+const ticketsSection = ref<HTMLElement | null>(null);
+function scrollToSection(el: HTMLElement | null) {
+  el?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 usePageMeta(() => ({ title: resource.data?.addon_name || __("Add-on") }));
