@@ -68,7 +68,16 @@
       </div>
       <!-- Portal: stat tiles -->
       <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-4">
-        <div class="executive-card hd-color-card flex flex-col gap-2 px-4 pt-5 pb-4" data-accent="blue">
+        <div
+          class="executive-card executive-card-hover hd-color-card flex flex-col gap-2 px-4 pt-5 pb-4 cursor-pointer"
+          data-accent="blue"
+          role="button"
+          tabindex="0"
+          :title="__('Filter list by Open tickets')"
+          @click="filterBy('portalOpen')"
+          @keydown.enter="filterBy('portalOpen')"
+          @keydown.space.prevent="filterBy('portalOpen')"
+        >
           <div class="flex items-center justify-between gap-2">
             <div class="size-8 rounded-xl hd-icon-blue flex items-center justify-center shadow-md ring-1 ring-inset ring-white/40">
               <LucideTicket class="size-4 text-white" />
@@ -78,7 +87,16 @@
           <div class="text-xs font-semibold text-ink-gray-7">{{ __("Open") }}</div>
           <div class="text-[11px] text-ink-gray-4">{{ __("Awaiting resolution") }}</div>
         </div>
-        <div class="executive-card hd-color-card flex flex-col gap-2 px-4 pt-5 pb-4" data-accent="amber">
+        <div
+          class="executive-card executive-card-hover hd-color-card flex flex-col gap-2 px-4 pt-5 pb-4 cursor-pointer"
+          data-accent="amber"
+          role="button"
+          tabindex="0"
+          :title="__('Filter list by Replied tickets')"
+          @click="filterBy('portalReplied')"
+          @keydown.enter="filterBy('portalReplied')"
+          @keydown.space.prevent="filterBy('portalReplied')"
+        >
           <div class="flex items-center justify-between gap-2">
             <div class="size-8 rounded-xl hd-icon-amber flex items-center justify-center shadow-md ring-1 ring-inset ring-white/40">
               <LucideMessageSquare class="size-4 text-white" />
@@ -88,7 +106,16 @@
           <div class="text-xs font-semibold text-ink-gray-7">{{ __("Replied") }}</div>
           <div class="text-[11px] text-ink-gray-4">{{ __("Awaiting your response") }}</div>
         </div>
-        <div class="executive-card hd-color-card flex flex-col gap-2 px-4 pt-5 pb-4" data-accent="emerald">
+        <div
+          class="executive-card executive-card-hover hd-color-card flex flex-col gap-2 px-4 pt-5 pb-4 cursor-pointer"
+          data-accent="emerald"
+          role="button"
+          tabindex="0"
+          :title="__('Filter list by tickets resolved in the last 30 days')"
+          @click="filterBy('portalResolved')"
+          @keydown.enter="filterBy('portalResolved')"
+          @keydown.space.prevent="filterBy('portalResolved')"
+        >
           <div class="flex items-center justify-between gap-2">
             <div class="size-8 rounded-xl hd-icon-emerald flex items-center justify-center shadow-md ring-1 ring-inset ring-white/40">
               <LucideCircleCheck class="size-4 text-white" />
@@ -98,7 +125,16 @@
           <div class="text-xs font-semibold text-ink-gray-7">{{ __("Resolved") }}</div>
           <div class="text-[11px] text-ink-gray-4">{{ __("Last 30 days") }}</div>
         </div>
-        <div class="executive-card hd-color-card flex flex-col gap-2 px-4 pt-5 pb-4" data-accent="violet">
+        <div
+          class="executive-card executive-card-hover hd-color-card flex flex-col gap-2 px-4 pt-5 pb-4 cursor-pointer"
+          data-accent="violet"
+          role="button"
+          tabindex="0"
+          :title="__('Show all tickets')"
+          @click="filterBy('portalAll')"
+          @keydown.enter="filterBy('portalAll')"
+          @keydown.space.prevent="filterBy('portalAll')"
+        >
           <div class="flex items-center justify-between gap-2">
             <div class="size-8 rounded-xl hd-icon-violet flex items-center justify-center shadow-md ring-1 ring-inset ring-white/40">
               <LucideArchive class="size-4 text-white" />
@@ -426,10 +462,15 @@ const agentMyOpenCount = computed(() => _agentMyOpenRes.data ?? 0);
 const listViewRef = ref(null);
 const showExportModal = ref(false);
 
-// Clicking a Queue Overview tile filters the ticket list below by that
-// metric — the exact same filter its count is computed from.
+// Clicking a stat tile (agent Queue Overview or customer portal) filters
+// the ticket list below by that metric — the exact same filter its count
+// is computed from.
 function filterBy(metric: string) {
+  const d = new Date();
+  d.setDate(d.getDate() - 30);
+  const thirtyDaysAgo = d.toISOString().split("T")[0];
   const filters: Record<string, Record<string, any>> = {
+    // Agent queue overview
     open: { status_category: ["!=", "Resolved"] },
     unassigned: {
       status_category: ["!=", "Resolved"],
@@ -448,6 +489,14 @@ function filterBy(metric: string) {
       status_category: ["!=", "Resolved"],
       _assign: ["like", `%${userId}%`],
     },
+    // Customer portal stats
+    portalOpen: { status_category: ["!=", "Resolved"] },
+    portalReplied: { status: "Replied" },
+    portalResolved: {
+      status_category: "Resolved",
+      resolution_date: [">=", thirtyDaysAgo],
+    },
+    portalAll: {},
   };
   const f = filters[metric];
   if (!f) return;
