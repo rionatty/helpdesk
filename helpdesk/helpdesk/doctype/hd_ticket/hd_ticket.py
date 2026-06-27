@@ -172,14 +172,20 @@ class HDTicket(Document):
 
         # Telemetry Event
         self.capture_ticket_created_telemetry_events()
-        publish_event("helpdesk:new-ticket", data={
-            "ticket_id": self.name,
-            "subject": self.subject or "",
-            "customer": self.raised_by_contact or self.raised_by or "",
-        })
 
-        # Email all Agent Managers as soon as a new ticket arrives
-        self.notify_managers_new_ticket()
+        # Notify agents of the new ticket (realtime popup + manager emails).
+        # Wrapped so a notification failure can never roll back the insert.
+        try:
+            publish_event("helpdesk:new-ticket", data={
+                "ticket_id": self.name,
+                "subject": self.subject or "",
+                "customer": self.contact or self.raised_by or "",
+            })
+            self.notify_managers_new_ticket()
+        except Exception:
+            frappe.log_error(
+                title=f"New-ticket notification failed for {self.name}"
+            )
 
         if self.get("description"):
             self.create_communication_via_contact(self.description, new_ticket=True)
@@ -910,7 +916,7 @@ class HDTicket(Document):
 
         url = f"{frappe.utils.get_url()}/helpdesk/tickets/{self.name}"
         customer = frappe.utils.escape_html(
-            self.raised_by_contact or self.raised_by or _("Unknown")
+            self.contact or self.raised_by or _("Unknown")
         )
         subject = frappe.utils.escape_html(self.subject or "")
         priority = frappe.utils.escape_html(self.priority or "-")
