@@ -122,7 +122,16 @@
       <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
 
         <!-- Open -->
-        <div class="executive-card hd-color-card flex flex-col gap-2 px-4 pt-5 pb-4" data-accent="blue">
+        <div
+          class="executive-card executive-card-hover hd-color-card flex flex-col gap-2 px-4 pt-5 pb-4 cursor-pointer"
+          data-accent="blue"
+          role="button"
+          tabindex="0"
+          :title="__('Filter list by Open tickets')"
+          @click="filterBy('open')"
+          @keydown.enter="filterBy('open')"
+          @keydown.space.prevent="filterBy('open')"
+        >
           <div class="flex items-center justify-between gap-2">
             <div class="size-8 rounded-xl hd-icon-blue flex items-center justify-center shadow-md ring-1 ring-inset ring-white/40">
               <LucideTicket class="size-4 text-white" />
@@ -135,8 +144,14 @@
 
         <!-- Unassigned -->
         <div
-          class="executive-card flex flex-col gap-2 px-4 pt-5 pb-4"
+          class="executive-card executive-card-hover flex flex-col gap-2 px-4 pt-5 pb-4 cursor-pointer"
           :class="agentUnassignedCount ? 'ring-1 ring-amber-200' : ''"
+          role="button"
+          tabindex="0"
+          :title="__('Filter list by Unassigned tickets')"
+          @click="filterBy('unassigned')"
+          @keydown.enter="filterBy('unassigned')"
+          @keydown.space.prevent="filterBy('unassigned')"
         >
           <div class="flex items-center justify-between gap-2">
             <div
@@ -157,8 +172,14 @@
 
         <!-- Urgent -->
         <div
-          class="executive-card flex flex-col gap-2 px-4 pt-5 pb-4"
+          class="executive-card executive-card-hover flex flex-col gap-2 px-4 pt-5 pb-4 cursor-pointer"
           :class="agentUrgentCount ? 'ring-1 ring-red-200' : ''"
+          role="button"
+          tabindex="0"
+          :title="__('Filter list by Urgent tickets')"
+          @click="filterBy('urgent')"
+          @keydown.enter="filterBy('urgent')"
+          @keydown.space.prevent="filterBy('urgent')"
         >
           <div class="flex items-center justify-between gap-2">
             <div
@@ -179,8 +200,14 @@
 
         <!-- SLA Failed -->
         <div
-          class="executive-card flex flex-col gap-2 px-4 pt-5 pb-4"
+          class="executive-card executive-card-hover flex flex-col gap-2 px-4 pt-5 pb-4 cursor-pointer"
           :class="agentSlaFailedCount ? 'ring-1 ring-red-300' : ''"
+          role="button"
+          tabindex="0"
+          :title="__('Filter list by SLA Failed tickets')"
+          @click="filterBy('slaFailed')"
+          @keydown.enter="filterBy('slaFailed')"
+          @keydown.space.prevent="filterBy('slaFailed')"
         >
           <div class="flex items-center justify-between gap-2">
             <div
@@ -200,7 +227,16 @@
         </div>
 
         <!-- Resolved today -->
-        <div class="executive-card hd-color-card flex flex-col gap-2 px-4 pt-5 pb-4" data-accent="emerald">
+        <div
+          class="executive-card executive-card-hover hd-color-card flex flex-col gap-2 px-4 pt-5 pb-4 cursor-pointer"
+          data-accent="emerald"
+          role="button"
+          tabindex="0"
+          :title="__('Filter list by tickets resolved today')"
+          @click="filterBy('resolvedToday')"
+          @keydown.enter="filterBy('resolvedToday')"
+          @keydown.space.prevent="filterBy('resolvedToday')"
+        >
           <div class="flex items-center justify-between gap-2">
             <div class="size-8 rounded-xl hd-icon-emerald flex items-center justify-center shadow-md ring-1 ring-inset ring-white/40">
               <LucideCircleCheck class="size-4 text-white" />
@@ -212,7 +248,16 @@
         </div>
 
         <!-- My open -->
-        <div class="executive-card hd-color-card flex flex-col gap-2 px-4 pt-5 pb-4" data-accent="violet">
+        <div
+          class="executive-card executive-card-hover hd-color-card flex flex-col gap-2 px-4 pt-5 pb-4 cursor-pointer"
+          data-accent="violet"
+          role="button"
+          tabindex="0"
+          :title="__('Filter list by tickets assigned to me')"
+          @click="filterBy('myOpen')"
+          @keydown.enter="filterBy('myOpen')"
+          @keydown.space.prevent="filterBy('myOpen')"
+        >
           <div class="flex items-center justify-between gap-2">
             <div class="size-8 rounded-xl hd-icon-violet flex items-center justify-center shadow-md ring-1 ring-inset ring-white/40">
               <LucideUserCheck class="size-4 text-white" />
@@ -380,6 +425,34 @@ const agentMyOpenCount = computed(() => _agentMyOpenRes.data ?? 0);
 
 const listViewRef = ref(null);
 const showExportModal = ref(false);
+
+// Clicking a Queue Overview tile filters the ticket list below by that
+// metric — the exact same filter its count is computed from.
+function filterBy(metric: string) {
+  const filters: Record<string, Record<string, any>> = {
+    open: { status_category: ["!=", "Resolved"] },
+    unassigned: {
+      status_category: ["!=", "Resolved"],
+      _assign: ["is", "not set"],
+    },
+    urgent: { status_category: ["!=", "Resolved"], priority: "Urgent" },
+    slaFailed: {
+      agreement_status: "Failed",
+      status_category: ["!=", "Resolved"],
+    },
+    resolvedToday: {
+      status_category: "Resolved",
+      resolution_date: [">=", _agentToday.value],
+    },
+    myOpen: {
+      status_category: ["!=", "Resolved"],
+      _assign: ["like", `%${userId}%`],
+    },
+  };
+  const f = filters[metric];
+  if (!f) return;
+  listViewRef.value?.setFilters?.(f);
+}
 
 const { getStatus } = useTicketStatusStore();
 

@@ -389,6 +389,7 @@ const list = createResource({
 const exposeFunctions = {
   list,
   reload,
+  setFilters,
   unselectAll: () => {},
 };
 
@@ -621,6 +622,14 @@ function applyFilters(filters) {
   if (!defaultParams.is_default) return;
   handleViewUpdate();
   isViewUpdated.value = false;
+}
+
+// Transient filter apply: updates the visible list and the filter bar
+// WITHOUT persisting to the saved view (unlike applyFilters). Used by
+// external quick-filter shortcuts such as the dashboard queue tiles.
+function setFilters(filters) {
+  defaultParams.filters = { ...filters };
+  list.submit({ ...defaultParams });
 }
 
 function applySort(order_by: string) {
