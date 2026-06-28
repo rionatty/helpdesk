@@ -1,6 +1,7 @@
 <template>
   <div class="flex flex-col gap-3">
-    <div class="flex items-center justify-between gap-2">
+    <div class="flex flex-col gap-3">
+      <!-- Title + count -->
       <div class="flex items-center gap-2">
         <div
           class="size-7 rounded-lg bg-green-100 text-green-700 flex items-center justify-center"
@@ -11,19 +12,113 @@
           {{ __("Tasks") }}
         </span>
         <span v-if="tasks.data?.length" class="text-xs text-ink-gray-5">
-          · {{ tasks.data.length }}
+          <template v-if="anyFilterActive">
+            · {{ __("showing {0} of {1}", [filteredTasks.length, tasks.data.length]) }}
+          </template>
+          <template v-else>· {{ tasks.data.length }}</template>
         </span>
       </div>
-      <select
-        v-if="milestoneOptions.length"
-        v-model="milestoneFilter"
-        class="text-xs rounded-md border border-outline-gray-2 bg-surface-white px-2 py-1 text-ink-gray-7 focus:outline-none focus:border-blue-400"
+
+      <!-- Filter & search toolbar -->
+      <div
+        v-if="tasks.data?.length"
+        class="flex flex-wrap items-center gap-2"
       >
-        <option value="">{{ __("All milestones") }}</option>
-        <option v-for="m in milestoneOptions" :key="m.value" :value="m.value">
-          {{ m.label }}
-        </option>
-      </select>
+        <!-- Search -->
+        <div class="relative">
+          <LucideSearch
+            class="size-3.5 text-ink-gray-4 absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none"
+          />
+          <input
+            v-model="search"
+            type="text"
+            :placeholder="__('Search tasks…')"
+            class="w-40 sm:w-48 text-xs rounded-md border border-outline-gray-2 bg-surface-white ps-7 pe-2 py-1.5 text-ink-gray-8 focus:outline-none focus:border-blue-400"
+          />
+        </div>
+        <!-- Priority -->
+        <select
+          v-model="priorityFilter"
+          class="text-xs rounded-md border border-outline-gray-2 bg-surface-white px-2 py-1.5 text-ink-gray-7 focus:outline-none focus:border-blue-400"
+        >
+          <option value="">{{ __("All priorities") }}</option>
+          <option v-for="p in PRIORITIES" :key="p" :value="p">{{ p }}</option>
+        </select>
+        <!-- Assignee -->
+        <select
+          v-if="assigneeOptions.length || hasUnassigned"
+          v-model="assigneeFilter"
+          class="text-xs rounded-md border border-outline-gray-2 bg-surface-white px-2 py-1.5 text-ink-gray-7 focus:outline-none focus:border-blue-400 max-w-[10rem]"
+        >
+          <option value="">{{ __("All assignees") }}</option>
+          <option v-if="hasUnassigned" value="__unassigned__">
+            {{ __("Unassigned") }}
+          </option>
+          <option v-for="a in assigneeOptions" :key="a.value" :value="a.value">
+            {{ a.label }}
+          </option>
+        </select>
+        <!-- Milestone -->
+        <select
+          v-if="milestoneOptions.length"
+          v-model="milestoneFilter"
+          class="text-xs rounded-md border border-outline-gray-2 bg-surface-white px-2 py-1.5 text-ink-gray-7 focus:outline-none focus:border-blue-400 max-w-[10rem]"
+        >
+          <option value="">{{ __("All milestones") }}</option>
+          <option v-for="m in milestoneOptions" :key="m.value" :value="m.value">
+            {{ m.label }}
+          </option>
+        </select>
+        <!-- My tasks (agent only) -->
+        <button
+          v-if="editable"
+          type="button"
+          class="text-xs rounded-md border px-2 py-1.5 inline-flex items-center gap-1 transition-colors"
+          :class="
+            mineOnly
+              ? 'border-blue-300 bg-blue-50 text-blue-700'
+              : 'border-outline-gray-2 bg-surface-white text-ink-gray-6 hover:border-outline-gray-3'
+          "
+          @click="mineOnly = !mineOnly"
+        >
+          <LucideUser class="size-3" /> {{ __("My tasks") }}
+        </button>
+        <!-- Overdue -->
+        <button
+          type="button"
+          class="text-xs rounded-md border px-2 py-1.5 inline-flex items-center gap-1 transition-colors"
+          :class="
+            overdueOnly
+              ? 'border-red-300 bg-red-50 text-red-700'
+              : 'border-outline-gray-2 bg-surface-white text-ink-gray-6 hover:border-outline-gray-3'
+          "
+          @click="overdueOnly = !overdueOnly"
+        >
+          <LucideAlertTriangle class="size-3" /> {{ __("Overdue") }}
+        </button>
+        <!-- Hide done -->
+        <button
+          type="button"
+          class="text-xs rounded-md border px-2 py-1.5 inline-flex items-center gap-1 transition-colors"
+          :class="
+            hideDone
+              ? 'border-blue-300 bg-blue-50 text-blue-700'
+              : 'border-outline-gray-2 bg-surface-white text-ink-gray-6 hover:border-outline-gray-3'
+          "
+          @click="hideDone = !hideDone"
+        >
+          <LucideEyeOff class="size-3" /> {{ __("Hide done") }}
+        </button>
+        <!-- Clear -->
+        <button
+          v-if="anyFilterActive"
+          type="button"
+          class="text-xs text-blue-600 hover:text-blue-700 font-medium inline-flex items-center gap-0.5 px-1"
+          @click="clearFilters"
+        >
+          <LucideX class="size-3" /> {{ __("Clear") }}
+        </button>
+      </div>
     </div>
 
     <!-- Kanban columns -->
@@ -416,6 +511,7 @@ import {
 import DocAttachments from "@/components/DocAttachments.vue";
 import { timeAgo } from "@/utils";
 import { __ } from "@/translation";
+import { useAuthStore } from "@/stores/auth";
 import LucidePlus from "~icons/lucide/plus";
 import LucideTrash2 from "~icons/lucide/trash-2";
 import LucideCalendar from "~icons/lucide/calendar";
@@ -425,6 +521,10 @@ import LucideEyeOff from "~icons/lucide/eye-off";
 import LucideListChecks from "~icons/lucide/list-checks";
 import LucideCheck from "~icons/lucide/check";
 import LucideLoader2 from "~icons/lucide/loader-2";
+import LucideSearch from "~icons/lucide/search";
+import LucideUser from "~icons/lucide/user";
+import LucideAlertTriangle from "~icons/lucide/alert-triangle";
+import LucideX from "~icons/lucide/x";
 
 interface P {
   addonId?: string;
@@ -437,6 +537,8 @@ const props = withDefaults(defineProps<P>(), {
   editable: false,
 });
 const emit = defineEmits(["changed"]);
+
+const { userId } = useAuthStore();
 
 const STATUSES = ["To Do", "In Progress", "Done", "Blocked"];
 const PRIORITIES = ["Low", "Medium", "High", "Urgent"];
@@ -464,7 +566,67 @@ watch(
   }
 );
 
+// --- filters ---
+const search = ref("");
+const priorityFilter = ref("");
+const assigneeFilter = ref(""); // "" all · "__unassigned__" · else assigned_to value
 const milestoneFilter = ref("");
+const overdueOnly = ref(false);
+const hideDone = ref(false);
+const mineOnly = ref(false);
+
+// Assignee options are derived from the tasks themselves, so the filter works
+// on the customer portal too (where the agent list isn't loaded).
+const assigneeOptions = computed(() => {
+  const map = new Map<string, string>();
+  (tasks.data || []).forEach((t: any) => {
+    if (t.assigned_to) map.set(t.assigned_to, t.assigned_to_name || t.assigned_to);
+  });
+  return Array.from(map, ([value, label]) => ({ value, label }));
+});
+const hasUnassigned = computed(() =>
+  (tasks.data || []).some((t: any) => !t.assigned_to)
+);
+
+const filteredTasks = computed(() => {
+  const q = search.value.trim().toLowerCase();
+  return (tasks.data || []).filter((t: any) => {
+    if (milestoneFilter.value && t.milestone !== milestoneFilter.value) return false;
+    if (priorityFilter.value && t.priority !== priorityFilter.value) return false;
+    if (assigneeFilter.value === "__unassigned__" && t.assigned_to) return false;
+    if (
+      assigneeFilter.value &&
+      assigneeFilter.value !== "__unassigned__" &&
+      t.assigned_to !== assigneeFilter.value
+    )
+      return false;
+    if (mineOnly.value && t.assigned_to !== userId) return false;
+    if (overdueOnly.value && !isOverdue(t)) return false;
+    if (hideDone.value && t.status === "Done") return false;
+    if (q && !(t.subject || "").toLowerCase().includes(q)) return false;
+    return true;
+  });
+});
+
+const anyFilterActive = computed(
+  () =>
+    !!search.value ||
+    !!priorityFilter.value ||
+    !!assigneeFilter.value ||
+    !!milestoneFilter.value ||
+    overdueOnly.value ||
+    hideDone.value ||
+    mineOnly.value
+);
+function clearFilters() {
+  search.value = "";
+  priorityFilter.value = "";
+  assigneeFilter.value = "";
+  milestoneFilter.value = "";
+  overdueOnly.value = false;
+  hideDone.value = false;
+  mineOnly.value = false;
+}
 
 const grouped = computed(() => {
   const g: Record<string, any[]> = {
@@ -473,9 +635,7 @@ const grouped = computed(() => {
     Done: [],
     Blocked: [],
   };
-  (tasks.data || [])
-    .filter((t: any) => !milestoneFilter.value || t.milestone === milestoneFilter.value)
-    .forEach((t: any) => (g[t.status] || g["To Do"]).push(t));
+  filteredTasks.value.forEach((t: any) => (g[t.status] || g["To Do"]).push(t));
   return g;
 });
 
