@@ -180,6 +180,69 @@
             <input v-model="form.customer_visible" type="checkbox" />
             {{ __("Visible to the customer") }}
           </label>
+
+          <!-- Tasks in this milestone (existing milestones only) -->
+          <div v-if="editing" class="border-t border-outline-gray-1 pt-3 flex flex-col gap-1.5">
+            <div class="flex items-center justify-between gap-2">
+              <span class="text-xs font-semibold text-ink-gray-7">
+                {{ __("Tasks in this milestone") }}
+                <span v-if="editingTasks.length" class="text-ink-gray-5 font-normal">
+                  · {{ editingTasks.length }}
+                </span>
+              </span>
+              <Button
+                v-if="editingTasks.length"
+                variant="ghost"
+                size="sm"
+                :label="__('View on task board')"
+                @click="viewOnBoard"
+              />
+            </div>
+            <div
+              v-if="editingTasks.length"
+              class="flex flex-col gap-0.5 max-h-48 overflow-y-auto pr-1"
+            >
+              <div
+                v-for="t in editingTasks"
+                :key="t.subject"
+                class="flex items-center gap-2 text-sm py-1"
+              >
+                <span
+                  class="size-3.5 rounded-full border-2 flex items-center justify-center shrink-0"
+                  :class="
+                    t.status === 'Done'
+                      ? 'border-green-500 bg-green-500'
+                      : t.status === 'In Progress'
+                      ? 'border-blue-400 bg-blue-50'
+                      : t.status === 'Blocked'
+                      ? 'border-red-400 bg-red-50'
+                      : 'border-outline-gray-3 bg-surface-white'
+                  "
+                >
+                  <LucideCheck v-if="t.status === 'Done'" class="size-2 text-white" />
+                </span>
+                <span
+                  class="flex-1 min-w-0 truncate"
+                  :class="
+                    t.status === 'Done'
+                      ? 'line-through text-ink-gray-4'
+                      : 'text-ink-gray-8'
+                  "
+                >
+                  {{ t.subject }}
+                </span>
+                <span
+                  class="shrink-0 text-[10px] rounded px-1.5 py-0.5"
+                  :class="taskStatusClass(t.status)"
+                >
+                  {{ t.status }}
+                </span>
+              </div>
+            </div>
+            <p v-else class="text-xs text-ink-gray-4">
+              {{ __("No tasks yet — add tasks to this milestone from the task board below.") }}
+            </p>
+          </div>
         </div>
       </template>
       <template #actions>
@@ -228,7 +291,7 @@ interface P {
   editable?: boolean;
 }
 const props = withDefaults(defineProps<P>(), { editable: false });
-const emit = defineEmits(["changed"]);
+const emit = defineEmits(["changed", "view-tasks"]);
 
 const STATUSES = ["Upcoming", "In Progress", "Completed", "Missed"];
 const statusOptions = STATUSES.map((s) => ({ label: s, value: s }));
@@ -283,6 +346,8 @@ function taskStatusClass(status: string) {
 // --- create / edit ---
 const showDialog = ref(false);
 const editing = ref<string | null>(null);
+// Tasks of the milestone being edited, as returned by get_milestones.
+const editingTasks = ref<any[]>([]);
 const form = reactive({
   title: "",
   status: "Upcoming",
@@ -294,6 +359,7 @@ const form = reactive({
 
 function openCreate() {
   editing.value = null;
+  editingTasks.value = [];
   Object.assign(form, {
     title: "",
     status: "Upcoming",
@@ -306,6 +372,7 @@ function openCreate() {
 }
 function openEdit(m: any) {
   editing.value = m.name;
+  editingTasks.value = m.tasks || [];
   Object.assign(form, {
     title: m.title || "",
     status: m.status || "Upcoming",
@@ -369,5 +436,13 @@ function submit() {
 }
 function remove() {
   if (editing.value) deleteRes.submit({ name: editing.value });
+}
+
+// Jump to the task board filtered to the milestone being viewed.
+function viewOnBoard() {
+  if (!editing.value) return;
+  const milestone = editing.value;
+  showDialog.value = false;
+  emit("view-tasks", milestone);
 }
 </script>

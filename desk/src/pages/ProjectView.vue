@@ -578,6 +578,7 @@
           :project-id="projectId"
           :editable="editable"
           @changed="taskBoardRef?.refreshMilestones()"
+          @view-tasks="viewMilestoneTasks"
         />
       </div>
 
@@ -1062,6 +1063,12 @@ const tasksSection = ref<HTMLElement | null>(null);
 const ticketsSection = ref<HTMLElement | null>(null);
 function scrollToSection(el: HTMLElement | null) {
   el?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+// From the milestone dialog: filter the task board to that milestone and jump.
+function viewMilestoneTasks(milestone: string) {
+  taskBoardRef.value?.setMilestoneFilter?.(milestone);
+  scrollToSection(tasksSection.value);
 }
 
 // --- Assigned agents (members) ---

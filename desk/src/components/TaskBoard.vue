@@ -668,6 +668,9 @@ defineExpose({
     tasks.reload();
     if (props.projectId) milestonesRes.reload();
   },
+  setMilestoneFilter: (name: string) => {
+    milestoneFilter.value = name || "";
+  },
 });
 function featureTitle(name: string) {
   return (featuresRes.data || []).find((f: any) => f.name === name)?.feature_title;
