@@ -537,6 +537,40 @@
         </div>
       </div>
 
+      <!-- Viewed by -->
+      <div v-if="editable && viewers.length" class="executive-card p-5 flex flex-col gap-3">
+        <div class="flex items-center gap-2">
+          <div
+            class="size-7 rounded-lg bg-sky-100 text-sky-700 flex items-center justify-center"
+          >
+            <LucideEye class="size-4" />
+          </div>
+          <span class="text-sm font-semibold text-ink-gray-8">
+            {{ __("Viewed by") }}
+          </span>
+          <span class="text-xs text-ink-gray-5">· {{ viewers.length }}</span>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <div
+            v-for="v in viewers"
+            :key="v.user"
+            class="flex items-center gap-1.5 rounded-full px-2.5 py-1 bg-surface-gray-1 border border-outline-gray-1 text-sm text-ink-gray-8"
+          >
+            <Avatar size="xs" :label="v.full_name" />
+            <span>{{ v.full_name }}</span>
+            <span
+              v-if="!v.is_agent"
+              class="text-[10px] font-semibold uppercase tracking-wide text-amber-700 bg-amber-100 rounded px-1 py-0.5"
+            >
+              {{ __("Customer") }}
+            </span>
+            <span class="text-xs text-ink-gray-4">
+              {{ dayjs(v.last_viewed).format("MMM D, h:mm A") }}
+            </span>
+          </div>
+        </div>
+      </div>
+
       <!-- Milestones -->
       <div ref="milestonesSection" class="executive-card p-5">
         <ProjectMilestones
@@ -852,6 +886,7 @@ import ProjectMilestones from "@/components/ProjectMilestones.vue";
 import ReminderButton from "@/components/ReminderButton.vue";
 import TaskBoard from "@/components/TaskBoard.vue";
 import LucideTags from "~icons/lucide/tags";
+import LucideEye from "~icons/lucide/eye";
 import LucideEyeOff from "~icons/lucide/eye-off";
 import LucideTicket from "~icons/lucide/ticket";
 import LucideBuilding2 from "~icons/lucide/building-2";
@@ -1063,6 +1098,9 @@ async function removeMember(name: string) {
   }
 }
 
+// Distinct users who opened this project, newest first (agents only).
+const viewers = computed(() => resource.data?.viewers || []);
+
 // ---- Project templates ----
 const showApplyTemplateDialog = ref(false);
 const showSaveTemplateDialog = ref(false);
@@ -1153,8 +1191,12 @@ const resource = createResource({
     form.progress = d.progress || 0;
     form.description = d.description || "";
   },
-  onError: () => {
-    toast.error(__("Project not found"));
+  onError: (e: any) => {
+    const fallback =
+      e?.exc_type === "PermissionError"
+        ? __("You are not assigned to this project")
+        : __("Project not found");
+    toast.error(e?.messages?.[0] || fallback);
     router.replace({ name: isCustomerPortal.value ? "ProjectsCustomer" : "ProjectsAgent" });
   },
 });

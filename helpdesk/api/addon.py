@@ -1,14 +1,23 @@
 # Add-ons API.
 #
-# Agents manage add-ons (deployed apps/modules per customer). Customers view
-# their own company's add-ons (read-only). Access is checked explicitly, then
-# queries run with ignore_permissions.
+# Agent Managers see every add-on; other agents only the ones they are
+# assigned to (HD Addon Member). Customers view their own company's add-ons
+# (read-only). Access is checked explicitly, then queries run with
+# ignore_permissions.
 
 import frappe
 from frappe import _
 from frappe.utils import cint
 
-from helpdesk.utils import get_customer, is_agent
+from helpdesk.utils import (
+	agent_has_addon,
+	agent_has_project,
+	get_customer,
+	get_doc_viewers,
+	is_agent,
+	is_agent_manager,
+	log_doc_view,
+)
 
 ADDON_FIELDS = [
 	"name",
@@ -98,13 +107,20 @@ def create_addon(
 			"notes": notes,
 		}
 	).insert(ignore_permissions=True)
+	# The creator is assigned automatically so they can open what they created.
+	user = frappe.session.user
+	if frappe.db.exists("HD Agent", user):
+		frappe.get_doc(
+			{"doctype": "HD Addon Member", "addon": doc.name, "agent": user}
+		).insert(ignore_permissions=True)
 	return doc.name
 
 
 @frappe.whitelist()
 def update_addon(name: str, **fields) -> bool:
-	"""Update writable add-on fields. Agents only."""
+	"""Update writable add-on fields. Assigned agents and managers only."""
 	_assert_agent()
+	_assert_addon_access(name)
 	doc = frappe.get_doc("HD Addon", name)
 	for key, value in fields.items():
 		if key in WRITABLE:
@@ -115,8 +131,13 @@ def update_addon(name: str, **fields) -> bool:
 
 @frappe.whitelist()
 def delete_addon(name: str) -> bool:
-	"""Delete an add-on and its features/tasks (incl. their comments). Agents only."""
+	"""Delete an add-on and its features/tasks (incl. their comments).
+	Agent Managers only — deletion is destructive."""
 	_assert_agent()
+	if not is_agent_manager():
+		frappe.throw(
+			_("Only Agent Managers can delete an add-on"), frappe.PermissionError
+		)
 	frappe.db.delete("HD Addon Member", {"addon": name})
 	frappe.db.delete("HD Addon Feature", {"addon": name})
 	tasks = frappe.get_all("HD Addon Task", filters={"addon": name}, pluck="name")
@@ -129,8 +150,9 @@ def delete_addon(name: str) -> bool:
 
 @frappe.whitelist()
 def get_addon_members(addon: str) -> list[dict]:
-	"""List agents assigned to an add-on. Agents only."""
+	"""List agents assigned to an add-on. Assigned agents and managers only."""
 	_assert_agent()
+	_assert_addon_access(addon)
 	rows = frappe.get_all(
 		"HD Addon Member",
 		filters={"addon": addon},
@@ -146,10 +168,12 @@ def get_addon_members(addon: str) -> list[dict]:
 
 @frappe.whitelist()
 def add_addon_member(addon: str, agent: str) -> str:
-	"""Assign an agent to an add-on. Agents only. Silently skips duplicates."""
+	"""Assign an agent to an add-on. Only managers and agents already on the
+	add-on can extend the roster. Silently skips duplicates."""
 	_assert_agent()
-	if not frappe.db.exists("HD Addon", addon):
-		frappe.throw(_("Add-on not found"), frappe.DoesNotExistError)
+	_assert_addon_access(addon)
+	if not frappe.db.exists("HD Agent", agent):
+		frappe.throw(_("Agent not found"), frappe.DoesNotExistError)
 	if frappe.db.exists("HD Addon Member", {"addon": addon, "agent": agent}):
 		return ""
 	doc = frappe.get_doc(
@@ -160,8 +184,13 @@ def add_addon_member(addon: str, agent: str) -> str:
 
 @frappe.whitelist()
 def remove_addon_member(name: str) -> bool:
-	"""Remove an agent assignment from an add-on. Agents only."""
+	"""Remove an agent assignment from an add-on. Only managers and agents on
+	the add-on can edit the roster."""
 	_assert_agent()
+	addon = frappe.db.get_value("HD Addon Member", name, "addon")
+	if not addon:
+		return True
+	_assert_addon_access(addon)
 	frappe.delete_doc("HD Addon Member", name, ignore_permissions=True)
 	return True
 
@@ -219,12 +248,17 @@ TASK_WRITABLE = {
 
 
 def _assert_addon_access(addon: str) -> frappe._dict:
-	"""Agents always; customers only for their own company's add-ons."""
+	"""Managers and assigned agents; customers only for their own company's
+	add-ons."""
 	row = frappe.db.get_value("HD Addon", addon, ["name", "customer"], as_dict=True)
 	if not row:
 		frappe.throw(_("Add-on not found"), frappe.DoesNotExistError)
 	if is_agent():
-		return row
+		if agent_has_addon(addon):
+			return row
+		frappe.throw(
+			_("You are not assigned to this add-on"), frappe.PermissionError
+		)
 	if row.customer and row.customer in get_customer(frappe.session.user):
 		return row
 	frappe.throw(_("Not permitted"), frappe.PermissionError)
@@ -310,7 +344,11 @@ def _assert_parent_access(
 		if not row:
 			frappe.throw(_("Project not found"), frappe.DoesNotExistError)
 		if is_agent():
-			return
+			if agent_has_project(project):
+				return
+			frappe.throw(
+				_("You are not assigned to this project"), frappe.PermissionError
+			)
 		if (row.project_type or "Customer") == "Internal":
 			frappe.throw(_("Not permitted"), frappe.PermissionError)
 		if row.customer and row.customer in get_customer(frappe.session.user):
@@ -369,6 +407,9 @@ def get_addon(name: str) -> dict:
 		"tasks_by_status": _count_by(tasks, "status"),
 		"tickets_total": len(tickets),
 	}
+	log_doc_view("HD Addon", name)
+	if is_agent():
+		doc["viewers"] = get_doc_viewers("HD Addon", name)
 	return doc
 
 
@@ -411,9 +452,11 @@ def add_feature(
 
 @frappe.whitelist()
 def update_feature(name: str, **fields) -> bool:
-	"""Update a feature (incl. tagging it to a project). Agents only."""
+	"""Update a feature (incl. tagging it to a project). Assigned agents and
+	managers only."""
 	_assert_agent()
 	doc = frappe.get_doc("HD Addon Feature", name)
+	_assert_addon_access(doc.addon)
 	for key, value in fields.items():
 		if key in FEATURE_WRITABLE:
 			doc.set(key, value or None if key == "project" else value)
@@ -423,8 +466,11 @@ def update_feature(name: str, **fields) -> bool:
 
 @frappe.whitelist()
 def delete_feature(name: str) -> bool:
-	"""Delete a feature. Agents only."""
+	"""Delete a feature. Assigned agents and managers only."""
 	_assert_agent()
+	addon = frappe.db.get_value("HD Addon Feature", name, "addon")
+	if addon:
+		_assert_addon_access(addon)
 	frappe.delete_doc("HD Addon Feature", name, ignore_permissions=True)
 	return True
 
@@ -483,8 +529,9 @@ def add_task(
 
 @frappe.whitelist()
 def update_task(name: str, **fields) -> bool:
-	"""Update a task. Agents only."""
+	"""Update a task. Assigned agents and managers only."""
 	_assert_agent()
+	_assert_task_access(name)
 	doc = frappe.get_doc("HD Addon Task", name)
 	for key, value in fields.items():
 		if key in TASK_WRITABLE:
@@ -498,8 +545,9 @@ def update_task(name: str, **fields) -> bool:
 
 @frappe.whitelist()
 def delete_task(name: str) -> bool:
-	"""Delete a task and its comments. Agents only."""
+	"""Delete a task and its comments. Assigned agents and managers only."""
 	_assert_agent()
+	_assert_task_access(name)
 	frappe.db.delete("HD Task Comment", {"task": name})
 	frappe.delete_doc("HD Addon Task", name, ignore_permissions=True)
 	return True

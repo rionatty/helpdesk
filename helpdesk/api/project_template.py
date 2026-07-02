@@ -7,7 +7,7 @@ import frappe
 from frappe import _
 from frappe.utils import add_days, cint, getdate, nowdate
 
-from helpdesk.utils import is_agent
+from helpdesk.utils import agent_has_project, is_agent
 
 # Fields we accept from the editor for each child row — anything else is ignored.
 MILESTONE_ROW_FIELDS = (
@@ -36,6 +36,10 @@ def _assert_agent() -> None:
 def _assert_project(project: str) -> None:
 	if not frappe.db.exists("HD Project", project):
 		frappe.throw(_("Project not found"), frappe.DoesNotExistError)
+	if not agent_has_project(project):
+		frappe.throw(
+			_("You are not assigned to this project"), frappe.PermissionError
+		)
 
 
 @frappe.whitelist()

@@ -482,3 +482,110 @@ def get_customer_home_page(user: str = None) -> str:
 	system users are unaffected (this hook only runs for Website Users).
 	"""
 	return "helpdesk"
+
+
+def is_agent_manager(user: str = None) -> bool:
+	"""Whether `user` is an Agent Manager (or a system-level admin)."""
+	user = user or frappe.session.user
+	if is_admin(user):
+		return True
+	roles = frappe.get_roles(user)
+	return "Agent Manager" in roles or "System Manager" in roles
+
+
+def agent_has_project(project: str, user: str = None) -> bool:
+	"""Whether an agent may open `project`: managers always; otherwise the
+	project lead or an assigned HD Project Member."""
+	user = user or frappe.session.user
+	if is_agent_manager(user):
+		return True
+	if frappe.db.get_value("HD Project", project, "lead") == user:
+		return True
+	return bool(
+		frappe.db.exists("HD Project Member", {"project": project, "agent": user})
+	)
+
+
+def agent_has_addon(addon: str, user: str = None) -> bool:
+	"""Whether an agent may open `addon`: managers always; otherwise an
+	assigned HD Addon Member."""
+	user = user or frappe.session.user
+	if is_agent_manager(user):
+		return True
+	return bool(frappe.db.exists("HD Addon Member", {"addon": addon, "agent": user}))
+
+
+def log_doc_view(doctype: str, name: str) -> None:
+	"""Record that the current user opened a document (core View Log doctype),
+	throttled to one entry per user per 15 minutes. Never raises — view
+	tracking must not break the page it decorates."""
+	user = frappe.session.user
+	if not user or user == "Guest":
+		return
+	try:
+		last = frappe.db.get_value(
+			"View Log",
+			{
+				"reference_doctype": doctype,
+				"reference_name": name,
+				"viewed_by": user,
+			},
+			"creation",
+			order_by="creation desc",
+		)
+		if last and frappe.utils.time_diff_in_seconds(frappe.utils.now(), last) < 900:
+			return
+		frappe.get_doc(
+			{
+				"doctype": "View Log",
+				"reference_doctype": doctype,
+				"reference_name": name,
+				"viewed_by": user,
+			}
+		).insert(ignore_permissions=True)
+		# Reads arrive as GET requests, whose writes are rolled back unless the
+		# request is explicitly flagged for commit.
+		frappe.local.flags.commit = True
+	except Exception:
+		# Drop any queued error message so it doesn't surface as a client toast.
+		frappe.clear_last_message()
+
+
+def get_doc_viewers(doctype: str, name: str, limit: int = 20) -> list[dict]:
+	"""Distinct users who viewed a document, newest first, with display names."""
+	try:
+		rows = frappe.get_all(
+			"View Log",
+			filters={"reference_doctype": doctype, "reference_name": name},
+			fields=["viewed_by", "creation"],
+			order_by="creation desc",
+			limit_page_length=500,
+			ignore_permissions=True,
+		)
+	except Exception:
+		return []
+	last_seen: dict = {}
+	for r in rows:
+		if r.viewed_by and r.viewed_by not in last_seen:
+			last_seen[r.viewed_by] = r.creation
+	users = list(last_seen)[:limit]
+	if not users:
+		return []
+	full_names = {
+		u.name: u.full_name
+		for u in frappe.get_all(
+			"User", filters={"name": ["in", users]}, fields=["name", "full_name"]
+		)
+	}
+	agents = set(
+		frappe.get_all("HD Agent", filters={"name": ["in", users]}, pluck="name")
+	)
+	return [
+		{
+			"user": u,
+			"full_name": full_names.get(u) or u,
+			"is_agent": u in agents,
+			"last_viewed": last_seen[u],
+		}
+		for u in users
+	]

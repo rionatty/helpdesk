@@ -1,15 +1,23 @@
 # Projects API.
 #
-# Agents (our side) manage projects fully. Customers (portal) may view and
-# comment on projects that belong to their company — resolved via get_customer.
-# Reads/writes use ignore_permissions AFTER an explicit access check, so portal
-# users don't need direct doctype permissions.
+# Agent Managers see every project; other agents only the ones they are
+# assigned to (HD Project Member or project lead). Customers (portal) may view
+# and comment on projects that belong to their company — resolved via
+# get_customer. Reads/writes use ignore_permissions AFTER an explicit access
+# check, so portal users don't need direct doctype permissions.
 
 import frappe
 from frappe import _
 from frappe.utils import cint, today
 
-from helpdesk.utils import get_customer, is_agent
+from helpdesk.utils import (
+	agent_has_project,
+	get_customer,
+	get_doc_viewers,
+	is_agent,
+	is_agent_manager,
+	log_doc_view,
+)
 
 PROJECT_FIELDS = [
 	"name",
@@ -75,15 +83,31 @@ def _assert_agent() -> None:
 
 
 def _assert_project_access(doc) -> None:
-	"""Agents always; customers only for their own company's customer projects.
-	Internal projects are never visible on the portal."""
+	"""Managers and assigned agents (member or lead); customers only for their
+	own company's customer projects. Internal projects never on the portal."""
 	if is_agent():
-		return
+		if agent_has_project(doc.name):
+			return
+		frappe.throw(
+			_("You are not assigned to this project"), frappe.PermissionError
+		)
 	if _is_internal(doc):
 		frappe.throw(_("Not permitted"), frappe.PermissionError)
 	if doc.customer and doc.customer in get_customer(frappe.session.user):
 		return
 	frappe.throw(_("Not permitted"), frappe.PermissionError)
+
+
+def _assert_agent_project(project: str) -> None:
+	"""For agent-only endpoints acting on a project: the caller must be an
+	agent AND a manager, the project lead, or an assigned member."""
+	_assert_agent()
+	if not frappe.db.exists("HD Project", project):
+		frappe.throw(_("Project not found"), frappe.DoesNotExistError)
+	if not agent_has_project(project):
+		frappe.throw(
+			_("You are not assigned to this project"), frappe.PermissionError
+		)
 
 
 def _linked_tickets(project: str) -> list:
@@ -214,7 +238,10 @@ def get_project(name: str) -> dict:
 	data["lead_name"] = (
 		frappe.db.get_value("HD Agent", doc.lead, "agent_name") if doc.lead else None
 	)
-	if not is_agent():
+	log_doc_view("HD Project", name)
+	if is_agent():
+		data["viewers"] = get_doc_viewers("HD Project", name)
+	else:
 		# lead is an agent email; the portal gets the display name only.
 		data["lead"] = None
 	return data
@@ -260,13 +287,19 @@ def create_project(
 			"description": description,
 		}
 	).insert(ignore_permissions=True)
+	# The creator is assigned automatically so they can open what they created.
+	user = frappe.session.user
+	if frappe.db.exists("HD Agent", user):
+		frappe.get_doc(
+			{"doctype": "HD Project Member", "project": doc.name, "agent": user}
+		).insert(ignore_permissions=True)
 	return doc.name
 
 
 @frappe.whitelist()
 def update_project(name: str, **fields) -> bool:
-	"""Update writable project fields. Agents only."""
-	_assert_agent()
+	"""Update writable project fields. Assigned agents and managers only."""
+	_assert_agent_project(name)
 	doc = frappe.get_doc("HD Project", name)
 	for key, value in fields.items():
 		if key in WRITABLE:
@@ -281,8 +314,15 @@ def update_project(name: str, **fields) -> bool:
 
 @frappe.whitelist()
 def delete_project(name: str) -> bool:
-	"""Delete a project with its comments, milestones and tasks. Agents only."""
+	"""Delete a project with its comments, milestones and tasks.
+	Agent Managers or the project lead only — deletion is destructive."""
 	_assert_agent()
+	lead = frappe.db.get_value("HD Project", name, "lead")
+	if not (is_agent_manager() or lead == frappe.session.user):
+		frappe.throw(
+			_("Only Agent Managers or the project lead can delete a project"),
+			frappe.PermissionError,
+		)
 	frappe.db.delete("HD Project Comment", {"project": name})
 	frappe.db.delete("HD Project Member", {"project": name})
 	tasks = frappe.get_all(
@@ -407,10 +447,8 @@ def add_milestone(
 	customer_visible: int = 1,
 	description: str | None = None,
 ) -> str:
-	"""Add a milestone to a project. Agents only."""
-	_assert_agent()
-	if not frappe.db.exists("HD Project", project):
-		frappe.throw(_("Project not found"), frappe.DoesNotExistError)
+	"""Add a milestone to a project. Assigned agents and managers only."""
+	_assert_agent_project(project)
 	if not (title or "").strip():
 		frappe.throw(_("Milestone title is required"))
 	doc = frappe.get_doc(
@@ -430,9 +468,9 @@ def add_milestone(
 
 @frappe.whitelist()
 def update_milestone(name: str, **fields) -> bool:
-	"""Update a milestone. Agents only."""
-	_assert_agent()
+	"""Update a milestone. Assigned agents and managers only."""
 	doc = frappe.get_doc("HD Milestone", name)
+	_assert_agent_project(doc.project)
 	for key, value in fields.items():
 		if key in MILESTONE_WRITABLE:
 			doc.set(key, value)
@@ -445,8 +483,11 @@ def update_milestone(name: str, **fields) -> bool:
 @frappe.whitelist()
 def delete_milestone(name: str) -> bool:
 	"""Delete a milestone; its tasks and features are unlinked, not deleted.
-	Agents only."""
-	_assert_agent()
+	Assigned agents and managers only."""
+	project = frappe.db.get_value("HD Milestone", name, "project")
+	if not project:
+		frappe.throw(_("Milestone not found"), frappe.DoesNotExistError)
+	_assert_agent_project(project)
 	for doctype in ("HD Addon Task", "HD Addon Feature"):
 		frappe.db.set_value(
 			doctype, {"milestone": name}, "milestone", None, update_modified=False
@@ -457,8 +498,8 @@ def delete_milestone(name: str) -> bool:
 
 @frappe.whitelist()
 def get_project_members(project: str) -> list[dict]:
-	"""List agents assigned to a project. Agents only."""
-	_assert_agent()
+	"""List agents assigned to a project. Assigned agents and managers only."""
+	_assert_agent_project(project)
 	rows = frappe.get_all(
 		"HD Project Member",
 		filters={"project": project},
@@ -474,10 +515,11 @@ def get_project_members(project: str) -> list[dict]:
 
 @frappe.whitelist()
 def add_project_member(project: str, agent: str) -> str:
-	"""Assign an agent to a project. Agents only. Silently skips duplicates."""
-	_assert_agent()
-	if not frappe.db.exists("HD Project", project):
-		frappe.throw(_("Project not found"), frappe.DoesNotExistError)
+	"""Assign an agent to a project. Only managers and agents already on the
+	project can extend the roster. Silently skips duplicates."""
+	_assert_agent_project(project)
+	if not frappe.db.exists("HD Agent", agent):
+		frappe.throw(_("Agent not found"), frappe.DoesNotExistError)
 	if frappe.db.exists("HD Project Member", {"project": project, "agent": agent}):
 		return ""
 	doc = frappe.get_doc(
@@ -488,8 +530,12 @@ def add_project_member(project: str, agent: str) -> str:
 
 @frappe.whitelist()
 def remove_project_member(name: str) -> bool:
-	"""Remove an agent assignment from a project. Agents only."""
-	_assert_agent()
+	"""Remove an agent assignment from a project. Only managers and agents on
+	the project can edit the roster."""
+	project = frappe.db.get_value("HD Project Member", name, "project")
+	if not project:
+		return True
+	_assert_agent_project(project)
 	frappe.delete_doc("HD Project Member", name, ignore_permissions=True)
 	return True
 
@@ -497,8 +543,8 @@ def remove_project_member(name: str) -> bool:
 @frappe.whitelist()
 def get_taggable_features(project: str) -> list:
 	"""Features of the project's customer's add-ons, for tagging to the project.
-	Agents only."""
-	_assert_agent()
+	Assigned agents and managers only."""
+	_assert_agent_project(project)
 	customer = frappe.db.get_value("HD Project", project, "customer")
 	if not customer:
 		return []
