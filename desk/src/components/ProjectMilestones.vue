@@ -95,9 +95,9 @@
           <p v-if="m.description" class="text-xs text-ink-gray-6 mt-1 whitespace-pre-line">
             {{ m.description }}
           </p>
-          <!-- Task list — customer view only (agents use the full TaskBoard) -->
+          <!-- Task list under the milestone (shown to agents and customers) -->
           <div
-            v-if="!editable && m.tasks?.length"
+            v-if="m.tasks?.length"
             class="mt-2 flex flex-col gap-0.5"
           >
             <div

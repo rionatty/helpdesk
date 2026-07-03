@@ -399,14 +399,19 @@ def _assert_task_access(task: str) -> frappe._dict:
 	)
 	if not row:
 		frappe.throw(_("Task not found"), frappe.DoesNotExistError)
+	# The agents directly involved (creator, assignee, reviewer) can always
+	# reach a task, even if they aren't full members of its parent.
+	user = frappe.session.user
+	if is_agent() and (
+		is_agent_manager() or user in (row.owner, row.assigned_to, row.reviewer)
+	):
+		return row
 	if row.addon or row.project:
+		# Otherwise fall back to parent access (covers the parent's customer).
 		_assert_parent_access(addon=row.addon, project=row.project)
 		return row
-	# Standalone task: managers, or the people involved in it.
+	# Standalone task with no involvement.
 	_assert_agent()
-	user = frappe.session.user
-	if is_agent_manager() or user in (row.owner, row.assigned_to, row.reviewer):
-		return row
 	frappe.throw(_("You do not have access to this task"), frappe.PermissionError)
 
 
@@ -527,6 +532,85 @@ def get_tasks(addon: str | None = None, project: str | None = None) -> list:
 	return _get_tasks(addon=addon, project=project)
 
 
+def _grant_task_access(doc) -> None:
+	"""Assigning a task (or naming a reviewer) grants that agent access to the
+	parent, so they can actually open the project/add-on and see their task.
+	No-op for standalone tasks (no parent to join)."""
+	people = [p for p in (doc.get("assigned_to"), doc.get("reviewer")) if p]
+	if not people:
+		return
+	if doc.get("project"):
+		member_doctype, parent_field, parent = (
+			"HD Project Member",
+			"project",
+			doc.project,
+		)
+	elif doc.get("addon"):
+		member_doctype, parent_field, parent = "HD Addon Member", "addon", doc.addon
+	else:
+		return
+	for agent in people:
+		if not frappe.db.exists("HD Agent", agent):
+			continue
+		if frappe.db.exists(member_doctype, {parent_field: parent, "agent": agent}):
+			continue
+		frappe.get_doc(
+			{"doctype": member_doctype, parent_field: parent, "agent": agent}
+		).insert(ignore_permissions=True)
+
+
+def _notify_task_assignee(doc) -> None:
+	"""Email the assignee that a task was assigned to them. Best-effort: never
+	break the save if mail isn't configured. Skips self-assignment."""
+	agent = doc.get("assigned_to")
+	if not agent or agent == frappe.session.user or agent == "Guest":
+		return
+	try:
+		agent_name = (
+			frappe.db.get_value("HD Agent", agent, "agent_name") or agent
+		).split(" ")[0]
+		if doc.get("project"):
+			context = frappe.db.get_value("HD Project", doc.project, "project_name")
+			link = frappe.utils.get_url(f"/helpdesk/projects/{doc.project}")
+		elif doc.get("addon"):
+			context = frappe.db.get_value("HD Addon", doc.addon, "addon_name")
+			link = frappe.utils.get_url(f"/helpdesk/addons/{doc.addon}")
+		else:
+			context = _("Tasks")
+			link = frappe.utils.get_url("/helpdesk/tasks")
+		assigner = (
+			frappe.db.get_value("HD Agent", frappe.session.user, "agent_name")
+			or frappe.session.user
+		)
+		subject = _("You've been assigned a task: {0}").format(doc.subject)
+		message = f"""
+			<p>{_('Hi')} {frappe.utils.escape_html(agent_name)},</p>
+			<p>{frappe.utils.escape_html(assigner)} {_('assigned you a task')}
+			{_('in')} <strong>{frappe.utils.escape_html(context or '')}</strong>:</p>
+			<p style="font-size:15px;font-weight:600;margin:12px 0;">
+				{frappe.utils.escape_html(doc.subject)}</p>
+			<p><strong>{_('Priority')}:</strong> {frappe.utils.escape_html(doc.get('priority') or 'Medium')}
+			&nbsp;·&nbsp; <strong>{_('Status')}:</strong> {frappe.utils.escape_html(doc.get('status') or 'To Do')}
+			{('&nbsp;·&nbsp; <strong>' + _('Due') + ':</strong> ' + str(doc.end_date)) if doc.get('end_date') else ''}</p>
+			<p style="margin-top:16px;">
+				<a href="{link}" style="background:#2563eb;color:#fff;padding:8px 16px;
+				border-radius:6px;text-decoration:none;">{_('Open task')}</a>
+			</p>
+		"""
+		frappe.sendmail(
+			recipients=[agent],
+			subject=subject,
+			message=message,
+			reference_doctype="HD Addon Task",
+			reference_name=doc.name,
+		)
+	except Exception:
+		frappe.log_error(
+			title="Task assignment email failed",
+			message=frappe.get_traceback(),
+		)
+
+
 @frappe.whitelist()
 def add_task(
 	subject: str,
@@ -572,6 +656,9 @@ def add_task(
 			"is_internal": 1 if cint(is_internal) else 0,
 		}
 	).insert(ignore_permissions=True)
+	_grant_task_access(doc)
+	if doc.assigned_to:
+		_notify_task_assignee(doc)
 	return doc.name
 
 
@@ -582,6 +669,7 @@ def update_task(name: str, **fields) -> bool:
 	_assert_agent()
 	_assert_task_access(name)
 	doc = frappe.get_doc("HD Addon Task", name)
+	old_assignee = doc.assigned_to
 	score = fields.pop("score", None)
 	if score is not None:
 		# Check against the reviewer as stored, not one set in this request.
@@ -598,6 +686,11 @@ def update_task(name: str, **fields) -> bool:
 		if frappe.db.get_value("HD Milestone", doc.milestone, "project") != doc.project:
 			frappe.throw(_("Milestone belongs to a different project"))
 	doc.save(ignore_permissions=True)
+	# Grant the (possibly new) assignee/reviewer access to the parent, and
+	# notify the assignee if it changed to someone new.
+	_grant_task_access(doc)
+	if doc.assigned_to and doc.assigned_to != old_assignee:
+		_notify_task_assignee(doc)
 	return True
 
 
