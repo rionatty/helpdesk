@@ -142,6 +142,11 @@ const routes = [
     props: true,
   },
   {
+    path: "/tasks",
+    name: "TasksAgent",
+    component: () => import("@/pages/TasksView.vue"),
+  },
+  {
     path: "/reminders",
     name: "RemindersAgent",
     component: () => import("@/pages/RemindersPage.vue"),

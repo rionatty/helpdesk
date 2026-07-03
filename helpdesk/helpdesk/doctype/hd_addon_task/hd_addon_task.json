@@ -16,6 +16,8 @@
   "priority",
   "column_break_main",
   "assigned_to",
+  "reviewer",
+  "score",
   "start_date",
   "end_date",
   "is_internal",
@@ -96,6 +98,21 @@
    "fieldtype": "Link",
    "label": "Assigned To",
    "options": "HD Agent"
+  },
+  {
+   "fieldname": "reviewer",
+   "fieldtype": "Link",
+   "label": "Reviewer",
+   "options": "HD Agent",
+   "search_index": 1
+  },
+  {
+   "default": "0",
+   "description": "Review score given by the reviewer (0 = not scored, 1-5)",
+   "fieldname": "score",
+   "fieldtype": "Int",
+   "label": "Score",
+   "non_negative": 1
   },
   {
    "fieldname": "start_date",

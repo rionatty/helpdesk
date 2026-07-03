@@ -183,6 +183,13 @@
               <LucideMessageCircle class="size-3" /> {{ t.comment_count }}
             </span>
             <span
+              v-if="Number(t.score)"
+              class="text-[10px] rounded-full px-1.5 py-0.5 bg-amber-100 text-amber-700 inline-flex items-center gap-0.5"
+              :title="__('Review score')"
+            >
+              <LucideStar class="size-3 fill-amber-500 text-amber-500" /> {{ t.score }}/5
+            </span>
+            <span
               v-if="t.milestone && milestoneTitle(t.milestone)"
               class="text-[10px] rounded-full px-1.5 py-0.5 bg-violet-100 text-violet-700 inline-flex items-center gap-0.5"
             >
@@ -385,9 +392,9 @@
             </div>
           </div>
 
-          <!-- Internal toggle (agent) -->
+          <!-- Internal toggle (agent; standalone tasks are never on the portal) -->
           <label
-            v-if="editable"
+            v-if="editable && !standalone"
             class="flex items-center gap-2 text-sm text-ink-gray-7 cursor-pointer"
           >
             <input
@@ -398,19 +405,34 @@
             {{ __("Internal only — hidden from the customer portal") }}
           </label>
 
-          <!-- Assignee (agent) -->
-          <div v-if="editable" class="flex flex-col gap-1">
-            <span class="text-xs text-ink-gray-5">{{ __("Assignee") }}</span>
-            <select
-              :value="selected.assigned_to || ''"
-              class="text-sm rounded-md border border-outline-gray-2 bg-surface-white px-2 py-1 text-ink-gray-7 focus:outline-none focus:border-blue-400"
-              @change="(e) => patch({ assigned_to: e.target.value })"
-            >
-              <option value="">{{ __("Unassigned") }}</option>
-              <option v-for="a in agentOptions" :key="a.value" :value="a.value">
-                {{ a.label }}
-              </option>
-            </select>
+          <!-- Assignee + Reviewer (agent) -->
+          <div v-if="editable" class="grid grid-cols-2 gap-3">
+            <div class="flex flex-col gap-1">
+              <span class="text-xs text-ink-gray-5">{{ __("Assignee") }}</span>
+              <select
+                :value="selected.assigned_to || ''"
+                class="text-sm rounded-md border border-outline-gray-2 bg-surface-white px-2 py-1 text-ink-gray-7 focus:outline-none focus:border-blue-400"
+                @change="(e) => patch({ assigned_to: e.target.value })"
+              >
+                <option value="">{{ __("Unassigned") }}</option>
+                <option v-for="a in agentOptions" :key="a.value" :value="a.value">
+                  {{ a.label }}
+                </option>
+              </select>
+            </div>
+            <div class="flex flex-col gap-1">
+              <span class="text-xs text-ink-gray-5">{{ __("Reviewer") }}</span>
+              <select
+                :value="selected.reviewer || ''"
+                class="text-sm rounded-md border border-outline-gray-2 bg-surface-white px-2 py-1 text-ink-gray-7 focus:outline-none focus:border-blue-400"
+                @change="(e) => patch({ reviewer: e.target.value })"
+              >
+                <option value="">{{ __("No reviewer") }}</option>
+                <option v-for="a in agentOptions" :key="a.value" :value="a.value">
+                  {{ a.label }}
+                </option>
+              </select>
+            </div>
           </div>
           <div
             v-else-if="selected.assigned_to_name"
@@ -418,6 +440,44 @@
           >
             <Avatar size="sm" :label="selected.assigned_to_name" />
             {{ selected.assigned_to_name }}
+          </div>
+
+          <!-- Review score (agent) -->
+          <div v-if="editable" class="flex flex-col gap-1">
+            <span class="text-xs text-ink-gray-5">
+              {{ __("Score") }}
+              <template v-if="!canScore">
+                ·
+                {{
+                  selected.reviewer
+                    ? __("only the reviewer can score")
+                    : __("set a reviewer to enable scoring")
+                }}
+              </template>
+            </span>
+            <div class="flex items-center gap-0.5">
+              <button
+                v-for="n in 5"
+                :key="n"
+                type="button"
+                :disabled="!canScore"
+                :class="canScore ? 'cursor-pointer hover:scale-110 transition-transform' : 'cursor-default'"
+                :aria-label="__('Score {0} of 5', [n])"
+                @click="canScore && patch({ score: n === Number(selected.score) ? 0 : n })"
+              >
+                <LucideStar
+                  class="size-5"
+                  :class="
+                    n <= (Number(selected.score) || 0)
+                      ? 'text-amber-400 fill-amber-400'
+                      : 'text-ink-gray-3'
+                  "
+                />
+              </button>
+              <span v-if="Number(selected.score)" class="text-xs text-ink-gray-5 ms-1.5">
+                {{ selected.score }}/5
+              </span>
+            </div>
           </div>
 
           <!-- Description -->
@@ -523,22 +583,27 @@ import LucideCheck from "~icons/lucide/check";
 import LucideLoader2 from "~icons/lucide/loader-2";
 import LucideSearch from "~icons/lucide/search";
 import LucideUser from "~icons/lucide/user";
+import LucideStar from "~icons/lucide/star";
 import LucideAlertTriangle from "~icons/lucide/alert-triangle";
 import LucideX from "~icons/lucide/x";
 
 interface P {
   addonId?: string;
   projectId?: string;
+  /** No parent — the independent Tasks workspace. */
+  standalone?: boolean;
   editable?: boolean;
 }
 const props = withDefaults(defineProps<P>(), {
   addonId: "",
   projectId: "",
+  standalone: false,
   editable: false,
 });
 const emit = defineEmits(["changed"]);
 
-const { userId } = useAuthStore();
+const authStore = useAuthStore();
+const { userId } = authStore;
 
 const STATUSES = ["To Do", "In Progress", "Done", "Blocked"];
 const PRIORITIES = ["Low", "Medium", "High", "Urgent"];
@@ -550,7 +615,11 @@ const COLUMNS = [
 ];
 
 const parentParams = () =>
-  props.addonId ? { addon: props.addonId } : { project: props.projectId };
+  props.standalone
+    ? {}
+    : props.addonId
+    ? { addon: props.addonId }
+    : { project: props.projectId };
 
 const tasks = createResource({
   url: "helpdesk.api.addon.get_tasks",
@@ -750,6 +819,14 @@ const showDetail = ref(false);
 const selected = ref<any>(null);
 const subjectInput = ref<any>(null);
 
+// Scoring is reserved for the task's reviewer (managers may always score).
+const canScore = computed(
+  () =>
+    props.editable &&
+    !!selected.value &&
+    (!!authStore.isManager || (!!selected.value.reviewer && selected.value.reviewer === userId))
+);
+
 // Open a just-created task with its name selected, so the placeholder
 // "New task" can be renamed immediately.
 async function openNew(name: string, status: string) {
@@ -766,6 +843,9 @@ async function openNew(name: string, status: string) {
     description: "",
     assigned_to: "",
     assigned_to_name: "",
+    reviewer: "",
+    reviewer_name: "",
+    score: 0,
   };
   showDetail.value = true;
   comments.reload();

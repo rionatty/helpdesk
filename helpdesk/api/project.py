@@ -12,6 +12,7 @@ from frappe.utils import cint, today
 
 from helpdesk.utils import (
 	agent_has_project,
+	assigned_project_names,
 	get_customer,
 	get_doc_viewers,
 	is_agent,
@@ -176,8 +177,9 @@ def get_projects(
 	project_type: str | None = None,
 	mine: bool = False,
 ) -> list:
-	"""List projects. Agents see all (optionally filtered by customer/type/mine);
-	customers see only their company's customer projects."""
+	"""List projects. Agent Managers see all (optionally filtered by
+	customer/type/mine); other agents see only projects they lead or are a
+	member of; customers see only their company's customer projects."""
 	filters: dict = {}
 	if customer:
 		filters["customer"] = customer
@@ -188,21 +190,10 @@ def get_projects(
 		if not companies:
 			return []
 		filters["customer"] = ["in", companies]
-	if mine and is_agent():
-		me = frappe.session.user
-		member_projects = frappe.get_all(
-			"HD Project Member",
-			filters={"agent": me},
-			pluck="project",
-			ignore_permissions=True,
-		)
-		lead_projects = frappe.get_all(
-			"HD Project",
-			filters={"lead": me},
-			pluck="name",
-			ignore_permissions=True,
-		)
-		my_projects = list(set(member_projects) | set(lead_projects))
+	elif not is_agent_manager() or mine:
+		# Non-manager agents are limited to their assigned projects; managers
+		# can opt into the same "just mine" view via `mine`.
+		my_projects = assigned_project_names()
 		if not my_projects:
 			return []
 		filters["name"] = ["in", my_projects]

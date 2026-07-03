@@ -12,6 +12,7 @@ from frappe.utils import cint
 from helpdesk.utils import (
 	agent_has_addon,
 	agent_has_project,
+	assigned_addon_names,
 	get_customer,
 	get_doc_viewers,
 	is_agent,
@@ -49,8 +50,9 @@ def _assert_agent() -> None:
 
 @frappe.whitelist()
 def get_addons(customer: str | None = None, mine: bool = False) -> list:
-	"""List add-ons. Agents see all (optionally by customer/mine); customers
-	see only their company's add-ons."""
+	"""List add-ons. Agent Managers see all (optionally by customer/mine);
+	other agents see only add-ons they are assigned to; customers see only
+	their company's add-ons."""
 	filters: dict = {}
 	if customer:
 		filters["customer"] = customer
@@ -59,14 +61,10 @@ def get_addons(customer: str | None = None, mine: bool = False) -> list:
 		if not companies:
 			return []
 		filters["customer"] = ["in", companies]
-	if mine and is_agent():
-		me = frappe.session.user
-		my_addons = frappe.get_all(
-			"HD Addon Member",
-			filters={"agent": me},
-			pluck="addon",
-			ignore_permissions=True,
-		)
+	elif not is_agent_manager() or mine:
+		# Non-manager agents are limited to their assigned add-ons; managers
+		# can opt into the same "just mine" view via `mine`.
+		my_addons = assigned_addon_names()
 		if not my_addons:
 			return []
 		filters["name"] = ["in", my_addons]
@@ -224,6 +222,9 @@ TASK_FIELDS = [
 	"status",
 	"priority",
 	"assigned_to",
+	"reviewer",
+	"score",
+	"owner",
 	"milestone",
 	"feature",
 	"ticket",
@@ -232,11 +233,14 @@ TASK_FIELDS = [
 	"end_date",
 	"description",
 ]
+# `score` is deliberately NOT writable here — update_task gates it so only
+# the task's reviewer (or a manager) can score.
 TASK_WRITABLE = {
 	"subject",
 	"status",
 	"priority",
 	"assigned_to",
+	"reviewer",
 	"milestone",
 	"feature",
 	"ticket",
@@ -279,23 +283,43 @@ def _get_features(addon: str) -> list:
 
 
 def _get_tasks(addon: str | None = None, project: str | None = None) -> list:
-	"""Tasks for an add-on OR a project, with assignee names + comment counts.
-	Portal users don't get internal tasks, nor agent emails."""
-	filters: dict = {"addon": addon} if addon else {"project": project}
+	"""Tasks for an add-on, a project, or standalone (neither), with assignee/
+	reviewer names + comment counts. Portal users don't get internal tasks,
+	agent emails, nor review data (reviewer/score are internal QA)."""
 	agent = is_agent()
+	or_filters = None
+	if addon:
+		filters: dict = {"addon": addon}
+	elif project:
+		filters = {"project": project}
+	else:
+		# Standalone tasks — the independent Tasks workspace. Non-managers
+		# only see tasks they created, are assigned to, or review.
+		filters = {"addon": ["is", "not set"], "project": ["is", "not set"]}
+		if not is_agent_manager():
+			me = frappe.session.user
+			or_filters = [
+				["owner", "=", me],
+				["assigned_to", "=", me],
+				["reviewer", "=", me],
+			]
 	if not agent:
 		filters["is_internal"] = 0
 	try:
 		rows = frappe.get_all(
 			"HD Addon Task",
 			filters=filters,
+			or_filters=or_filters,
 			fields=TASK_FIELDS,
 			order_by="modified desc",
 			ignore_permissions=True,
 		)
 	except Exception:
 		return []
-	users = list({r.assigned_to for r in rows if r.assigned_to})
+	users = list(
+		{r.assigned_to for r in rows if r.assigned_to}
+		| {r.reviewer for r in rows if r.reviewer}
+	)
 	names = {}
 	if users:
 		names = {
@@ -323,10 +347,17 @@ def _get_tasks(addon: str | None = None, project: str | None = None) -> list:
 		r["assigned_to_name"] = names.get(r.assigned_to) or (
 			r.assigned_to if agent else (_("Support agent") if r.assigned_to else None)
 		)
+		r["reviewer_name"] = (
+			(names.get(r.reviewer) or r.reviewer) if agent and r.reviewer else None
+		)
 		r["comment_count"] = counts.get(r.name, 0)
 		if not agent:
-			# assigned_to is an email; portal gets the display name only.
+			# assigned_to/owner are emails; the portal gets display names only.
+			# Reviewer and score are internal QA — never shown to customers.
 			r["assigned_to"] = None
+			r["owner"] = None
+			r["reviewer"] = None
+			r["score"] = 0
 	return rows
 
 
@@ -354,17 +385,29 @@ def _assert_parent_access(
 		if row.customer and row.customer in get_customer(frappe.session.user):
 			return
 		frappe.throw(_("Not permitted"), frappe.PermissionError)
-	frappe.throw(_("A parent add-on or project is required"))
+	# No parent — a standalone task in the independent Tasks workspace.
+	# Internal to the team: agents only, never the portal.
+	_assert_agent()
 
 
 def _assert_task_access(task: str) -> frappe._dict:
 	row = frappe.db.get_value(
-		"HD Addon Task", task, ["addon", "project"], as_dict=True
+		"HD Addon Task",
+		task,
+		["addon", "project", "owner", "assigned_to", "reviewer"],
+		as_dict=True,
 	)
 	if not row:
 		frappe.throw(_("Task not found"), frappe.DoesNotExistError)
-	_assert_parent_access(addon=row.addon, project=row.project)
-	return row
+	if row.addon or row.project:
+		_assert_parent_access(addon=row.addon, project=row.project)
+		return row
+	# Standalone task: managers, or the people involved in it.
+	_assert_agent()
+	user = frappe.session.user
+	if is_agent_manager() or user in (row.owner, row.assigned_to, row.reviewer):
+		return row
+	frappe.throw(_("You do not have access to this task"), frappe.PermissionError)
 
 
 def _linked_tickets(addon: str) -> list:
@@ -477,7 +520,9 @@ def delete_feature(name: str) -> bool:
 
 @frappe.whitelist()
 def get_tasks(addon: str | None = None, project: str | None = None) -> list:
-	"""Tasks for an add-on or project. Agents and the parent's customer (view)."""
+	"""Tasks for an add-on or project (agents and the parent's customer), or —
+	with no parent — the standalone Tasks workspace (agents only; non-managers
+	see the tasks they created, are assigned to, or review)."""
 	_assert_parent_access(addon=addon, project=project)
 	return _get_tasks(addon=addon, project=project)
 
@@ -493,12 +538,14 @@ def add_task(
 	status: str = "To Do",
 	priority: str = "Medium",
 	assigned_to: str | None = None,
+	reviewer: str | None = None,
 	start_date: str | None = None,
 	end_date: str | None = None,
 	description: str | None = None,
 	is_internal: int = 0,
 ) -> str:
-	"""Add a task to an add-on or project. Agents only."""
+	"""Add a task to an add-on, a project, or standalone (no parent).
+	Agents only."""
 	_assert_agent()
 	_assert_parent_access(addon=addon, project=project)
 	if not (subject or "").strip():
@@ -518,6 +565,7 @@ def add_task(
 			"status": status or "To Do",
 			"priority": priority or "Medium",
 			"assigned_to": assigned_to or None,
+			"reviewer": reviewer or None,
 			"start_date": start_date,
 			"end_date": end_date,
 			"description": description,
@@ -529,10 +577,20 @@ def add_task(
 
 @frappe.whitelist()
 def update_task(name: str, **fields) -> bool:
-	"""Update a task. Assigned agents and managers only."""
+	"""Update a task. Assigned agents and managers only. Scoring is reserved
+	for the task's reviewer (or a manager)."""
 	_assert_agent()
 	_assert_task_access(name)
 	doc = frappe.get_doc("HD Addon Task", name)
+	score = fields.pop("score", None)
+	if score is not None:
+		# Check against the reviewer as stored, not one set in this request.
+		if not (is_agent_manager() or frappe.session.user == doc.reviewer):
+			frappe.throw(
+				_("Only the reviewer or a manager can score a task"),
+				frappe.PermissionError,
+			)
+		doc.score = max(0, min(5, cint(score)))
 	for key, value in fields.items():
 		if key in TASK_WRITABLE:
 			doc.set(key, value)

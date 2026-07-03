@@ -515,6 +515,30 @@ def agent_has_addon(addon: str, user: str = None) -> bool:
 	return bool(frappe.db.exists("HD Addon Member", {"addon": addon, "agent": user}))
 
 
+def assigned_project_names(user: str = None) -> list:
+	"""Names of every project `user` leads or is an assigned member of.
+	Used to scope list views for non-manager agents."""
+	user = user or frappe.session.user
+	member = frappe.get_all(
+		"HD Project Member", filters={"agent": user}, pluck="project",
+		ignore_permissions=True,
+	)
+	lead = frappe.get_all(
+		"HD Project", filters={"lead": user}, pluck="name", ignore_permissions=True
+	)
+	return list(set(member) | set(lead))
+
+
+def assigned_addon_names(user: str = None) -> list:
+	"""Names of every add-on `user` is an assigned member of. Used to scope
+	list views for non-manager agents."""
+	user = user or frappe.session.user
+	return frappe.get_all(
+		"HD Addon Member", filters={"agent": user}, pluck="addon",
+		ignore_permissions=True,
+	)
+
+
 def log_doc_view(doctype: str, name: str) -> None:
 	"""Record that the current user opened a document (core View Log doctype),
 	throttled to one entry per user per 15 minutes. Never raises — view

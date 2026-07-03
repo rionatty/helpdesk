@@ -5,6 +5,7 @@ import LucideLayoutDashboard from "~icons/lucide/layout-dashboard";
 import LucideFolderKanban from "~icons/lucide/folder-kanban";
 import LucideLayoutTemplate from "~icons/lucide/layout-template";
 import LucidePackage from "~icons/lucide/package";
+import LucideListChecks from "~icons/lucide/list-checks";
 import LucideBell from "~icons/lucide/bell";
 import { OrganizationsIcon } from "../icons";
 import PhoneIcon from "../icons/PhoneIcon.vue";
@@ -41,6 +42,11 @@ export const agentPortalSidebarOptions = [
     label: __("Add-ons"),
     icon: LucidePackage,
     to: "AddonsAgent",
+  },
+  {
+    label: __("Tasks"),
+    icon: LucideListChecks,
+    to: "TasksAgent",
   },
   {
     label: __("Reminders"),
