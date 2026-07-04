@@ -12,7 +12,7 @@
     </LayoutHeader>
 
     <div
-      class="w-full max-w-screen-xl mx-auto px-4 md:px-6 lg:px-8 py-6 flex flex-col gap-4 flex-1 overflow-y-auto"
+      class="w-full max-w-screen-2xl mx-auto px-4 md:px-6 lg:px-8 py-6 flex flex-col gap-4 flex-1 overflow-y-auto"
     >
       <div class="executive-card p-5">
         <TaskBoard hub :editable="true" />
