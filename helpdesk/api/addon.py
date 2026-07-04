@@ -597,8 +597,26 @@ def _notify_task_assignee(doc) -> None:
 	except Exception:
 		pass
 
-	# Skip email only when the whole site has email turned off.
-	if frappe.db.get_single_value("HD Settings", "skip_email_workflow"):
+	# Resolve a usable sender. frappe.sendmail silently fails when no account is
+	# flagged "Default Outgoing"; fall back to any enabled outgoing account.
+	sender = frappe.db.get_value(
+		"Email Account", {"enable_outgoing": 1, "default_outgoing": 1}, "email_id"
+	) or frappe.db.get_value(
+		"Email Account", {"enable_outgoing": 1}, "email_id"
+	)
+	if not sender:
+		frappe.log_error(
+			title="Task assignment email skipped",
+			message=(
+				f"No enabled outgoing Email Account configured — cannot email "
+				f"{agent} about task {doc.name}. Add one under Email Account."
+			),
+		)
+		frappe.msgprint(
+			_("Task assigned. Email not sent: no outgoing Email Account is set up."),
+			indicator="orange",
+			alert=True,
+		)
 		return
 
 	try:
@@ -624,6 +642,7 @@ def _notify_task_assignee(doc) -> None:
 		# queue — so a stopped/slow scheduler doesn't swallow the notification.
 		frappe.sendmail(
 			recipients=[agent],
+			sender=sender,
 			subject=subject,
 			message=message,
 			reference_doctype="HD Addon Task",
@@ -631,11 +650,18 @@ def _notify_task_assignee(doc) -> None:
 			now=True,
 		)
 	except Exception as e:
-		# Surface the real reason (e.g. no default outgoing Email Account) in the
-		# Error Log so it can be diagnosed, but don't fail the save.
+		# Surface the real reason (bad SMTP creds, etc.) both in the Error Log and
+		# to the person assigning, but never fail the save.
 		frappe.log_error(
 			title="Task assignment email failed",
-			message=f"To: {agent}\nTask: {doc.name}\n\n{frappe.get_traceback()}\n{e}",
+			message=f"To: {agent}\nSender: {sender}\nTask: {doc.name}\n\n{frappe.get_traceback()}\n{e}",
+		)
+		frappe.msgprint(
+			_("Task assigned, but the email to {0} could not be sent: {1}").format(
+				agent, str(e)
+			),
+			indicator="orange",
+			alert=True,
 		)
 
 
