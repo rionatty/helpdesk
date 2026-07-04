@@ -640,6 +640,57 @@
               />
             </form>
           </div>
+
+          <!-- Activity / audit trail (agents only) -->
+          <div
+            v-if="editable && selected.name"
+            class="border-t border-outline-gray-1 pt-3 flex flex-col gap-2.5"
+          >
+            <div class="flex items-center gap-2">
+              <LucideHistory class="size-4 text-ink-gray-6" />
+              <span class="text-sm font-semibold text-ink-gray-8">
+                {{ __("Activity") }}
+              </span>
+            </div>
+            <div
+              v-if="activity.data?.length"
+              class="flex flex-col gap-3 max-h-60 overflow-y-auto ps-1"
+            >
+              <div
+                v-for="(a, idx) in activity.data"
+                :key="idx"
+                class="flex gap-2.5"
+              >
+                <span class="mt-1.5 size-1.5 rounded-full bg-ink-gray-4 shrink-0" />
+                <div class="min-w-0 text-xs">
+                  <div class="flex items-center gap-1.5">
+                    <span class="font-medium text-ink-gray-8">{{ a.author }}</span>
+                    <span
+                      v-if="!a.is_agent"
+                      class="text-[9px] font-semibold uppercase tracking-wide text-amber-700 bg-amber-100 rounded px-1"
+                    >
+                      {{ __("Customer") }}
+                    </span>
+                    <span class="text-ink-gray-4">{{ timeAgo(a.creation) }}</span>
+                  </div>
+                  <div v-if="a.action === 'created'" class="text-ink-gray-6 mt-0.5">
+                    {{ __("created this task") }}
+                  </div>
+                  <ul v-else class="mt-0.5 flex flex-col gap-0.5">
+                    <li v-for="(c, i) in a.changes" :key="i" class="text-ink-gray-6">
+                      <span class="font-medium text-ink-gray-7">{{ c.field }}</span>:
+                      <span class="text-ink-gray-5 line-through">{{ c.from }}</span>
+                      <span class="text-ink-gray-4"> → </span>
+                      <span class="text-ink-gray-8">{{ c.to }}</span>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+            <p v-else-if="!activity.loading" class="text-xs text-ink-gray-4">
+              {{ __("No changes recorded yet.") }}
+            </p>
+          </div>
           </div>
         </div>
       </template>
@@ -668,6 +719,7 @@ import LucideTrash2 from "~icons/lucide/trash-2";
 import LucideCalendar from "~icons/lucide/calendar";
 import LucideMessageCircle from "~icons/lucide/message-circle";
 import LucideTrendingUp from "~icons/lucide/trending-up";
+import LucideHistory from "~icons/lucide/history";
 import LucideFlag from "~icons/lucide/flag";
 import LucideEyeOff from "~icons/lucide/eye-off";
 import LucideListChecks from "~icons/lucide/list-checks";
@@ -1134,6 +1186,7 @@ async function openNew(name: string, status: string) {
   };
   showDetail.value = true;
   comments.reload();
+  if (props.editable) activity.reload();
   await nextTick();
   subjectInput.value?.focus?.();
   subjectInput.value?.select?.();
@@ -1143,10 +1196,16 @@ const comments = createResource({
   url: "helpdesk.api.addon.get_task_comments",
   makeParams: () => ({ task: selected.value?.name }),
 });
+// Audit trail (agents only).
+const activity = createResource({
+  url: "helpdesk.api.addon.get_task_activity",
+  makeParams: () => ({ task: selected.value?.name }),
+});
 function open(t: any) {
   selected.value = { ...t };
   showDetail.value = true;
   comments.reload();
+  if (props.editable) activity.reload();
 }
 
 const updateRes = createResource({
@@ -1154,6 +1213,7 @@ const updateRes = createResource({
   onSuccess: () => {
     tasks.reload();
     if (props.projectId) milestonesRes.reload();
+    if (showDetail.value && props.editable) activity.reload();
     emit("changed");
   },
   onError: (e: any) =>

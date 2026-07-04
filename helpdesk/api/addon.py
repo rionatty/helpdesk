@@ -832,3 +832,118 @@ def add_task_comment(task: str, content: str) -> str:
 		{"doctype": "HD Task Comment", "task": task, "content": content}
 	).insert(ignore_permissions=True)
 	return c.name
+
+
+# ---------------------------------------------------------------------------
+# Task audit trail (change history)
+# ---------------------------------------------------------------------------
+
+# Framework/bookkeeping fields we never want to surface in the audit timeline.
+_LOG_IGNORE_FIELDS = {
+	"modified",
+	"modified_by",
+	"creation",
+	"owner",
+	"_liked_by",
+	"_comments",
+	"_assign",
+	"_seen",
+	"_user_tags",
+	"docstatus",
+}
+
+
+def _fmt_log_value(fieldname: str, value) -> str:
+	"""Human-readable rendering of an old/new field value for the audit log."""
+	if fieldname in ("assigned_to", "reviewer"):
+		if not value:
+			return "—"
+		return frappe.db.get_value("HD Agent", value, "agent_name") or value
+	if fieldname == "is_internal":
+		return _("Yes") if cint(value) else _("No")
+	if value in (None, ""):
+		return "—"
+	return str(value)
+
+
+@frappe.whitelist()
+def get_task_activity(task: str) -> list:
+	"""Readable change history for a task (audit trail), newest first.
+
+	Backed by Frappe's Version log (the doctype has track_changes on), so every
+	field change is already recorded with who and when. Agents only — the trail
+	exposes internal fields (reviewer, score, internal flag)."""
+	_assert_agent()
+	_assert_task_access(task)
+
+	meta = frappe.get_meta("HD Addon Task")
+	versions = frappe.get_all(
+		"Version",
+		filters={"ref_doctype": "HD Addon Task", "docname": task},
+		fields=["owner", "creation", "data"],
+		order_by="creation desc",
+		ignore_permissions=True,
+	)
+	created = frappe.db.get_value(
+		"HD Addon Task", task, ["owner", "creation"], as_dict=True
+	)
+
+	users = {v.owner for v in versions if v.owner}
+	if created and created.owner:
+		users.add(created.owner)
+	names, agents = {}, set()
+	if users:
+		names = {
+			u.name: u.full_name
+			for u in frappe.get_all(
+				"User", filters={"name": ["in", list(users)]}, fields=["name", "full_name"]
+			)
+		}
+		agents = set(
+			frappe.get_all("HD Agent", filters={"name": ["in", list(users)]}, pluck="name")
+		)
+
+	entries = []
+	for v in versions:
+		try:
+			data = frappe.parse_json(v.data) or {}
+		except Exception:
+			continue
+		changes = []
+		for row in data.get("changed") or []:
+			if not isinstance(row, (list, tuple)) or len(row) < 3:
+				continue
+			fieldname = row[0]
+			if fieldname in _LOG_IGNORE_FIELDS:
+				continue
+			df = meta.get_field(fieldname)
+			changes.append(
+				{
+					"field": df.label if df else fieldname,
+					"from": _fmt_log_value(fieldname, row[1]),
+					"to": _fmt_log_value(fieldname, row[2]),
+				}
+			)
+		if not changes:
+			continue
+		entries.append(
+			{
+				"author": names.get(v.owner) or v.owner,
+				"is_agent": v.owner in agents,
+				"creation": v.creation,
+				"action": "updated",
+				"changes": changes,
+			}
+		)
+
+	if created:
+		entries.append(
+			{
+				"author": names.get(created.owner) or created.owner,
+				"is_agent": created.owner in agents,
+				"creation": created.creation,
+				"action": "created",
+				"changes": [],
+			}
+		)
+	return entries
