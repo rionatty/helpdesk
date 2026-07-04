@@ -22,25 +22,28 @@
       <!-- Hub dashboard -->
       <div
         v-if="hub && tasks.data?.length"
-        class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2"
+        class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3"
       >
         <div
-          v-for="card in [
-            { label: __('Total'), value: dash.total, dot: 'bg-ink-gray-5' },
-            { label: __('To Do'), value: dash.todo, dot: 'bg-ink-gray-4' },
-            { label: __('In Progress'), value: dash.inProgress, dot: 'bg-blue-500' },
-            { label: __('Done'), value: dash.done, dot: 'bg-green-500' },
-            { label: __('Blocked'), value: dash.blocked, dot: 'bg-red-500' },
-            { label: __('Overdue'), value: dash.overdue, dot: 'bg-amber-500' },
-          ]"
+          v-for="card in dashCards"
           :key="card.label"
-          class="rounded-xl border border-outline-gray-1 bg-surface-white px-3 py-2.5 flex flex-col gap-1"
+          class="relative overflow-hidden rounded-xl border border-outline-gray-1 bg-surface-white px-3.5 py-3 flex flex-col gap-2.5 shadow-sm hover:shadow-md transition-shadow"
         >
-          <div class="flex items-center gap-1.5 text-[11px] text-ink-gray-5">
-            <span class="size-2 rounded-full" :class="card.dot" />
-            {{ card.label }}
+          <span class="absolute inset-x-0 top-0 h-1" :class="card.bar" />
+          <div
+            class="size-7 rounded-lg flex items-center justify-center"
+            :class="card.chip"
+          >
+            <component :is="card.icon" class="size-4" />
           </div>
-          <span class="text-xl font-bold text-ink-gray-9">{{ card.value }}</span>
+          <div>
+            <div class="text-2xl font-bold leading-none" :class="card.num">
+              {{ card.value }}
+            </div>
+            <div class="text-[11px] font-medium text-ink-gray-5 mt-1">
+              {{ card.label }}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -173,18 +176,20 @@
       <div
         v-for="col in boardColumns"
         :key="col.key"
-        class="rounded-xl bg-surface-gray-1 border border-outline-gray-1 p-2.5 flex flex-col gap-2 min-h-[80px] max-h-[420px]"
+        class="rounded-2xl bg-surface-gray-1 border border-outline-gray-1 p-2.5 flex flex-col gap-2 min-h-[96px] max-h-[440px]"
       >
         <div class="flex items-center justify-between px-1 shrink-0">
           <div class="flex items-center gap-1.5 text-xs font-semibold text-ink-gray-7 min-w-0">
-            <span class="size-2 rounded-full shrink-0" :class="col.dot" />
+            <span class="size-2.5 rounded-full shrink-0 ring-2 ring-inset ring-white/60" :class="col.dot" />
             <span class="truncate">{{ col.label }}</span>
-            <span class="text-ink-gray-4 shrink-0">{{ (grouped[col.key] || []).length }}</span>
+            <span class="shrink-0 text-[10px] font-semibold text-ink-gray-6 bg-surface-white rounded-full px-1.5 py-0.5 min-w-[1.25rem] text-center">
+              {{ (grouped[col.key] || []).length }}
+            </span>
           </div>
           <button
             v-if="editable && col.addable"
             type="button"
-            class="text-ink-gray-5 hover:text-ink-gray-8 shrink-0"
+            class="text-ink-gray-5 hover:text-ink-gray-9 hover:bg-surface-white rounded-md p-0.5 transition-colors shrink-0"
             :aria-label="__('Add task')"
             @click="quickAdd(col.key)"
           >
@@ -199,7 +204,7 @@
           v-for="t in grouped[col.key]"
           :key="t.name"
           type="button"
-          class="text-start rounded-lg border border-outline-gray-2 bg-surface-white px-3 py-2.5 flex flex-col gap-2 hover:shadow-sm hover:border-outline-gray-3 transition-all"
+          class="text-start rounded-xl border border-outline-gray-2 bg-surface-white px-3 py-2.5 flex flex-col gap-2 hover:shadow-md hover:border-outline-gray-3 hover:-translate-y-0.5 transition-all duration-150"
           @click="open(t)"
         >
           <div class="text-sm font-medium text-ink-gray-8 leading-snug">
@@ -275,8 +280,9 @@
 
         <div
           v-if="!grouped[col.key].length"
-          class="text-[11px] text-ink-gray-4 px-1 py-1"
+          class="flex flex-col items-center justify-center gap-1 text-[11px] text-ink-gray-4 py-6"
         >
+          <LucideListChecks class="size-4 text-ink-gray-3" />
           {{ __("Nothing here") }}
         </div>
         </div>
@@ -286,19 +292,20 @@
     <!-- Add task (agent) -->
     <form
       v-if="editable"
-      class="flex items-center gap-2 mt-1"
+      class="flex items-center gap-2 mt-1 rounded-xl border border-outline-gray-2 bg-surface-white p-1.5 pl-3 focus-within:border-blue-400 transition-colors"
       @submit.prevent="add"
     >
+      <LucidePlus class="size-4 text-ink-gray-4 shrink-0" />
       <input
         v-model="newSubject"
         type="text"
-        :placeholder="__('Add a task…')"
-        class="flex-1 text-sm rounded-lg border border-outline-gray-2 bg-surface-white px-3 py-1.5 text-ink-gray-8 focus:outline-none focus:border-blue-400"
+        :placeholder="hub ? __('Add a personal task…') : __('Add a task…')"
+        class="flex-1 text-sm bg-transparent text-ink-gray-8 focus:outline-none"
       />
       <Button
         :label="__('Add')"
         theme="blue"
-        variant="subtle"
+        variant="solid"
         size="sm"
         :loading="addRes.loading"
         @click="add"
@@ -652,6 +659,9 @@ import LucideUser from "~icons/lucide/user";
 import LucideStar from "~icons/lucide/star";
 import LucideFolder from "~icons/lucide/folder";
 import LucideAlertTriangle from "~icons/lucide/alert-triangle";
+import LucideCircleDot from "~icons/lucide/circle-dot";
+import LucideCircleCheck from "~icons/lucide/circle-check";
+import LucideCircleX from "~icons/lucide/circle-x";
 import LucideX from "~icons/lucide/x";
 
 interface P {
@@ -742,6 +752,20 @@ const dash = computed(() => {
     overdue: all.filter((t: any) => isOverdue(t)).length,
   };
 });
+const dashCards = computed(() => [
+  { label: __("Total"), value: dash.value.total, icon: LucideListChecks,
+    chip: "bg-ink-gray-2 text-ink-gray-7", num: "text-ink-gray-9", bar: "bg-ink-gray-4" },
+  { label: __("To Do"), value: dash.value.todo, icon: LucideCircleDot,
+    chip: "bg-surface-gray-3 text-ink-gray-6", num: "text-ink-gray-8", bar: "bg-ink-gray-4" },
+  { label: __("In Progress"), value: dash.value.inProgress, icon: LucideLoader2,
+    chip: "bg-blue-100 text-blue-600", num: "text-blue-600", bar: "bg-blue-500" },
+  { label: __("Done"), value: dash.value.done, icon: LucideCircleCheck,
+    chip: "bg-green-100 text-green-600", num: "text-green-600", bar: "bg-green-500" },
+  { label: __("Blocked"), value: dash.value.blocked, icon: LucideCircleX,
+    chip: "bg-red-100 text-red-600", num: "text-red-600", bar: "bg-red-500" },
+  { label: __("Overdue"), value: dash.value.overdue, icon: LucideAlertTriangle,
+    chip: "bg-amber-100 text-amber-600", num: "text-amber-600", bar: "bg-amber-500" },
+]);
 
 // Assignee options are derived from the tasks themselves, so the filter works
 // on the customer portal too (where the agent list isn't loaded).
