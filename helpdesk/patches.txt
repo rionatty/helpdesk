@@ -42,3 +42,4 @@ helpdesk.patches.rename_and_update_std_views #v2
 helpdesk.patches.set_hd_ticket_naming_series
 helpdesk.patches.set_project_type_customer
 helpdesk.patches.backfill_task_member_access
+helpdesk.patches.rename_task_status_blocked_to_pending

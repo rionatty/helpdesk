@@ -494,7 +494,7 @@ import LucideEyeOff from "~icons/lucide/eye-off";
 
 const { $dialog } = globalStore();
 
-const TASK_STATUSES = ["To Do", "In Progress", "Done", "Blocked"];
+const TASK_STATUSES = ["To Do", "In Progress", "Pending", "Postponed", "Done"];
 const PRIORITIES = ["Low", "Medium", "High", "Urgent"];
 
 const selectedName = ref("");

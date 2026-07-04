@@ -34,7 +34,7 @@
    "fieldtype": "Select",
    "in_list_view": 1,
    "label": "Status",
-   "options": "To Do\nIn Progress\nDone\nBlocked"
+   "options": "To Do\nIn Progress\nPending\nPostponed\nDone"
   },
   {
    "default": "Medium",

@@ -152,7 +152,7 @@ def _clean_task_rows(rows) -> list:
 		if assignee and not frappe.db.exists("HD Agent", assignee):
 			assignee = None
 		status = r.get("status") or "To Do"
-		if status not in ("To Do", "In Progress", "Done", "Blocked"):
+		if status not in ("To Do", "In Progress", "Pending", "Postponed", "Done"):
 			status = "To Do"
 		priority = r.get("priority") or "Medium"
 		if priority not in ("Low", "Medium", "High", "Urgent"):

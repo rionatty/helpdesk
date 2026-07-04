@@ -218,7 +218,7 @@
             <div class="text-[11px] text-ink-gray-4">{{ addonTaskBreakdown.donePct }}% complete</div>
           </div>
 
-          <!-- Blocked -->
+          <!-- Pending -->
           <div
             class="executive-card executive-card-hover flex flex-col gap-2 px-4 pt-5 pb-4 cursor-pointer"
             :class="addonTaskBreakdown.blocked ? 'ring-1 ring-red-200' : ''"
@@ -240,7 +240,7 @@
                 {{ addonTaskBreakdown.blocked }}
               </span>
             </div>
-            <div class="text-xs font-semibold text-ink-gray-7">{{ __("Tasks Blocked") }}</div>
+            <div class="text-xs font-semibold text-ink-gray-7">{{ __("Tasks Pending") }}</div>
             <div class="text-[11px]" :class="addonTaskBreakdown.blocked ? 'text-red-500' : 'text-ink-gray-4'">
               {{ addonTaskBreakdown.blocked ? addonTaskBreakdown.blocked + " need attention" : "All clear" }}
             </div>
@@ -609,7 +609,7 @@ const addonTaskBreakdown = computed(() => {
   const todo = s["To Do"] || 0;
   const inprogress = s["In Progress"] || 0;
   const done = s["Done"] || 0;
-  const blocked = s["Blocked"] || 0;
+  const blocked = s["Pending"] || 0;
   return {
     todo, inprogress, done, blocked,
     total: dash.value.tasks_total || 0,

@@ -22,7 +22,7 @@
       <!-- Hub dashboard -->
       <div
         v-if="hub && tasks.data?.length"
-        class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3"
+        class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3"
       >
         <div
           v-for="card in dashCards"
@@ -255,7 +255,7 @@
     </div>
 
     <!-- Kanban columns -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
       <div
         v-for="col in boardColumns"
         :key="col.key"
@@ -801,7 +801,8 @@ import LucideFolder from "~icons/lucide/folder";
 import LucideAlertTriangle from "~icons/lucide/alert-triangle";
 import LucideCircleDot from "~icons/lucide/circle-dot";
 import LucideCircleCheck from "~icons/lucide/circle-check";
-import LucideCircleX from "~icons/lucide/circle-x";
+import LucideCirclePause from "~icons/lucide/circle-pause";
+import LucideClock from "~icons/lucide/clock";
 import LucideX from "~icons/lucide/x";
 
 interface P {
@@ -828,13 +829,14 @@ const isManager = computed(() => !!authStore.isManager);
 // In the hub, only managers may assign work to other agents.
 const canAssignOthers = computed(() => !props.hub || isManager.value);
 
-const STATUSES = ["To Do", "In Progress", "Done", "Blocked"];
+const STATUSES = ["To Do", "In Progress", "Pending", "Postponed", "Done"];
 const PRIORITIES = ["Low", "Medium", "High", "Urgent"];
 const COLUMNS = [
   { key: "To Do", dot: "bg-ink-gray-4" },
   { key: "In Progress", dot: "bg-blue-500" },
+  { key: "Pending", dot: "bg-amber-500" },
+  { key: "Postponed", dot: "bg-violet-500" },
   { key: "Done", dot: "bg-green-500" },
-  { key: "Blocked", dot: "bg-red-500" },
 ];
 
 const parentParams = () =>
@@ -888,7 +890,8 @@ const dash = computed(() => {
     todo: by("To Do"),
     inProgress: by("In Progress"),
     done: by("Done"),
-    blocked: by("Blocked"),
+    pending: by("Pending"),
+    postponed: by("Postponed"),
     overdue: all.filter((t: any) => isOverdue(t)).length,
   };
 });
@@ -899,12 +902,14 @@ const dashCards = computed(() => [
     chip: "bg-surface-gray-3 text-ink-gray-6", num: "text-ink-gray-8", bar: "bg-ink-gray-4" },
   { label: __("In Progress"), value: dash.value.inProgress, icon: LucideLoader2,
     chip: "bg-blue-100 text-blue-600", num: "text-blue-600", bar: "bg-blue-500" },
+  { label: __("Pending"), value: dash.value.pending, icon: LucideCirclePause,
+    chip: "bg-amber-100 text-amber-600", num: "text-amber-600", bar: "bg-amber-500" },
+  { label: __("Postponed"), value: dash.value.postponed, icon: LucideClock,
+    chip: "bg-violet-100 text-violet-600", num: "text-violet-600", bar: "bg-violet-500" },
   { label: __("Done"), value: dash.value.done, icon: LucideCircleCheck,
     chip: "bg-green-100 text-green-600", num: "text-green-600", bar: "bg-green-500" },
-  { label: __("Blocked"), value: dash.value.blocked, icon: LucideCircleX,
-    chip: "bg-red-100 text-red-600", num: "text-red-600", bar: "bg-red-500" },
   { label: __("Overdue"), value: dash.value.overdue, icon: LucideAlertTriangle,
-    chip: "bg-amber-100 text-amber-600", num: "text-amber-600", bar: "bg-amber-500" },
+    chip: "bg-red-100 text-red-600", num: "text-red-600", bar: "bg-red-500" },
 ]);
 
 // Per-chart filters — independent of the board filters below.
@@ -1009,15 +1014,16 @@ const trendOption = computed(() => {
 const STATUS_COLORS: Record<string, string> = {
   "To Do": "#94a3b8",
   "In Progress": "#3b82f6",
+  Pending: "#f59e0b",
+  Postponed: "#8b5cf6",
   Done: "#10b981",
-  Blocked: "#ef4444",
 };
 const statusChartOption = computed(() => {
   void dataTheme.value;
   const base = hubTasks.value.filter(
     (t: any) => !statusProject.value || parentKeyOf(t) === statusProject.value
   );
-  const data = ["To Do", "In Progress", "Done", "Blocked"]
+  const data = ["To Do", "In Progress", "Pending", "Postponed", "Done"]
     .map((s) => ({
       name: s,
       value: base.filter((t: any) => t.status === s).length,
@@ -1250,8 +1256,9 @@ function statusChipClass(status: string) {
     {
       "To Do": "bg-surface-gray-2 text-ink-gray-6",
       "In Progress": "bg-blue-50 text-blue-700",
+      Pending: "bg-amber-50 text-amber-700",
+      Postponed: "bg-violet-50 text-violet-700",
       Done: "bg-green-50 text-green-700",
-      Blocked: "bg-red-50 text-red-700",
     }[status] || "bg-surface-gray-2 text-ink-gray-6"
   );
 }

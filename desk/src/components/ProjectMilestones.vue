@@ -112,8 +112,10 @@
                     ? 'border-green-500 bg-green-500'
                     : t.status === 'In Progress'
                     ? 'border-blue-400 bg-blue-50'
-                    : t.status === 'Blocked'
-                    ? 'border-red-400 bg-red-50'
+                    : t.status === 'Pending'
+                    ? 'border-amber-400 bg-amber-50'
+                    : t.status === 'Postponed'
+                    ? 'border-violet-400 bg-violet-50'
                     : 'border-outline-gray-3 bg-surface-white'
                 "
               >
@@ -214,8 +216,10 @@
                       ? 'border-green-500 bg-green-500'
                       : t.status === 'In Progress'
                       ? 'border-blue-400 bg-blue-50'
-                      : t.status === 'Blocked'
-                      ? 'border-red-400 bg-red-50'
+                      : t.status === 'Pending'
+                      ? 'border-amber-400 bg-amber-50'
+                      : t.status === 'Postponed'
+                      ? 'border-violet-400 bg-violet-50'
                       : 'border-outline-gray-3 bg-surface-white'
                   "
                 >
@@ -338,7 +342,8 @@ function taskStatusClass(status: string) {
     {
       "In Progress": "bg-blue-50 text-blue-700",
       Done: "bg-green-50 text-green-700",
-      Blocked: "bg-red-50 text-red-700",
+      Pending: "bg-amber-50 text-amber-700",
+      Postponed: "bg-violet-50 text-violet-700",
     }[status] || "bg-surface-gray-2 text-ink-gray-6"
   );
 }

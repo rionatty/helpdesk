@@ -365,7 +365,7 @@
             <div class="text-[11px] text-ink-gray-4">{{ taskBreakdown.donePct }}% complete</div>
           </div>
 
-          <!-- Blocked / Overdue -->
+          <!-- Pending / Overdue -->
           <div
             class="executive-card executive-card-hover flex flex-col gap-2 px-4 pt-5 pb-4 transition-all cursor-pointer"
             :class="taskBreakdown.blocked || taskBreakdown.overdue ? 'ring-1 ring-red-200' : ''"
@@ -387,9 +387,9 @@
                 {{ taskBreakdown.blocked }}
               </span>
             </div>
-            <div class="text-xs font-semibold text-ink-gray-7">{{ __("Blocked") }}</div>
+            <div class="text-xs font-semibold text-ink-gray-7">{{ __("Pending") }}</div>
             <div class="text-[11px]" :class="taskBreakdown.blocked ? 'text-red-500' : 'text-ink-gray-4'">
-              {{ taskBreakdown.blocked ? taskBreakdown.blocked + " need attention" : "Nothing blocked" }}
+              {{ taskBreakdown.blocked ? taskBreakdown.blocked + " need attention" : "Nothing pending" }}
             </div>
             <div v-if="taskBreakdown.overdue" class="flex items-center gap-1 text-[11px] text-red-500 font-semibold">
               <LucideAlertTriangle class="size-2.5 shrink-0" />
@@ -965,7 +965,7 @@ const taskBreakdown = computed(() => {
   const todo = tasks.filter((t: any) => t.status === "To Do").length;
   const inprogress = tasks.filter((t: any) => t.status === "In Progress").length;
   const done = tasks.filter((t: any) => t.status === "Done").length;
-  const blocked = tasks.filter((t: any) => t.status === "Blocked").length;
+  const blocked = tasks.filter((t: any) => t.status === "Pending").length;
   const total = Math.max(tasks.length, 1);
   const overdue = tasks.filter(
     (t: any) => t.status !== "Done" && t.end_date && t.end_date < today
