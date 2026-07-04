@@ -694,9 +694,12 @@ def add_task(
 	# Standalone (Tasks workspace): default the assignee to the creator, and
 	# stop non-managers from assigning work to anyone but themselves.
 	if not addon and not project:
+		user = frappe.session.user
 		if not assigned_to:
-			assigned_to = frappe.session.user
-		elif not is_agent_manager() and assigned_to != frappe.session.user:
+			# assigned_to links to HD Agent — only self-assign if the creator is
+			# actually an agent (e.g. Administrator is a User, not an HD Agent).
+			assigned_to = user if frappe.db.exists("HD Agent", user) else None
+		elif not is_agent_manager() and assigned_to != user:
 			frappe.throw(
 				_("Only managers can assign tasks to other agents"),
 				frappe.PermissionError,
