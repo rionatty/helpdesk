@@ -282,11 +282,11 @@
     </div>
 
     <!-- Kanban columns -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 items-start">
       <div
         v-for="col in boardColumns"
         :key="col.key"
-        class="relative overflow-hidden rounded-2xl border p-2.5 pt-3 flex flex-col gap-2 min-h-[440px] max-h-[72vh]"
+        class="relative overflow-hidden rounded-2xl border p-2.5 pt-3 flex flex-col gap-2 min-h-[120px] max-h-[70vh]"
         :class="[colTheme(col.key).bg, colTheme(col.key).border]"
       >
         <span class="absolute inset-x-0 top-0 h-1" :class="colTheme(col.key).bar" />
