@@ -17,12 +17,12 @@
       <p class="text-sm text-ink-gray-5">
         {{
           __(
-            "Team tasks that don't belong to a project or add-on. Everyone sees the tasks they created, are assigned to, or review; managers see all."
+            "Everything on your plate — tasks you created, are assigned to, or review, across projects and add-ons. Managers and admins see all. Use “Add a task” for personal to-dos; they're assigned to you by default."
           )
         }}
       </p>
       <div class="executive-card p-5">
-        <TaskBoard standalone :editable="true" />
+        <TaskBoard hub :editable="true" />
       </div>
     </div>
   </div>

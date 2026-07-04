@@ -19,6 +19,31 @@
         </span>
       </div>
 
+      <!-- Hub dashboard -->
+      <div
+        v-if="hub && tasks.data?.length"
+        class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2"
+      >
+        <div
+          v-for="card in [
+            { label: __('Total'), value: dash.total, dot: 'bg-ink-gray-5' },
+            { label: __('To Do'), value: dash.todo, dot: 'bg-ink-gray-4' },
+            { label: __('In Progress'), value: dash.inProgress, dot: 'bg-blue-500' },
+            { label: __('Done'), value: dash.done, dot: 'bg-green-500' },
+            { label: __('Blocked'), value: dash.blocked, dot: 'bg-red-500' },
+            { label: __('Overdue'), value: dash.overdue, dot: 'bg-amber-500' },
+          ]"
+          :key="card.label"
+          class="rounded-xl border border-outline-gray-1 bg-surface-white px-3 py-2.5 flex flex-col gap-1"
+        >
+          <div class="flex items-center gap-1.5 text-[11px] text-ink-gray-5">
+            <span class="size-2 rounded-full" :class="card.dot" />
+            {{ card.label }}
+          </div>
+          <span class="text-xl font-bold text-ink-gray-9">{{ card.value }}</span>
+        </div>
+      </div>
+
       <!-- Filter & search toolbar -->
       <div
         v-if="tasks.data?.length"
@@ -68,6 +93,28 @@
           <option v-for="m in milestoneOptions" :key="m.value" :value="m.value">
             {{ m.label }}
           </option>
+        </select>
+        <!-- Project (hub) -->
+        <select
+          v-if="hub && projectOptions.length"
+          v-model="projectFilter"
+          class="text-xs rounded-md border border-outline-gray-2 bg-surface-white px-2 py-1.5 text-ink-gray-7 focus:outline-none focus:border-blue-400 max-w-[11rem]"
+        >
+          <option value="">{{ __("All projects") }}</option>
+          <option v-for="p in projectOptions" :key="p.value" :value="p.value">
+            {{ p.label }}
+          </option>
+        </select>
+        <!-- View by (hub) -->
+        <select
+          v-if="hub"
+          v-model="viewBy"
+          class="text-xs rounded-md border border-outline-gray-2 bg-surface-white px-2 py-1.5 text-ink-gray-7 focus:outline-none focus:border-blue-400"
+          :title="__('Group the board by')"
+        >
+          <option value="status">{{ __("View by status") }}</option>
+          <option value="project">{{ __("View by project") }}</option>
+          <option value="assignee">{{ __("View by assignee") }}</option>
         </select>
         <!-- My tasks (agent only) -->
         <button
@@ -124,20 +171,20 @@
     <!-- Kanban columns -->
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
       <div
-        v-for="col in COLUMNS"
+        v-for="col in boardColumns"
         :key="col.key"
         class="rounded-xl bg-surface-gray-1 border border-outline-gray-1 p-2.5 flex flex-col gap-2 min-h-[80px] max-h-[420px]"
       >
         <div class="flex items-center justify-between px-1 shrink-0">
-          <div class="flex items-center gap-1.5 text-xs font-semibold text-ink-gray-7">
-            <span class="size-2 rounded-full" :class="col.dot" />
-            {{ col.key }}
-            <span class="text-ink-gray-4">{{ grouped[col.key].length }}</span>
+          <div class="flex items-center gap-1.5 text-xs font-semibold text-ink-gray-7 min-w-0">
+            <span class="size-2 rounded-full shrink-0" :class="col.dot" />
+            <span class="truncate">{{ col.label }}</span>
+            <span class="text-ink-gray-4 shrink-0">{{ (grouped[col.key] || []).length }}</span>
           </div>
           <button
-            v-if="editable"
+            v-if="editable && col.addable"
             type="button"
-            class="text-ink-gray-5 hover:text-ink-gray-8"
+            class="text-ink-gray-5 hover:text-ink-gray-8 shrink-0"
             :aria-label="__('Add task')"
             @click="quickAdd(col.key)"
           >
@@ -194,6 +241,20 @@
               class="text-[10px] rounded-full px-1.5 py-0.5 bg-violet-100 text-violet-700 inline-flex items-center gap-0.5"
             >
               <LucideFlag class="size-3" /> {{ milestoneTitle(t.milestone) }}
+            </span>
+            <!-- Hub: status pill + parent (project / add-on / Personal) -->
+            <span
+              v-if="hub"
+              class="text-[10px] rounded-full px-1.5 py-0.5"
+              :class="statusChipClass(t.status)"
+            >
+              {{ t.status }}
+            </span>
+            <span
+              v-if="hub && t.parent_label"
+              class="text-[10px] rounded-full px-1.5 py-0.5 bg-indigo-100 text-indigo-700 inline-flex items-center gap-0.5"
+            >
+              <LucideFolder class="size-3" /> {{ t.parent_label }}
             </span>
             <span
               v-if="t.is_internal && editable"
@@ -392,9 +453,9 @@
             </div>
           </div>
 
-          <!-- Internal toggle (agent; standalone tasks are never on the portal) -->
+          <!-- Internal toggle (agent; not for standalone/hub personal tasks) -->
           <label
-            v-if="editable && !standalone"
+            v-if="editable && !standalone && !hub"
             class="flex items-center gap-2 text-sm text-ink-gray-7 cursor-pointer"
           >
             <input
@@ -410,6 +471,7 @@
             <div class="flex flex-col gap-1">
               <span class="text-xs text-ink-gray-5">{{ __("Assignee") }}</span>
               <select
+                v-if="canAssignOthers"
                 :value="selected.assigned_to || ''"
                 class="text-sm rounded-md border border-outline-gray-2 bg-surface-white px-2 py-1 text-ink-gray-7 focus:outline-none focus:border-blue-400"
                 @change="(e) => patch({ assigned_to: e.target.value })"
@@ -419,6 +481,10 @@
                   {{ a.label }}
                 </option>
               </select>
+              <!-- Hub non-managers can only self-assign — show it read-only. -->
+              <span v-else class="text-sm text-ink-gray-8 py-1">
+                {{ selected.assigned_to_name || __("You") }}
+              </span>
             </div>
             <div class="flex flex-col gap-1">
               <span class="text-xs text-ink-gray-5">{{ __("Reviewer") }}</span>
@@ -584,26 +650,33 @@ import LucideLoader2 from "~icons/lucide/loader-2";
 import LucideSearch from "~icons/lucide/search";
 import LucideUser from "~icons/lucide/user";
 import LucideStar from "~icons/lucide/star";
+import LucideFolder from "~icons/lucide/folder";
 import LucideAlertTriangle from "~icons/lucide/alert-triangle";
 import LucideX from "~icons/lucide/x";
 
 interface P {
   addonId?: string;
   projectId?: string;
-  /** No parent — the independent Tasks workspace. */
+  /** No parent — the independent Tasks workspace (single project/add-on board). */
   standalone?: boolean;
+  /** The Tasks hub: every task the user can see, across projects/add-ons. */
+  hub?: boolean;
   editable?: boolean;
 }
 const props = withDefaults(defineProps<P>(), {
   addonId: "",
   projectId: "",
   standalone: false,
+  hub: false,
   editable: false,
 });
 const emit = defineEmits(["changed"]);
 
 const authStore = useAuthStore();
 const { userId } = authStore;
+const isManager = computed(() => !!authStore.isManager);
+// In the hub, only managers may assign work to other agents.
+const canAssignOthers = computed(() => !props.hub || isManager.value);
 
 const STATUSES = ["To Do", "In Progress", "Done", "Blocked"];
 const PRIORITIES = ["Low", "Medium", "High", "Urgent"];
@@ -615,15 +688,15 @@ const COLUMNS = [
 ];
 
 const parentParams = () =>
-  props.standalone
+  props.standalone || props.hub
     ? {}
     : props.addonId
     ? { addon: props.addonId }
     : { project: props.projectId };
 
 const tasks = createResource({
-  url: "helpdesk.api.addon.get_tasks",
-  makeParams: () => parentParams(),
+  url: props.hub ? "helpdesk.api.task.get_my_tasks" : "helpdesk.api.addon.get_tasks",
+  makeParams: () => (props.hub ? {} : parentParams()),
   auto: true,
 });
 watch(
@@ -640,9 +713,35 @@ const search = ref("");
 const priorityFilter = ref("");
 const assigneeFilter = ref(""); // "" all · "__unassigned__" · else assigned_to value
 const milestoneFilter = ref("");
+const projectFilter = ref(""); // hub only: "" all · "__standalone__" · parent_name
+const viewBy = ref("status"); // hub only: status | project | assignee
 const overdueOnly = ref(false);
 const hideDone = ref(false);
 const mineOnly = ref(false);
+
+// Hub: distinct parents (projects / add-ons / Personal) for the project filter.
+const projectOptions = computed(() => {
+  const map = new Map<string, string>();
+  (tasks.data || []).forEach((t: any) => {
+    const key = t.parent_name || "__standalone__";
+    if (!map.has(key)) map.set(key, t.parent_label || __("Personal"));
+  });
+  return Array.from(map, ([value, label]) => ({ value, label }));
+});
+
+// Hub dashboard — computed from the full visible scope (before board filters).
+const dash = computed(() => {
+  const all = tasks.data || [];
+  const by = (s: string) => all.filter((t: any) => t.status === s).length;
+  return {
+    total: all.length,
+    todo: by("To Do"),
+    inProgress: by("In Progress"),
+    done: by("Done"),
+    blocked: by("Blocked"),
+    overdue: all.filter((t: any) => isOverdue(t)).length,
+  };
+});
 
 // Assignee options are derived from the tasks themselves, so the filter works
 // on the customer portal too (where the agent list isn't loaded).
@@ -661,6 +760,11 @@ const filteredTasks = computed(() => {
   const q = search.value.trim().toLowerCase();
   return (tasks.data || []).filter((t: any) => {
     if (milestoneFilter.value && t.milestone !== milestoneFilter.value) return false;
+    if (
+      projectFilter.value &&
+      (t.parent_name || "__standalone__") !== projectFilter.value
+    )
+      return false;
     if (priorityFilter.value && t.priority !== priorityFilter.value) return false;
     if (assigneeFilter.value === "__unassigned__" && t.assigned_to) return false;
     if (
@@ -683,6 +787,7 @@ const anyFilterActive = computed(
     !!priorityFilter.value ||
     !!assigneeFilter.value ||
     !!milestoneFilter.value ||
+    !!projectFilter.value ||
     overdueOnly.value ||
     hideDone.value ||
     mineOnly.value
@@ -692,21 +797,75 @@ function clearFilters() {
   priorityFilter.value = "";
   assigneeFilter.value = "";
   milestoneFilter.value = "";
+  projectFilter.value = "";
   overdueOnly.value = false;
   hideDone.value = false;
   mineOnly.value = false;
 }
 
+// Board columns depend on "view by" (hub only; the project/add-on board is
+// always grouped by status).
+const boardColumns = computed(() => {
+  if (!props.hub || viewBy.value === "status") {
+    return COLUMNS.map((c) => ({
+      key: c.key,
+      label: c.key,
+      dot: c.dot,
+      addable: true,
+    }));
+  }
+  const map = new Map<string, string>();
+  if (viewBy.value === "project") {
+    filteredTasks.value.forEach((t: any) => {
+      const key = t.parent_name || "__standalone__";
+      if (!map.has(key)) map.set(key, t.parent_label || __("Personal"));
+    });
+    return Array.from(map, ([key, label]) => ({
+      key,
+      label,
+      dot: "bg-violet-500",
+      addable: false,
+    }));
+  }
+  // assignee
+  filteredTasks.value.forEach((t: any) => {
+    const key = t.assigned_to || "__unassigned__";
+    if (!map.has(key)) map.set(key, t.assigned_to_name || __("Unassigned"));
+  });
+  return Array.from(map, ([key, label]) => ({
+    key,
+    label,
+    dot: "bg-blue-500",
+    addable: false,
+  }));
+});
+
+function columnKey(t: any): string {
+  if (!props.hub || viewBy.value === "status") return t.status || "To Do";
+  if (viewBy.value === "project") return t.parent_name || "__standalone__";
+  return t.assigned_to || "__unassigned__";
+}
+
 const grouped = computed(() => {
-  const g: Record<string, any[]> = {
-    "To Do": [],
-    "In Progress": [],
-    Done: [],
-    Blocked: [],
-  };
-  filteredTasks.value.forEach((t: any) => (g[t.status] || g["To Do"]).push(t));
+  const g: Record<string, any[]> = {};
+  boardColumns.value.forEach((c) => (g[c.key] = []));
+  filteredTasks.value.forEach((t: any) => {
+    const key = columnKey(t);
+    (g[key] || (g[key] = [])).push(t);
+  });
   return g;
 });
+
+function statusChipClass(status: string) {
+  return (
+    {
+      "To Do": "bg-surface-gray-2 text-ink-gray-6",
+      "In Progress": "bg-blue-50 text-blue-700",
+      Done: "bg-green-50 text-green-700",
+      Blocked: "bg-red-50 text-red-700",
+    }[status] || "bg-surface-gray-2 text-ink-gray-6"
+  );
+}
 
 // --- milestone / feature context for placement + chips ---
 const milestonesRes = createResource({

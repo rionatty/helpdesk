@@ -637,6 +637,16 @@ def add_task(
 	if milestone and project:
 		if frappe.db.get_value("HD Milestone", milestone, "project") != project:
 			frappe.throw(_("Milestone belongs to a different project"))
+	# Standalone (Tasks workspace): default the assignee to the creator, and
+	# stop non-managers from assigning work to anyone but themselves.
+	if not addon and not project:
+		if not assigned_to:
+			assigned_to = frappe.session.user
+		elif not is_agent_manager() and assigned_to != frappe.session.user:
+			frappe.throw(
+				_("Only managers can assign tasks to other agents"),
+				frappe.PermissionError,
+			)
 	doc = frappe.get_doc(
 		{
 			"doctype": "HD Addon Task",
@@ -670,6 +680,19 @@ def update_task(name: str, **fields) -> bool:
 	_assert_task_access(name)
 	doc = frappe.get_doc("HD Addon Task", name)
 	old_assignee = doc.assigned_to
+	# Standalone tasks: only managers may reassign to someone else.
+	if (
+		"assigned_to" in fields
+		and not doc.addon
+		and not doc.project
+		and not is_agent_manager()
+		and fields.get("assigned_to")
+		and fields.get("assigned_to") != frappe.session.user
+	):
+		frappe.throw(
+			_("Only managers can assign tasks to other agents"),
+			frappe.PermissionError,
+		)
 	score = fields.pop("score", None)
 	if score is not None:
 		# Check against the reviewer as stored, not one set in this request.
