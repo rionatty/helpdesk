@@ -47,21 +47,87 @@
         </div>
       </div>
 
-      <!-- Hub trend chart -->
-      <div
-        v-if="hub && tasks.data?.length"
-        class="rounded-xl border border-outline-gray-1 bg-surface-white p-4 pt-3"
-      >
-        <div class="flex items-center gap-2 mb-1">
-          <LucideTrendingUp class="size-4 text-blue-600" />
-          <span class="text-sm font-semibold text-ink-gray-8">
-            {{ __("Task activity") }}
-          </span>
-          <span class="text-xs text-ink-gray-5">
-            {{ __("created vs done · last 10 weeks") }}
-          </span>
+      <!-- Hub dashboards (each chart has its own filter) -->
+      <div v-if="hub && tasks.data?.length" class="flex flex-col gap-3">
+        <!-- Activity trend -->
+        <div class="rounded-xl border border-outline-gray-1 bg-surface-white p-4 pt-3">
+          <div class="flex items-center gap-2 mb-1 flex-wrap">
+            <LucideTrendingUp class="size-4 text-blue-600" />
+            <span class="text-sm font-semibold text-ink-gray-8">
+              {{ __("Task activity") }}
+            </span>
+            <span class="text-xs text-ink-gray-5">
+              {{ __("created vs done · last 10 weeks") }}
+            </span>
+            <span class="flex-1" />
+            <select v-model="trendAssignee" class="text-xs rounded-md border border-outline-gray-2 bg-surface-white px-2 py-1 text-ink-gray-7 focus:outline-none focus:border-blue-400 max-w-[9rem]">
+              <option value="">{{ __("All assignees") }}</option>
+              <option value="__unassigned__">{{ __("Unassigned") }}</option>
+              <option v-for="a in assigneeOptions" :key="a.value" :value="a.value">
+                {{ a.label }}
+              </option>
+            </select>
+          </div>
+          <ECharts :options="trendOption" class="w-full h-52" />
         </div>
-        <ECharts :options="trendOption" class="w-full h-52" />
+
+        <!-- Breakdown charts -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-3">
+          <!-- By status -->
+          <div class="rounded-xl border border-outline-gray-1 bg-surface-white p-4 pt-3">
+            <div class="flex items-center gap-2 mb-1 flex-wrap">
+              <LucidePieChart class="size-4 text-emerald-600" />
+              <span class="text-sm font-semibold text-ink-gray-8">
+                {{ __("By status") }}
+              </span>
+              <span class="flex-1" />
+              <select v-model="statusProject" class="text-xs rounded-md border border-outline-gray-2 bg-surface-white px-2 py-1 text-ink-gray-7 focus:outline-none focus:border-blue-400 max-w-[9rem]">
+                <option value="">{{ __("All projects") }}</option>
+                <option
+                  v-for="p in projectOptions"
+                  :key="p.value"
+                  :value="p.value"
+                >
+                  {{ p.label }}
+                </option>
+              </select>
+            </div>
+            <ECharts :options="statusChartOption" class="w-full h-56" />
+          </div>
+
+          <!-- By priority -->
+          <div class="rounded-xl border border-outline-gray-1 bg-surface-white p-4 pt-3">
+            <div class="flex items-center gap-2 mb-1 flex-wrap">
+              <LucideBarChart3 class="size-4 text-amber-600" />
+              <span class="text-sm font-semibold text-ink-gray-8">
+                {{ __("By priority") }}
+              </span>
+              <span class="flex-1" />
+              <select v-model="prioStatus" class="text-xs rounded-md border border-outline-gray-2 bg-surface-white px-2 py-1 text-ink-gray-7 focus:outline-none focus:border-blue-400 max-w-[9rem]">
+                <option value="">{{ __("All statuses") }}</option>
+                <option v-for="s in STATUSES" :key="s" :value="s">{{ s }}</option>
+              </select>
+            </div>
+            <ECharts :options="prioChartOption" class="w-full h-56" />
+          </div>
+
+          <!-- Workload by assignee -->
+          <div class="rounded-xl border border-outline-gray-1 bg-surface-white p-4 pt-3">
+            <div class="flex items-center gap-2 mb-1 flex-wrap">
+              <LucideUsers class="size-4 text-indigo-600" />
+              <span class="text-sm font-semibold text-ink-gray-8">
+                {{ __("Workload") }}
+              </span>
+              <span class="flex-1" />
+              <select v-model="loadStatus" class="text-xs rounded-md border border-outline-gray-2 bg-surface-white px-2 py-1 text-ink-gray-7 focus:outline-none focus:border-blue-400 max-w-[9rem]">
+                <option value="open">{{ __("Open") }}</option>
+                <option value="done">{{ __("Done") }}</option>
+                <option value="all">{{ __("All") }}</option>
+              </select>
+            </div>
+            <ECharts :options="loadChartOption" class="w-full h-56" />
+          </div>
+        </div>
       </div>
 
       <!-- Filter & search toolbar -->
@@ -720,6 +786,9 @@ import LucideCalendar from "~icons/lucide/calendar";
 import LucideMessageCircle from "~icons/lucide/message-circle";
 import LucideTrendingUp from "~icons/lucide/trending-up";
 import LucideHistory from "~icons/lucide/history";
+import LucidePieChart from "~icons/lucide/pie-chart";
+import LucideBarChart3 from "~icons/lucide/bar-chart-3";
+import LucideUsers from "~icons/lucide/users";
 import LucideFlag from "~icons/lucide/flag";
 import LucideEyeOff from "~icons/lucide/eye-off";
 import LucideListChecks from "~icons/lucide/list-checks";
@@ -838,9 +907,18 @@ const dashCards = computed(() => [
     chip: "bg-amber-100 text-amber-600", num: "text-amber-600", bar: "bg-amber-500" },
 ]);
 
-// Weekly trend for the hub dashboard: tasks created vs done over 10 weeks.
+// Per-chart filters — independent of the board filters below.
+const trendAssignee = ref(""); // "" all · "__unassigned__" · assigned_to
+const statusProject = ref(""); // "" all · parent_name · "__standalone__"
+const prioStatus = ref(""); // "" all · status
+const loadStatus = ref("open"); // all | open | done
+
 const cssVar = (name: string) =>
   getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+const hubTasks = computed<any[]>(() => tasks.data || []);
+const parentKeyOf = (t: any) => t.parent_name || "__standalone__";
+
+// Weekly trend for the hub dashboard: tasks created vs done over 10 weeks.
 const trendWeeks = computed(() => {
   const arr: ReturnType<typeof dayjs>[] = [];
   const start = dayjs().startOf("week");
@@ -850,7 +928,13 @@ const trendWeeks = computed(() => {
 const trendOption = computed(() => {
   void dataTheme.value;
   const ws = trendWeeks.value;
-  const all = tasks.data || [];
+  const all = hubTasks.value.filter(
+    (t: any) =>
+      !trendAssignee.value ||
+      (trendAssignee.value === "__unassigned__"
+        ? !t.assigned_to
+        : t.assigned_to === trendAssignee.value)
+  );
   const labels = ws.map((w) => w.format("MMM D"));
   const inWeek = (w: any, extra?: (t: any) => boolean) =>
     all.filter(
@@ -916,6 +1000,133 @@ const trendOption = computed(() => {
         symbolSize: 6,
         lineStyle: { width: 2.5, color: "#10b981" },
         itemStyle: { color: "#10b981" },
+      },
+    ],
+  };
+});
+
+// --- Status breakdown (donut), filterable by project/parent ---
+const STATUS_COLORS: Record<string, string> = {
+  "To Do": "#94a3b8",
+  "In Progress": "#3b82f6",
+  Done: "#10b981",
+  Blocked: "#ef4444",
+};
+const statusChartOption = computed(() => {
+  void dataTheme.value;
+  const base = hubTasks.value.filter(
+    (t: any) => !statusProject.value || parentKeyOf(t) === statusProject.value
+  );
+  const data = ["To Do", "In Progress", "Done", "Blocked"]
+    .map((s) => ({
+      name: s,
+      value: base.filter((t: any) => t.status === s).length,
+      itemStyle: { color: STATUS_COLORS[s] },
+    }))
+    .filter((d) => d.value > 0);
+  return {
+    tooltip: { trigger: "item" },
+    legend: {
+      bottom: 0,
+      icon: "circle",
+      itemWidth: 9,
+      itemHeight: 9,
+      textStyle: { color: cssVar("--ink-gray-6"), fontSize: 11 },
+    },
+    series: [
+      {
+        type: "pie",
+        radius: ["48%", "72%"],
+        center: ["50%", "42%"],
+        avoidLabelOverlap: true,
+        itemStyle: { borderColor: cssVar("--surface-white"), borderWidth: 2 },
+        label: { show: false },
+        data,
+      },
+    ],
+  };
+});
+
+// --- Priority breakdown (bar), filterable by status ---
+const PRIORITY_COLORS: Record<string, string> = {
+  Urgent: "#ef4444",
+  High: "#f59e0b",
+  Medium: "#3b82f6",
+  Low: "#94a3b8",
+};
+const prioChartOption = computed(() => {
+  void dataTheme.value;
+  const base = hubTasks.value.filter(
+    (t: any) => !prioStatus.value || t.status === prioStatus.value
+  );
+  const order = ["Urgent", "High", "Medium", "Low"];
+  return {
+    grid: { left: 58, right: 16, top: 10, bottom: 20 },
+    xAxis: {
+      type: "value",
+      minInterval: 1,
+      axisLabel: { color: cssVar("--ink-gray-5") },
+      splitLine: { lineStyle: { color: cssVar("--outline-gray-1") } },
+    },
+    yAxis: {
+      type: "category",
+      data: order,
+      axisTick: { show: false },
+      axisLine: { lineStyle: { color: cssVar("--outline-gray-2") } },
+      axisLabel: { color: cssVar("--ink-gray-6") },
+    },
+    tooltip: { trigger: "axis" },
+    series: [
+      {
+        type: "bar",
+        barWidth: "55%",
+        itemStyle: { borderRadius: [0, 4, 4, 0] },
+        data: order.map((p) => ({
+          value: base.filter((t: any) => (t.priority || "Medium") === p).length,
+          itemStyle: { color: PRIORITY_COLORS[p] },
+        })),
+      },
+    ],
+  };
+});
+
+// --- Workload by assignee (top 8 bar), filterable by open/done ---
+const loadChartOption = computed(() => {
+  void dataTheme.value;
+  let base = hubTasks.value;
+  if (loadStatus.value === "open") base = base.filter((t: any) => t.status !== "Done");
+  else if (loadStatus.value === "done") base = base.filter((t: any) => t.status === "Done");
+  const map = new Map<string, number>();
+  base.forEach((t: any) => {
+    const k = t.assigned_to_name || __("Unassigned");
+    map.set(k, (map.get(k) || 0) + 1);
+  });
+  const arr = Array.from(map, ([name, value]) => ({ name, value }))
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 8)
+    .reverse();
+  return {
+    grid: { left: 96, right: 16, top: 10, bottom: 20 },
+    xAxis: {
+      type: "value",
+      minInterval: 1,
+      axisLabel: { color: cssVar("--ink-gray-5") },
+      splitLine: { lineStyle: { color: cssVar("--outline-gray-1") } },
+    },
+    yAxis: {
+      type: "category",
+      data: arr.map((a) => a.name),
+      axisTick: { show: false },
+      axisLine: { lineStyle: { color: cssVar("--outline-gray-2") } },
+      axisLabel: { color: cssVar("--ink-gray-6"), fontSize: 11 },
+    },
+    tooltip: { trigger: "axis" },
+    series: [
+      {
+        type: "bar",
+        barWidth: "55%",
+        itemStyle: { color: "#6366f1", borderRadius: [0, 4, 4, 0] },
+        data: arr.map((a) => a.value),
       },
     ],
   };
