@@ -202,6 +202,33 @@
           <option value="project">{{ __("View by project") }}</option>
           <option value="assignee">{{ __("View by assignee") }}</option>
         </select>
+        <!-- Date range -->
+        <div
+          class="flex items-center gap-1 rounded-md border border-outline-gray-2 bg-surface-white px-1.5 py-1"
+        >
+          <select
+            v-model="dateField"
+            class="text-xs bg-transparent text-ink-gray-6 focus:outline-none"
+            :title="__('Filter tasks by this date')"
+          >
+            <option value="creation">{{ __("Created") }}</option>
+            <option value="start_date">{{ __("Start") }}</option>
+            <option value="end_date">{{ __("Due") }}</option>
+          </select>
+          <input
+            v-model="fromDate"
+            type="date"
+            :aria-label="__('From date')"
+            class="text-xs bg-transparent text-ink-gray-7 focus:outline-none w-[7.5rem]"
+          />
+          <span class="text-ink-gray-4 text-xs">–</span>
+          <input
+            v-model="toDate"
+            type="date"
+            :aria-label="__('To date')"
+            class="text-xs bg-transparent text-ink-gray-7 focus:outline-none w-[7.5rem]"
+          />
+        </div>
         <!-- My tasks (agent only) -->
         <button
           v-if="editable"
@@ -867,6 +894,9 @@ const assigneeFilter = ref(""); // "" all · "__unassigned__" · else assigned_t
 const milestoneFilter = ref("");
 const projectFilter = ref(""); // hub only: "" all · "__standalone__" · parent_name
 const viewBy = ref("status"); // hub only: status | project | assignee
+const dateField = ref("creation"); // creation | start_date | end_date
+const fromDate = ref("");
+const toDate = ref("");
 const overdueOnly = ref(false);
 const hideDone = ref(false);
 const mineOnly = ref(false);
@@ -1169,6 +1199,13 @@ const filteredTasks = computed(() => {
     )
       return false;
     if (mineOnly.value && t.assigned_to !== userId) return false;
+    if (fromDate.value || toDate.value) {
+      const val = t[dateField.value];
+      if (!val) return false; // no date on this field → excluded from a range
+      const d = dayjs(val);
+      if (fromDate.value && d.isBefore(dayjs(fromDate.value), "day")) return false;
+      if (toDate.value && d.isAfter(dayjs(toDate.value), "day")) return false;
+    }
     if (overdueOnly.value && !isOverdue(t)) return false;
     if (hideDone.value && t.status === "Done") return false;
     if (q && !(t.subject || "").toLowerCase().includes(q)) return false;
@@ -1183,6 +1220,8 @@ const anyFilterActive = computed(
     !!assigneeFilter.value ||
     !!milestoneFilter.value ||
     !!projectFilter.value ||
+    !!fromDate.value ||
+    !!toDate.value ||
     overdueOnly.value ||
     hideDone.value ||
     mineOnly.value
@@ -1193,6 +1232,8 @@ function clearFilters() {
   assigneeFilter.value = "";
   milestoneFilter.value = "";
   projectFilter.value = "";
+  fromDate.value = "";
+  toDate.value = "";
   overdueOnly.value = false;
   hideDone.value = false;
   mineOnly.value = false;
