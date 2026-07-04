@@ -8,10 +8,12 @@
 <script setup lang="ts">
 import { Dialogs } from "@/components/dialogs";
 import { useConfigStore } from "@/stores/config";
+import { globalStore } from "@/stores/globalStore";
 import { FrappeUIProvider, toast, setConfig, useTheme } from "frappe-ui";
-import { computed, defineAsyncComponent, h, onMounted } from "vue";
+import { computed, defineAsyncComponent, h, onMounted, onUnmounted } from "vue";
 import Wifi from "~icons/lucide/wifi";
 import WifiOff from "~icons/lucide/wifi-off";
+import LucideListChecks from "~icons/lucide/list-checks";
 import { useAuthStore } from "./stores/auth";
 import { useFavicon } from "@vueuse/core";
 import { storeToRefs } from "pinia";
@@ -27,6 +29,22 @@ if (!localStorage.getItem("theme")) {
   localStorage.setItem("theme", "light");
 }
 useTheme();
+
+// In-app popup when a task is assigned to the current user (works even when
+// email isn't configured). The server emits this to the assignee's user room.
+function onTaskAssigned(data: {
+  subject?: string;
+  assigned_by?: string;
+  context?: string;
+}) {
+  toast.create({
+    title: __("New task assigned"),
+    message: data?.assigned_by
+      ? __("{0} assigned you “{1}”", [data.assigned_by, data.subject || ""])
+      : data?.subject || __("A task was assigned to you"),
+    icon: h(LucideListChecks, { class: "text-ink-white" }),
+  });
+}
 
 onMounted(() => {
   window.addEventListener("online", () => {
@@ -44,6 +62,14 @@ onMounted(() => {
   });
   !isCustomerPortal.value && setConfig("localTimezone", window.timezone?.user);
   setConfig("systemTimezone", window.timezone?.system || null);
+
+  const { $socket } = globalStore();
+  $socket?.on("helpdesk:task_assigned", onTaskAssigned);
+});
+
+onUnmounted(() => {
+  const { $socket } = globalStore();
+  $socket?.off("helpdesk:task_assigned", onTaskAssigned);
 });
 
 const AgentPortalRoot = defineAsyncComponent(

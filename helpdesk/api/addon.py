@@ -560,28 +560,51 @@ def _grant_task_access(doc) -> None:
 
 
 def _notify_task_assignee(doc) -> None:
-	"""Email the assignee that a task was assigned to them. Best-effort: never
-	break the save if mail isn't configured. Skips self-assignment."""
+	"""Notify the assignee that a task was assigned to them, by email plus an
+	in-app realtime popup. Best-effort: never break the save. Skips
+	self-assignment."""
 	agent = doc.get("assigned_to")
 	if not agent or agent == frappe.session.user or agent == "Guest":
 		return
+
+	if doc.get("project"):
+		context = frappe.db.get_value("HD Project", doc.project, "project_name")
+		link = frappe.utils.get_url(f"/helpdesk/projects/{doc.project}")
+	elif doc.get("addon"):
+		context = frappe.db.get_value("HD Addon", doc.addon, "addon_name")
+		link = frappe.utils.get_url(f"/helpdesk/addons/{doc.addon}")
+	else:
+		context = _("Tasks")
+		link = frappe.utils.get_url("/helpdesk/tasks")
+	assigner = (
+		frappe.db.get_value("HD Agent", frappe.session.user, "agent_name")
+		or frappe.session.user
+	)
+
+	# In-app popup — instant, and works even when email isn't configured.
+	try:
+		frappe.publish_realtime(
+			"helpdesk:task_assigned",
+			{
+				"task": doc.name,
+				"subject": doc.subject,
+				"assigned_by": assigner,
+				"context": context,
+				"link": link,
+			},
+			user=agent,
+		)
+	except Exception:
+		pass
+
+	# Skip email only when the whole site has email turned off.
+	if frappe.db.get_single_value("HD Settings", "skip_email_workflow"):
+		return
+
 	try:
 		agent_name = (
 			frappe.db.get_value("HD Agent", agent, "agent_name") or agent
 		).split(" ")[0]
-		if doc.get("project"):
-			context = frappe.db.get_value("HD Project", doc.project, "project_name")
-			link = frappe.utils.get_url(f"/helpdesk/projects/{doc.project}")
-		elif doc.get("addon"):
-			context = frappe.db.get_value("HD Addon", doc.addon, "addon_name")
-			link = frappe.utils.get_url(f"/helpdesk/addons/{doc.addon}")
-		else:
-			context = _("Tasks")
-			link = frappe.utils.get_url("/helpdesk/tasks")
-		assigner = (
-			frappe.db.get_value("HD Agent", frappe.session.user, "agent_name")
-			or frappe.session.user
-		)
 		subject = _("You've been assigned a task: {0}").format(doc.subject)
 		message = f"""
 			<p>{_('Hi')} {frappe.utils.escape_html(agent_name)},</p>
@@ -597,17 +620,22 @@ def _notify_task_assignee(doc) -> None:
 				border-radius:6px;text-decoration:none;">{_('Open task')}</a>
 			</p>
 		"""
+		# now=True sends within the request instead of parking it in the email
+		# queue — so a stopped/slow scheduler doesn't swallow the notification.
 		frappe.sendmail(
 			recipients=[agent],
 			subject=subject,
 			message=message,
 			reference_doctype="HD Addon Task",
 			reference_name=doc.name,
+			now=True,
 		)
-	except Exception:
+	except Exception as e:
+		# Surface the real reason (e.g. no default outgoing Email Account) in the
+		# Error Log so it can be diagnosed, but don't fail the save.
 		frappe.log_error(
 			title="Task assignment email failed",
-			message=frappe.get_traceback(),
+			message=f"To: {agent}\nTask: {doc.name}\n\n{frappe.get_traceback()}\n{e}",
 		)
 
 
