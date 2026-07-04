@@ -552,26 +552,6 @@
     }
 
     /* ================================================================
-       LIVE STAT CHIP
-    ================================================================ */
-    .stat-chip {
-      display: inline-flex;
-      align-items: center;
-      gap: 7px;
-      font-size: 12px;
-      color: rgba(255,255,255,0.6);
-      background: rgba(255,255,255,0.06);
-      border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 100px;
-      padding: 5px 13px;
-      margin-top: 32px;
-      font-variant-numeric: tabular-nums;
-      letter-spacing: 0.1px;
-    }
-    .stat-arrow { color: #22c55e; font-weight: 800; font-size: 13px; }
-    #stat-count { font-weight: 700; color: rgba(255,255,255,0.85); }
-
-    /* ================================================================
        FORM PANEL — STATUS BAR + SECURITY BADGE
     ================================================================ */
     .status-bar {
@@ -757,11 +737,6 @@
             </span>
             Reliable Support
           </div>
-        </div>
-
-        <div class="stat-chip">
-          <span class="stat-arrow">↑</span>
-          <span id="stat-count">0</span>&nbsp;tickets resolved today
         </div>
       </div>
 
@@ -1018,7 +993,7 @@
   })();
   </script>
 
-  <!-- Typewriter + live counter -->
+  <!-- Typewriter -->
   <script>
   (function () {
     'use strict';
@@ -1038,23 +1013,6 @@
         }
       }
       typeChar();
-    }
-
-    /* ---- Animated counter: 0 → 247 ---- */
-    var countEl = document.getElementById('stat-count');
-    if (countEl) {
-      if (reducedMotion) { countEl.textContent = '247'; return; }
-      var TARGET   = 247;
-      var DURATION = 1800;
-      var startTs  = null;
-      function easeOut(t) { return 1 - Math.pow(1 - t, 3); }
-      function stepCounter(ts) {
-        if (!startTs) startTs = ts;
-        var progress = Math.min((ts - startTs) / DURATION, 1);
-        countEl.textContent = Math.floor(easeOut(progress) * TARGET);
-        if (progress < 1) requestAnimationFrame(stepCounter);
-      }
-      setTimeout(function () { requestAnimationFrame(stepCounter); }, 500);
     }
   })();
   </script>
