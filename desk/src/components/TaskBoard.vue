@@ -816,6 +816,7 @@ import TaskSubtasks from "@/components/TaskSubtasks.vue";
 import { timeAgo, dataTheme } from "@/utils";
 import { __ } from "@/translation";
 import { useAuthStore } from "@/stores/auth";
+import { globalStore } from "@/stores/globalStore";
 import LucidePlus from "~icons/lucide/plus";
 import LucideTrash2 from "~icons/lucide/trash-2";
 import LucideCalendar from "~icons/lucide/calendar";
@@ -860,6 +861,7 @@ const props = withDefaults(defineProps<P>(), {
 const emit = defineEmits(["changed"]);
 
 const authStore = useAuthStore();
+const { $dialog } = globalStore();
 const { userId } = authStore;
 const isManager = computed(() => !!authStore.isManager);
 // In the hub, only managers may assign work to other agents.
@@ -1501,7 +1503,27 @@ const deleteRes = createResource({
   },
 });
 function remove() {
-  if (selected.value) deleteRes.submit({ name: selected.value.name });
+  if (!selected.value) return;
+  const name = selected.value.name;
+  const subject = selected.value.subject || __("this task");
+  $dialog({
+    title: __("Delete task"),
+    message: __(
+      "Delete “{0}”? This permanently removes the task with its subtasks, comments and attachments.",
+      [subject]
+    ),
+    actions: [
+      {
+        label: __("Delete"),
+        theme: "red",
+        variant: "solid",
+        onClick: (close: Function) => {
+          deleteRes.submit({ name });
+          close();
+        },
+      },
+    ],
+  });
 }
 
 const newComment = ref("");
