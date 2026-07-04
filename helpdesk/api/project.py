@@ -321,6 +321,7 @@ def delete_project(name: str) -> bool:
 	)
 	if tasks:
 		frappe.db.delete("HD Task Comment", {"task": ["in", tasks]})
+		frappe.db.delete("HD Task Subtask", {"task": ["in", tasks]})
 		frappe.db.delete("HD Addon Task", {"project": name})
 	milestones = frappe.get_all(
 		"HD Milestone", filters={"project": name}, pluck="name"

@@ -141,6 +141,7 @@ def delete_addon(name: str) -> bool:
 	tasks = frappe.get_all("HD Addon Task", filters={"addon": name}, pluck="name")
 	if tasks:
 		frappe.db.delete("HD Task Comment", {"task": ["in", tasks]})
+		frappe.db.delete("HD Task Subtask", {"task": ["in", tasks]})
 		frappe.db.delete("HD Addon Task", {"addon": name})
 	frappe.delete_doc("HD Addon", name, ignore_permissions=True)
 	return True
@@ -777,10 +778,12 @@ def update_task(name: str, **fields) -> bool:
 
 @frappe.whitelist()
 def delete_task(name: str) -> bool:
-	"""Delete a task and its comments. Assigned agents and managers only."""
+	"""Delete a task with its comments and subtasks. Assigned agents and
+	managers only."""
 	_assert_agent()
 	_assert_task_access(name)
 	frappe.db.delete("HD Task Comment", {"task": name})
+	frappe.db.delete("HD Task Subtask", {"task": name})
 	frappe.delete_doc("HD Addon Task", name, ignore_permissions=True)
 	return True
 
