@@ -946,8 +946,12 @@ const milestoneFilter = ref("");
 const projectFilter = ref(""); // hub only: "" all · "__standalone__" · parent_name
 const viewBy = ref("status"); // hub only: status | project | assignee
 const dateField = ref("creation"); // creation | start_date | end_date
-const fromDate = ref("");
-const toDate = ref("");
+// The hub can hold hundreds of tasks, so default it to the last two weeks
+// (by creation); the smaller project/add-on boards start unfiltered.
+const fromDate = ref(
+  props.hub ? dayjs().subtract(2, "week").format("YYYY-MM-DD") : ""
+);
+const toDate = ref(props.hub ? dayjs().format("YYYY-MM-DD") : "");
 const overdueOnly = ref(false);
 const hideDone = ref(false);
 const mineOnly = ref(false);
