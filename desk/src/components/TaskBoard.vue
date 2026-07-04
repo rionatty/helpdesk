@@ -47,6 +47,23 @@
         </div>
       </div>
 
+      <!-- Hub trend chart -->
+      <div
+        v-if="hub && tasks.data?.length"
+        class="rounded-xl border border-outline-gray-1 bg-surface-white p-4 pt-3"
+      >
+        <div class="flex items-center gap-2 mb-1">
+          <LucideTrendingUp class="size-4 text-blue-600" />
+          <span class="text-sm font-semibold text-ink-gray-8">
+            {{ __("Task activity") }}
+          </span>
+          <span class="text-xs text-ink-gray-5">
+            {{ __("created vs done · last 10 weeks") }}
+          </span>
+        </div>
+        <ECharts :options="trendOption" class="w-full h-52" />
+      </div>
+
       <!-- Filter & search toolbar -->
       <div
         v-if="tasks.data?.length"
@@ -636,19 +653,21 @@ import {
   Avatar,
   Button,
   Dialog,
+  ECharts,
   createListResource,
   createResource,
   dayjs,
   toast,
 } from "frappe-ui";
 import DocAttachments from "@/components/DocAttachments.vue";
-import { timeAgo } from "@/utils";
+import { timeAgo, dataTheme } from "@/utils";
 import { __ } from "@/translation";
 import { useAuthStore } from "@/stores/auth";
 import LucidePlus from "~icons/lucide/plus";
 import LucideTrash2 from "~icons/lucide/trash-2";
 import LucideCalendar from "~icons/lucide/calendar";
 import LucideMessageCircle from "~icons/lucide/message-circle";
+import LucideTrendingUp from "~icons/lucide/trending-up";
 import LucideFlag from "~icons/lucide/flag";
 import LucideEyeOff from "~icons/lucide/eye-off";
 import LucideListChecks from "~icons/lucide/list-checks";
@@ -766,6 +785,89 @@ const dashCards = computed(() => [
   { label: __("Overdue"), value: dash.value.overdue, icon: LucideAlertTriangle,
     chip: "bg-amber-100 text-amber-600", num: "text-amber-600", bar: "bg-amber-500" },
 ]);
+
+// Weekly trend for the hub dashboard: tasks created vs done over 10 weeks.
+const cssVar = (name: string) =>
+  getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+const trendWeeks = computed(() => {
+  const arr: ReturnType<typeof dayjs>[] = [];
+  const start = dayjs().startOf("week");
+  for (let i = 9; i >= 0; i--) arr.push(start.subtract(i, "week"));
+  return arr;
+});
+const trendOption = computed(() => {
+  void dataTheme.value;
+  const ws = trendWeeks.value;
+  const all = tasks.data || [];
+  const labels = ws.map((w) => w.format("MMM D"));
+  const inWeek = (w: any, extra?: (t: any) => boolean) =>
+    all.filter(
+      (t: any) =>
+        t.creation &&
+        dayjs(t.creation).isSame(w, "week") &&
+        (!extra || extra(t))
+    ).length;
+  const created = ws.map((w) => inWeek(w));
+  const done = ws.map((w) => inWeek(w, (t) => t.status === "Done"));
+  return {
+    grid: { left: 34, right: 14, top: 30, bottom: 24 },
+    legend: {
+      data: [__("Created"), __("Done")],
+      right: 0,
+      top: 0,
+      icon: "roundRect",
+      itemWidth: 10,
+      itemHeight: 10,
+      textStyle: { color: cssVar("--ink-gray-6") },
+    },
+    xAxis: {
+      type: "category",
+      data: labels,
+      boundaryGap: false,
+      axisTick: { show: false },
+      axisLine: { lineStyle: { color: cssVar("--outline-gray-2") } },
+      axisLabel: { color: cssVar("--ink-gray-6"), fontSize: 10 },
+    },
+    yAxis: {
+      type: "value",
+      minInterval: 1,
+      axisLabel: { color: cssVar("--ink-gray-5") },
+      splitLine: { lineStyle: { color: cssVar("--outline-gray-1") } },
+    },
+    tooltip: { trigger: "axis" },
+    series: [
+      {
+        name: __("Created"),
+        type: "line",
+        data: created,
+        smooth: true,
+        symbol: "circle",
+        symbolSize: 6,
+        lineStyle: { width: 2.5, color: "#3b82f6" },
+        itemStyle: { color: "#3b82f6" },
+        areaStyle: {
+          color: {
+            type: "linear", x: 0, y: 0, x2: 0, y2: 1,
+            colorStops: [
+              { offset: 0, color: "rgba(59,130,246,0.28)" },
+              { offset: 1, color: "rgba(59,130,246,0)" },
+            ],
+          },
+        },
+      },
+      {
+        name: __("Done"),
+        type: "line",
+        data: done,
+        smooth: true,
+        symbol: "circle",
+        symbolSize: 6,
+        lineStyle: { width: 2.5, color: "#10b981" },
+        itemStyle: { color: "#10b981" },
+      },
+    ],
+  };
+});
 
 // Assignee options are derived from the tasks themselves, so the filter works
 // on the customer portal too (where the agent list isn't loaded).

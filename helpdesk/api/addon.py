@@ -232,6 +232,7 @@ TASK_FIELDS = [
 	"start_date",
 	"end_date",
 	"description",
+	"creation",
 ]
 # `score` is deliberately NOT writable here — update_task gates it so only
 # the task's reviewer (or a manager) can score.
