@@ -286,10 +286,12 @@
       <div
         v-for="col in boardColumns"
         :key="col.key"
-        class="rounded-2xl bg-surface-gray-1 border border-outline-gray-1 p-2.5 flex flex-col gap-2 min-h-[96px] max-h-[440px]"
+        class="relative overflow-hidden rounded-2xl border p-2.5 pt-3 flex flex-col gap-2 min-h-[440px] max-h-[72vh]"
+        :class="[colTheme(col.key).bg, colTheme(col.key).border]"
       >
+        <span class="absolute inset-x-0 top-0 h-1" :class="colTheme(col.key).bar" />
         <div class="flex items-center justify-between px-1 shrink-0">
-          <div class="flex items-center gap-1.5 text-xs font-semibold text-ink-gray-7 min-w-0">
+          <div class="flex items-center gap-1.5 text-xs font-semibold min-w-0" :class="colTheme(col.key).text">
             <span class="size-2.5 rounded-full shrink-0 ring-2 ring-inset ring-white/60" :class="col.dot" />
             <span class="truncate">{{ col.label }}</span>
             <span class="shrink-0 text-[10px] font-semibold text-ink-gray-6 bg-surface-white rounded-full px-1.5 py-0.5 min-w-[1.25rem] text-center">
@@ -876,6 +878,44 @@ const COLUMNS = [
   { key: "Postponed", dot: "bg-violet-500" },
   { key: "Done", dot: "bg-green-500" },
 ];
+// Per-status column colour (tint bg + accent bar + label). Falls back to a
+// neutral slate for the dynamic project/assignee columns.
+const NEUTRAL_THEME = {
+  bg: "bg-surface-gray-1",
+  border: "border-outline-gray-1",
+  bar: "bg-ink-gray-3",
+  text: "text-ink-gray-7",
+};
+const COLUMN_THEME: Record<string, typeof NEUTRAL_THEME> = {
+  "To Do": NEUTRAL_THEME,
+  "In Progress": {
+    bg: "bg-blue-50",
+    border: "border-blue-100",
+    bar: "bg-blue-400",
+    text: "text-blue-700",
+  },
+  Pending: {
+    bg: "bg-amber-50",
+    border: "border-amber-100",
+    bar: "bg-amber-400",
+    text: "text-amber-700",
+  },
+  Postponed: {
+    bg: "bg-violet-50",
+    border: "border-violet-100",
+    bar: "bg-violet-400",
+    text: "text-violet-700",
+  },
+  Done: {
+    bg: "bg-green-50",
+    border: "border-green-100",
+    bar: "bg-green-400",
+    text: "text-green-700",
+  },
+};
+function colTheme(key: string) {
+  return COLUMN_THEME[key] || NEUTRAL_THEME;
+}
 
 const parentParams = () =>
   props.standalone || props.hub

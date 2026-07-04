@@ -43,7 +43,7 @@
 
     <div
       v-if="resource.data"
-      class="w-full max-w-screen-lg mx-auto px-4 md:px-6 py-6 flex flex-col gap-5 flex-1 overflow-y-auto"
+      class="w-full max-w-screen-2xl mx-auto px-4 md:px-6 lg:px-8 py-6 flex flex-col gap-5 flex-1 overflow-y-auto"
     >
       <!-- Header / info -->
       <div class="executive-card p-6 flex flex-col gap-4">
