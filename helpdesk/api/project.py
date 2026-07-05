@@ -320,6 +320,10 @@ def delete_project(name: str) -> bool:
 		"HD Addon Task", filters={"project": name}, pluck="name"
 	)
 	if tasks:
+		from helpdesk.api.addon import _snapshot_task_audit
+
+		for t in tasks:
+			_snapshot_task_audit(t)
 		frappe.db.delete("HD Task Comment", {"task": ["in", tasks]})
 		frappe.db.delete("HD Task Subtask", {"task": ["in", tasks]})
 		frappe.db.delete("HD Addon Task", {"project": name})

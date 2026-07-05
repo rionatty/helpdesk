@@ -1,0 +1,87 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "hash",
+ "creation": "2026-07-04 00:00:00.000000",
+ "description": "Immutable snapshot of a task's audit trail, captured when the task is deleted so the history survives deletion.",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "task",
+  "task_subject",
+  "action",
+  "deleted_by",
+  "deleted_on",
+  "snapshot",
+  "history"
+ ],
+ "fields": [
+  {
+   "fieldname": "task",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Task (name)"
+  },
+  {
+   "fieldname": "task_subject",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Task Subject"
+  },
+  {
+   "default": "Deleted",
+   "fieldname": "action",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Action"
+  },
+  {
+   "fieldname": "deleted_by",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Deleted By"
+  },
+  {
+   "fieldname": "deleted_on",
+   "fieldtype": "Datetime",
+   "in_list_view": 1,
+   "label": "Deleted On"
+  },
+  {
+   "fieldname": "snapshot",
+   "fieldtype": "Long Text",
+   "label": "Final State (JSON)"
+  },
+  {
+   "fieldname": "history",
+   "fieldtype": "Long Text",
+   "label": "Change History (JSON)"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-07-04 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Helpdesk",
+ "name": "HD Task Audit",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "export": 1
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Agent Manager",
+   "export": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 0
+}

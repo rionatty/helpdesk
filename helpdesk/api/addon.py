@@ -140,6 +140,8 @@ def delete_addon(name: str) -> bool:
 	frappe.db.delete("HD Addon Feature", {"addon": name})
 	tasks = frappe.get_all("HD Addon Task", filters={"addon": name}, pluck="name")
 	if tasks:
+		for t in tasks:
+			_snapshot_task_audit(t)
 		frappe.db.delete("HD Task Comment", {"task": ["in", tasks]})
 		frappe.db.delete("HD Task Subtask", {"task": ["in", tasks]})
 		frappe.db.delete("HD Addon Task", {"addon": name})
@@ -873,12 +875,45 @@ def request_review(name: str) -> bool:
 	return True
 
 
+def _snapshot_task_audit(name: str) -> None:
+	"""Preserve a task's final state and change history in an immutable log
+	before it's deleted, so the audit trail survives deletion. Best-effort."""
+	try:
+		doc = frappe.db.get_value("HD Addon Task", name, "*", as_dict=True)
+		if not doc:
+			return
+		history = frappe.get_all(
+			"Version",
+			filters={"ref_doctype": "HD Addon Task", "docname": name},
+			fields=["owner", "creation", "data"],
+			order_by="creation asc",
+			ignore_permissions=True,
+		)
+		frappe.get_doc(
+			{
+				"doctype": "HD Task Audit",
+				"task": name,
+				"task_subject": doc.get("subject"),
+				"action": "Deleted",
+				"deleted_by": frappe.session.user,
+				"deleted_on": frappe.utils.now(),
+				"snapshot": frappe.as_json(doc, indent=1),
+				"history": frappe.as_json(history, indent=1),
+			}
+		).insert(ignore_permissions=True)
+	except Exception:
+		frappe.log_error(
+			title="Task audit snapshot failed", message=frappe.get_traceback()
+		)
+
+
 @frappe.whitelist()
 def delete_task(name: str) -> bool:
 	"""Delete a task with its comments and subtasks. Assigned agents and
-	managers only."""
+	managers only. The audit trail is snapshotted first so it survives."""
 	_assert_agent()
 	_assert_task_access(name)
+	_snapshot_task_audit(name)
 	frappe.db.delete("HD Task Comment", {"task": name})
 	frappe.db.delete("HD Task Subtask", {"task": name})
 	frappe.delete_doc("HD Addon Task", name, ignore_permissions=True)
