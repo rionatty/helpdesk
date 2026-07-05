@@ -281,6 +281,49 @@
       </div>
     </div>
 
+    <!-- Bulk action bar (agent) -->
+    <div
+      v-if="editable && selectedTasks.size"
+      class="flex flex-wrap items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2"
+    >
+      <span class="text-sm font-semibold text-blue-800">
+        {{ __("{0} selected", [String(selectedTasks.size)]) }}
+      </span>
+      <select
+        class="text-xs rounded-md border border-outline-gray-2 bg-surface-white px-2 py-1.5 text-ink-gray-7 focus:outline-none focus:border-blue-400"
+        @change="bulkSetStatus"
+      >
+        <option value="">{{ __("Set status…") }}</option>
+        <option v-for="s in STATUSES" :key="s" :value="s">{{ s }}</option>
+      </select>
+      <select
+        class="text-xs rounded-md border border-outline-gray-2 bg-surface-white px-2 py-1.5 text-ink-gray-7 focus:outline-none focus:border-blue-400 max-w-[150px]"
+        @change="bulkAssign"
+      >
+        <option value="">{{ __("Assign to…") }}</option>
+        <option value="__unassign__">{{ __("Unassigned") }}</option>
+        <option v-for="a in agentOptions" :key="a.value" :value="a.value">
+          {{ a.label }}
+        </option>
+      </select>
+      <Button
+        theme="red"
+        variant="subtle"
+        size="sm"
+        :label="__('Delete')"
+        :loading="bulkDeleteRes.loading"
+        @click="bulkDelete"
+      />
+      <span class="flex-1" />
+      <button
+        type="button"
+        class="text-xs text-ink-gray-6 hover:text-ink-gray-9 inline-flex items-center gap-0.5"
+        @click="clearSelection"
+      >
+        <LucideX class="size-3" /> {{ __("Clear selection") }}
+      </button>
+    </div>
+
     <!-- Kanban columns -->
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 items-start">
       <div
@@ -316,10 +359,27 @@
           v-for="t in grouped[col.key]"
           :key="t.name"
           type="button"
-          class="text-start rounded-xl border border-outline-gray-2 bg-surface-white px-3 py-2.5 flex flex-col gap-2 hover:shadow-md hover:border-outline-gray-3 hover:-translate-y-0.5 transition-all duration-150"
+          class="relative text-start rounded-xl border bg-surface-white px-3 py-2.5 flex flex-col gap-2 hover:shadow-md hover:-translate-y-0.5 transition-all duration-150"
+          :class="
+            selectedTasks.has(t.name)
+              ? 'border-blue-400 ring-2 ring-blue-200'
+              : 'border-outline-gray-2 hover:border-outline-gray-3'
+          "
           @click="open(t)"
         >
-          <div class="text-sm font-medium text-ink-gray-8 leading-snug">
+          <input
+            v-if="editable"
+            type="checkbox"
+            class="absolute top-2 right-2 size-3.5 cursor-pointer accent-blue-600"
+            :checked="selectedTasks.has(t.name)"
+            :aria-label="__('Select task')"
+            @click.stop
+            @change="toggleSelect(t.name)"
+          />
+          <div
+            class="text-sm font-medium text-ink-gray-8 leading-snug"
+            :class="editable ? 'pe-5' : ''"
+          >
             {{ t.subject }}
           </div>
           <div class="flex flex-wrap items-center gap-1.5">
@@ -1632,6 +1692,71 @@ const reviewRes = createResource({
 });
 function requestReview() {
   if (selected.value) reviewRes.submit({ name: selected.value.name });
+}
+
+// --- Bulk selection & actions (agent only) ---
+const selectedTasks = ref(new Set<string>());
+function toggleSelect(name: string) {
+  if (selectedTasks.value.has(name)) selectedTasks.value.delete(name);
+  else selectedTasks.value.add(name);
+}
+function clearSelection() {
+  selectedTasks.value.clear();
+}
+const bulkUpdateRes = createResource({
+  url: "helpdesk.api.addon.bulk_update_tasks",
+  onSuccess: (n: number) => {
+    toast.success(__("{0} tasks updated", [String(n)]));
+    clearSelection();
+    reload();
+  },
+  onError: (e: any) =>
+    toast.error(e?.messages?.[0] || __("Could not update tasks")),
+});
+const bulkDeleteRes = createResource({
+  url: "helpdesk.api.addon.bulk_delete_tasks",
+  onSuccess: (n: number) => {
+    toast.success(__("{0} tasks deleted", [String(n)]));
+    clearSelection();
+    reload();
+  },
+  onError: (e: any) =>
+    toast.error(e?.messages?.[0] || __("Could not delete tasks")),
+});
+function bulkSetStatus(e: any) {
+  const status = e.target.value;
+  if (!status || !selectedTasks.value.size) return;
+  bulkUpdateRes.submit({ names: [...selectedTasks.value], status });
+  e.target.value = "";
+}
+function bulkAssign(e: any) {
+  const val = e.target.value;
+  if (val === "" || !selectedTasks.value.size) return; // placeholder → no-op
+  const assigned_to = val === "__unassign__" ? "" : val;
+  bulkUpdateRes.submit({ names: [...selectedTasks.value], assigned_to });
+  e.target.value = "";
+}
+function bulkDelete() {
+  const names = [...selectedTasks.value];
+  if (!names.length) return;
+  $dialog({
+    title: __("Delete tasks"),
+    message: __(
+      "Delete {0} selected tasks? This permanently removes them with their subtasks and comments.",
+      [String(names.length)]
+    ),
+    actions: [
+      {
+        label: __("Delete"),
+        theme: "red",
+        variant: "solid",
+        onClick: (close: Function) => {
+          bulkDeleteRes.submit({ names });
+          close();
+        },
+      },
+    ],
+  });
 }
 
 const deleteRes = createResource({

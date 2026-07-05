@@ -875,6 +875,37 @@ def request_review(name: str) -> bool:
 	return True
 
 
+@frappe.whitelist()
+def bulk_update_tasks(names, **fields) -> int:
+	"""Apply the same field update (status / priority / assigned_to) to many
+	tasks. Reuses update_task per row, so per-task access, the completion/review
+	workflow and notifications all still apply. Returns the count updated."""
+	_assert_agent()
+	names = frappe.parse_json(names) if isinstance(names, str) else (names or [])
+	# Only allow the safe bulk fields through.
+	allowed = {k: v for k, v in fields.items() if k in ("status", "priority", "assigned_to")}
+	if not allowed:
+		frappe.throw(_("Nothing to update"))
+	count = 0
+	for name in names:
+		update_task(name, **allowed)
+		count += 1
+	return count
+
+
+@frappe.whitelist()
+def bulk_delete_tasks(names) -> int:
+	"""Delete many tasks (each snapshotted to the audit log first). Agents
+	only; per-task access is enforced by delete_task. Returns the count."""
+	_assert_agent()
+	names = frappe.parse_json(names) if isinstance(names, str) else (names or [])
+	count = 0
+	for name in names:
+		delete_task(name)
+		count += 1
+	return count
+
+
 def _snapshot_task_audit(name: str) -> None:
 	"""Preserve a task's final state and change history in an immutable log
 	before it's deleted, so the audit trail survives deletion. Best-effort."""
