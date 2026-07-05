@@ -665,6 +665,64 @@
             </div>
           </div>
 
+          <!-- Estimate + completion -->
+          <div v-if="editable" class="grid grid-cols-2 gap-3">
+            <div class="flex flex-col gap-1">
+              <span class="text-xs text-ink-gray-5">{{ __("Estimated hours") }}</span>
+              <input
+                type="number"
+                min="0"
+                step="0.5"
+                :value="selected.estimated_hours || ''"
+                placeholder="0"
+                class="text-sm rounded-md border border-outline-gray-2 bg-surface-white px-2 py-1 text-ink-gray-8 focus:outline-none focus:border-blue-400"
+                @change="(e) => patch({ estimated_hours: parseFloat(e.target.value) || 0 })"
+              />
+            </div>
+            <div v-if="selected.completed_on" class="flex flex-col gap-1">
+              <span class="text-xs text-ink-gray-5">{{ __("Completed on") }}</span>
+              <span
+                class="text-sm text-green-700 font-medium inline-flex items-center gap-1 py-1"
+              >
+                <LucideCircleCheck class="size-4" />
+                {{ dayjs(selected.completed_on).format("MMM D, YYYY") }}
+              </span>
+            </div>
+          </div>
+
+          <!-- Review workflow -->
+          <div
+            v-if="editable && selected.reviewer"
+            class="flex items-center gap-2 flex-wrap"
+          >
+            <span class="text-xs text-ink-gray-5">{{ __("Review") }}</span>
+            <span
+              v-if="selected.review_status === 'Reviewed'"
+              class="text-xs rounded-full px-2 py-0.5 bg-green-100 text-green-700 font-medium"
+            >
+              {{ __("Reviewed") }}
+            </span>
+            <span
+              v-else-if="selected.review_status === 'Pending Review'"
+              class="text-xs rounded-full px-2 py-0.5 bg-amber-100 text-amber-700 font-medium"
+            >
+              {{ __("Pending review") }}
+            </span>
+            <Button
+              v-if="selected.review_status !== 'Reviewed'"
+              size="sm"
+              variant="subtle"
+              theme="blue"
+              :loading="reviewRes.loading"
+              :label="
+                selected.review_status === 'Pending Review'
+                  ? __('Remind reviewer')
+                  : __('Request review')
+              "
+              @click="requestReview"
+            />
+          </div>
+
           <!-- Description -->
           <div class="flex flex-col gap-1">
             <span class="text-xs text-ink-gray-5">{{ __("Description") }}</span>
@@ -685,7 +743,11 @@
             v-if="editable && selected.name"
             class="border-t border-outline-gray-1 pt-3"
           >
-            <TaskSubtasks :task-id="selected.name" :editable="editable" />
+            <TaskSubtasks
+              :task-id="selected.name"
+              :editable="editable"
+              :estimated-hours="Number(selected.estimated_hours) || 0"
+            />
           </div>
 
           <!-- Attachments -->
@@ -1034,7 +1096,13 @@ const trendOption = computed(() => {
         (!extra || extra(t))
     ).length;
   const created = ws.map((w) => inWeek(w));
-  const done = ws.map((w) => inWeek(w, (t) => t.status === "Done"));
+  // "Done" is bucketed by real completion date, not creation.
+  const done = ws.map(
+    (w) =>
+      all.filter(
+        (t: any) => t.completed_on && dayjs(t.completed_on).isSame(w, "week")
+      ).length
+  );
   return {
     grid: { left: 34, right: 14, top: 30, bottom: 24 },
     legend: {
@@ -1497,6 +1565,9 @@ async function openNew(name: string, status: string) {
     reviewer: "",
     reviewer_name: "",
     score: 0,
+    estimated_hours: 0,
+    completed_on: null,
+    review_status: "",
   };
   showDetail.value = true;
   comments.reload();
@@ -1536,7 +1607,34 @@ const updateRes = createResource({
 function patch(fields: Record<string, any>) {
   if (!selected.value) return;
   Object.assign(selected.value, fields);
+  // Mirror the backend completion/review workflow for instant UI feedback.
+  if ("status" in fields) {
+    if (fields.status === "Done") {
+      if (!selected.value.completed_on)
+        selected.value.completed_on = dayjs().toISOString();
+      if (selected.value.reviewer && selected.value.review_status !== "Reviewed")
+        selected.value.review_status = "Pending Review";
+    } else {
+      selected.value.completed_on = null;
+    }
+  }
+  if ("score" in fields && Number(fields.score)) {
+    selected.value.review_status = "Reviewed";
+  }
   updateRes.submit({ name: selected.value.name, ...fields });
+}
+
+const reviewRes = createResource({
+  url: "helpdesk.api.addon.request_review",
+  onSuccess: () => {
+    if (selected.value) selected.value.review_status = "Pending Review";
+    toast.success(__("Reviewer notified"));
+  },
+  onError: (e: any) =>
+    toast.error(e?.messages?.[0] || __("Could not request review")),
+});
+function requestReview() {
+  if (selected.value) reviewRes.submit({ name: selected.value.name });
 }
 
 const deleteRes = createResource({

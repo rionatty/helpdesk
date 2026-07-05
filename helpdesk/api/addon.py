@@ -7,7 +7,7 @@
 
 import frappe
 from frappe import _
-from frappe.utils import cint
+from frappe.utils import cint, flt
 
 from helpdesk.utils import (
 	agent_has_addon,
@@ -232,11 +232,15 @@ TASK_FIELDS = [
 	"is_internal",
 	"start_date",
 	"end_date",
+	"estimated_hours",
+	"completed_on",
+	"review_status",
 	"description",
 	"creation",
 ]
-# `score` is deliberately NOT writable here — update_task gates it so only
-# the task's reviewer (or a manager) can score.
+# `score`, `completed_on` and `review_status` are deliberately NOT writable
+# here — update_task manages them (scoring is reviewer-gated; completed_on and
+# review_status follow the status/review workflow).
 TASK_WRITABLE = {
 	"subject",
 	"status",
@@ -249,6 +253,7 @@ TASK_WRITABLE = {
 	"is_internal",
 	"start_date",
 	"end_date",
+	"estimated_hours",
 	"description",
 }
 
@@ -355,11 +360,12 @@ def _get_tasks(addon: str | None = None, project: str | None = None) -> list:
 		r["comment_count"] = counts.get(r.name, 0)
 		if not agent:
 			# assigned_to/owner are emails; the portal gets display names only.
-			# Reviewer and score are internal QA — never shown to customers.
+			# Reviewer, score and review status are internal QA — never shown.
 			r["assigned_to"] = None
 			r["owner"] = None
 			r["reviewer"] = None
 			r["score"] = 0
+			r["review_status"] = None
 	return rows
 
 
@@ -667,6 +673,61 @@ def _notify_task_assignee(doc) -> None:
 		)
 
 
+def _notify_task_reviewer(doc) -> None:
+	"""Tell the reviewer a task is ready for their review (in-app + email).
+	Best-effort; skips self-review."""
+	reviewer = doc.get("reviewer")
+	if not reviewer or reviewer == frappe.session.user or reviewer == "Guest":
+		return
+	link = frappe.utils.get_url(
+		f"/helpdesk/projects/{doc.project}"
+		if doc.get("project")
+		else f"/helpdesk/addons/{doc.addon}"
+		if doc.get("addon")
+		else "/helpdesk/tasks"
+	)
+	try:
+		frappe.publish_realtime(
+			"helpdesk:task_review_requested",
+			{"task": doc.name, "subject": doc.subject, "link": link},
+			user=reviewer,
+		)
+	except Exception:
+		pass
+
+	sender = frappe.db.get_value(
+		"Email Account", {"enable_outgoing": 1, "default_outgoing": 1}, "email_id"
+	) or frappe.db.get_value("Email Account", {"enable_outgoing": 1}, "email_id")
+	if not sender:
+		return
+	try:
+		name = (
+			frappe.db.get_value("HD Agent", reviewer, "agent_name") or reviewer
+		).split(" ")[0]
+		frappe.sendmail(
+			recipients=[reviewer],
+			sender=sender,
+			subject=_("Review requested: {0}").format(doc.subject),
+			message=f"""
+				<p>{_('Hi')} {frappe.utils.escape_html(name)},</p>
+				<p>{_('A task is ready for your review')}:</p>
+				<p style="font-size:15px;font-weight:600;margin:12px 0;">
+					{frappe.utils.escape_html(doc.subject)}</p>
+				<p style="margin-top:16px;">
+					<a href="{link}" style="background:#2563eb;color:#fff;padding:8px 16px;
+					border-radius:6px;text-decoration:none;">{_('Review task')}</a>
+				</p>
+			""",
+			reference_doctype="HD Addon Task",
+			reference_name=doc.name,
+			now=True,
+		)
+	except Exception:
+		frappe.log_error(
+			title="Task review email failed", message=frappe.get_traceback()
+		)
+
+
 @frappe.whitelist()
 def add_task(
 	subject: str,
@@ -752,7 +813,9 @@ def update_task(name: str, **fields) -> bool:
 			_("Only managers can assign tasks to other agents"),
 			frappe.PermissionError,
 		)
+	old_status = doc.status
 	score = fields.pop("score", None)
+	scored_now = False
 	if score is not None:
 		# Check against the reviewer as stored, not one set in this request.
 		if not (is_agent_manager() or frappe.session.user == doc.reviewer):
@@ -761,18 +824,52 @@ def update_task(name: str, **fields) -> bool:
 				frappe.PermissionError,
 			)
 		doc.score = max(0, min(5, cint(score)))
+		scored_now = True
 	for key, value in fields.items():
 		if key in TASK_WRITABLE:
 			doc.set(key, value)
+	if doc.get("estimated_hours"):
+		doc.estimated_hours = max(0, flt(doc.estimated_hours))
 	if doc.milestone and doc.project:
 		if frappe.db.get_value("HD Milestone", doc.milestone, "project") != doc.project:
 			frappe.throw(_("Milestone belongs to a different project"))
+
+	# --- Completion + review workflow ---
+	became_done = doc.status == "Done" and old_status != "Done"
+	if doc.status == "Done" and not doc.completed_on:
+		doc.completed_on = frappe.utils.now()
+	elif doc.status != "Done":
+		doc.completed_on = None
+	# Scoring marks the task reviewed; finishing a reviewed-by task queues it.
+	notify_reviewer = False
+	if scored_now and doc.score:
+		doc.review_status = "Reviewed"
+	elif became_done and doc.reviewer and doc.review_status != "Reviewed":
+		doc.review_status = "Pending Review"
+		notify_reviewer = True
+
 	doc.save(ignore_permissions=True)
 	# Grant the (possibly new) assignee/reviewer access to the parent, and
-	# notify the assignee if it changed to someone new.
+	# notify the assignee / reviewer as appropriate.
 	_grant_task_access(doc)
 	if doc.assigned_to and doc.assigned_to != old_assignee:
 		_notify_task_assignee(doc)
+	if notify_reviewer:
+		_notify_task_reviewer(doc)
+	return True
+
+
+@frappe.whitelist()
+def request_review(name: str) -> bool:
+	"""Flag a task as ready for review and notify its reviewer. Agents only."""
+	_assert_agent()
+	_assert_task_access(name)
+	doc = frappe.get_doc("HD Addon Task", name)
+	if not doc.reviewer:
+		frappe.throw(_("Set a reviewer before requesting a review"))
+	doc.review_status = "Pending Review"
+	doc.save(ignore_permissions=True)
+	_notify_task_reviewer(doc)
 	return True
 
 

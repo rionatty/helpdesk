@@ -17,9 +17,12 @@
   "column_break_main",
   "assigned_to",
   "reviewer",
+  "review_status",
   "score",
   "start_date",
   "end_date",
+  "estimated_hours",
+  "completed_on",
   "is_internal",
   "section_break_desc",
   "description"
@@ -107,6 +110,14 @@
    "search_index": 1
   },
   {
+   "description": "Review workflow state",
+   "fieldname": "review_status",
+   "fieldtype": "Select",
+   "in_standard_filter": 1,
+   "label": "Review Status",
+   "options": "\nPending Review\nReviewed"
+  },
+  {
    "default": "0",
    "description": "Review score given by the reviewer (0 = not scored, 1-5)",
    "fieldname": "score",
@@ -123,6 +134,22 @@
    "fieldname": "end_date",
    "fieldtype": "Date",
    "label": "Due Date"
+  },
+  {
+   "default": "0",
+   "description": "Hours budgeted for this task",
+   "fieldname": "estimated_hours",
+   "fieldtype": "Float",
+   "label": "Estimated Hours",
+   "non_negative": 1,
+   "precision": "2"
+  },
+  {
+   "description": "Set automatically when the task is marked Done",
+   "fieldname": "completed_on",
+   "fieldtype": "Datetime",
+   "label": "Completed On",
+   "read_only": 1
   },
   {
    "default": "0",

@@ -46,6 +46,15 @@ function onTaskAssigned(data: {
   });
 }
 
+// In-app popup when a task is ready for the current user's review.
+function onTaskReviewRequested(data: { subject?: string }) {
+  toast.create({
+    title: __("Review requested"),
+    message: __("“{0}” is ready for your review", [data?.subject || ""]),
+    icon: h(LucideListChecks, { class: "text-ink-white" }),
+  });
+}
+
 onMounted(() => {
   window.addEventListener("online", () => {
     toast.create({
@@ -65,11 +74,13 @@ onMounted(() => {
 
   const { $socket } = globalStore();
   $socket?.on("helpdesk:task_assigned", onTaskAssigned);
+  $socket?.on("helpdesk:task_review_requested", onTaskReviewRequested);
 });
 
 onUnmounted(() => {
   const { $socket } = globalStore();
   $socket?.off("helpdesk:task_assigned", onTaskAssigned);
+  $socket?.off("helpdesk:task_review_requested", onTaskReviewRequested);
 });
 
 const AgentPortalRoot = defineAsyncComponent(

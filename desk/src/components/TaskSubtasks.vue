@@ -53,6 +53,21 @@
       </div>
     </div>
 
+    <!-- Estimate vs actual (from the parent task's estimate) -->
+    <div
+      v-if="editable && (estimatedHours || summary.hours_spent)"
+      class="flex items-center justify-between text-xs px-0.5"
+      :class="overBudget ? 'text-ink-red-3 font-medium' : 'text-ink-gray-6'"
+    >
+      <span>
+        {{ formatHours(summary.hours_spent) }} {{ __("logged") }}
+        <template v-if="estimatedHours">
+          / {{ formatHours(estimatedHours) }} {{ __("estimated") }}
+        </template>
+      </span>
+      <span v-if="overBudget">{{ __("over budget") }}</span>
+    </div>
+
     <!-- Subtask list -->
     <div v-if="subtasks.data && subtasks.data.length" class="flex flex-col gap-2">
       <div
@@ -233,8 +248,13 @@ import LucideStar from "~icons/lucide/star";
 interface P {
   taskId: string;
   editable?: boolean;
+  estimatedHours?: number;
 }
-const props = withDefaults(defineProps<P>(), { editable: false });
+const props = withDefaults(defineProps<P>(), { editable: false, estimatedHours: 0 });
+
+const overBudget = computed(
+  () => props.estimatedHours > 0 && summary.value.hours_spent > props.estimatedHours
+);
 
 const authStore = useAuthStore();
 const { userId } = authStore;
