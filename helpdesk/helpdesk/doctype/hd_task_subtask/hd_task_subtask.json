@@ -15,6 +15,7 @@
   "score",
   "hours_spent",
   "due_date",
+  "customer_visible",
   "section_break_desc",
   "description"
  ],
@@ -86,6 +87,13 @@
    "fieldtype": "Date",
    "in_list_view": 1,
    "label": "Due Date"
+  },
+  {
+   "default": "0",
+   "description": "Show this subtask to the customer on the portal",
+   "fieldname": "customer_visible",
+   "fieldtype": "Check",
+   "label": "Visible to Customer"
   },
   {
    "fieldname": "section_break_desc",

@@ -1,5 +1,6 @@
 <template>
-  <div class="flex flex-col gap-3">
+  <!-- Hidden entirely for customers when there are no visible subtasks. -->
+  <div v-if="editable || (subtasks.data && subtasks.data.length)" class="flex flex-col gap-3">
     <div class="flex items-center gap-2">
       <div
         class="size-7 rounded-lg bg-gradient-to-br from-violet-500 to-blue-500 flex items-center justify-center shadow-sm ring-1 ring-inset ring-white/40"
@@ -104,6 +105,25 @@
           </button>
         </div>
 
+        <!-- Read-only assignee + due (customer view) -->
+        <div
+          v-if="!editable && (t.assigned_to_name || t.due_date)"
+          class="flex flex-wrap items-center gap-x-3 gap-y-1 ps-6 text-xs"
+        >
+          <span v-if="t.assigned_to_name" class="flex items-center gap-1.5 text-ink-gray-6">
+            <Avatar size="xs" :label="t.assigned_to_name" />
+            {{ t.assigned_to_name }}
+          </span>
+          <span
+            v-if="t.due_date"
+            class="flex items-center gap-1"
+            :class="isOverdue(t) ? 'text-ink-red-3 font-medium' : 'text-ink-gray-6'"
+          >
+            <LucideCalendarClock class="size-3.5" />
+            {{ dayjs(t.due_date).format("MMM D") }}
+          </span>
+        </div>
+
         <!-- Controls -->
         <div v-if="editable" class="flex flex-wrap items-center gap-2 ps-6">
           <select
@@ -164,6 +184,17 @@
               @change="(e) => patchSubtask(t.name, { due_date: e.target.value })"
             />
           </div>
+          <label
+            class="flex items-center gap-1.5 text-xs text-ink-gray-6 cursor-pointer"
+            :title="__('Show this subtask to the customer')"
+          >
+            <input
+              type="checkbox"
+              :checked="!!t.customer_visible"
+              @change="(e) => patchSubtask(t.name, { customer_visible: e.target.checked ? 1 : 0 })"
+            />
+            {{ __("Client-visible") }}
+          </label>
         </div>
 
         <!-- Review score -->
@@ -227,6 +258,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import {
+  Avatar,
   Button,
   createListResource,
   createResource,

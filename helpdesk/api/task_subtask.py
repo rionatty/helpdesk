@@ -22,6 +22,7 @@ SUBTASK_FIELDS = [
 	"score",
 	"description",
 	"due_date",
+	"customer_visible",
 ]
 STATUSES = ("To Do", "In Progress", "Done")
 
@@ -40,12 +41,17 @@ def _resolve_task(subtask: str) -> str:
 
 @frappe.whitelist()
 def get_subtasks(task: str) -> list:
-	"""Subtasks of a task, with assignee/reviewer display names. Agents only."""
-	_assert_agent()
+	"""Subtasks of a task. Agents see all with assignee/reviewer names; the
+	parent's customer sees only customer-visible ones, scrubbed of internal
+	review/hours/assignee-email data."""
 	_assert_task_access(task)
+	agent = is_agent()
+	filters: dict = {"task": task}
+	if not agent:
+		filters["customer_visible"] = 1
 	rows = frappe.get_all(
 		"HD Task Subtask",
-		filters={"task": task},
+		filters=filters,
 		fields=SUBTASK_FIELDS,
 		order_by="creation asc",
 		ignore_permissions=True,
@@ -63,19 +69,32 @@ def get_subtasks(task: str) -> list:
 			)
 		}
 	for r in rows:
-		r["assigned_to_name"] = names.get(r.assigned_to) or r.assigned_to
+		r["assigned_to_name"] = names.get(r.assigned_to) or (
+			r.assigned_to if agent else _("Support agent") if r.assigned_to else None
+		)
 		r["reviewer_name"] = names.get(r.reviewer) or r.reviewer
+		if not agent:
+			# Reviewer, score, hours and the assignee email are internal QA.
+			r["assigned_to"] = None
+			r["reviewer"] = None
+			r["reviewer_name"] = None
+			r["score"] = 0
+			r["hours_spent"] = 0
 	return rows
 
 
 @frappe.whitelist()
 def get_summary(task: str) -> dict:
-	"""Progress, hours and review rollup for a task's subtasks."""
-	_assert_agent()
+	"""Progress, hours and review rollup for a task's subtasks. Customers get
+	progress over the customer-visible subtasks only (no hours/score)."""
 	_assert_task_access(task)
+	agent = is_agent()
+	filters: dict = {"task": task}
+	if not agent:
+		filters["customer_visible"] = 1
 	rows = frappe.get_all(
 		"HD Task Subtask",
-		filters={"task": task},
+		filters=filters,
 		fields=["status", "hours_spent", "score", "due_date"],
 		ignore_permissions=True,
 	)
@@ -98,8 +117,11 @@ def get_summary(task: str) -> dict:
 		"in_progress": len([r for r in rows if r.status == "In Progress"]),
 		"todo": len([r for r in rows if r.status == "To Do"]),
 		"overdue": overdue,
-		"hours_spent": sum([flt(r.hours_spent) for r in rows]),
-		"avg_score": round(sum(scored) / len(scored), 1) if scored else 0,
+		# Hours and scores are internal QA — not exposed on the portal.
+		"hours_spent": sum([flt(r.hours_spent) for r in rows]) if agent else 0,
+		"avg_score": (round(sum(scored) / len(scored), 1) if scored else 0)
+		if agent
+		else 0,
 		"progress": round((done / total) * 100) if total else 0,
 	}
 
@@ -135,6 +157,7 @@ def update_subtask(
 	score: int | None = None,
 	description: str | None = None,
 	due_date: str | None = None,
+	customer_visible: int | None = None,
 ) -> bool:
 	"""Update a subtask. Agents only. Scoring is reserved for the subtask's
 	reviewer (or a manager)."""
@@ -167,6 +190,8 @@ def update_subtask(
 		doc.description = description
 	if due_date is not None:
 		doc.due_date = due_date or None
+	if customer_visible is not None:
+		doc.customer_visible = 1 if cint(customer_visible) else 0
 	doc.save(ignore_permissions=True)
 	return True
 

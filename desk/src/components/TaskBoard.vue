@@ -738,11 +738,8 @@
             </p>
           </div>
 
-          <!-- Subtasks (agents only) -->
-          <div
-            v-if="editable && selected.name"
-            class="border-t border-outline-gray-1 pt-3"
-          >
+          <!-- Subtasks (agents edit; customers see client-visible ones) -->
+          <div v-if="selected.name" class="border-t border-outline-gray-1 pt-3">
             <TaskSubtasks
               :task-id="selected.name"
               :editable="editable"
