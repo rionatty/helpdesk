@@ -59,6 +59,10 @@ MILESTONE_FIELDS = [
 	"sequence",
 	"completed_on",
 	"customer_visible",
+	"signoff_status",
+	"signed_off_by",
+	"signed_off_on",
+	"signoff_note",
 	"description",
 ]
 
@@ -489,6 +493,50 @@ def delete_milestone(name: str) -> bool:
 			doctype, {"milestone": name}, "milestone", None, update_modified=False
 		)
 	frappe.delete_doc("HD Milestone", name, ignore_permissions=True)
+	return True
+
+
+# ---------------------------------------------------------------------------
+# Milestone client sign-off
+# ---------------------------------------------------------------------------
+
+
+@frappe.whitelist()
+def request_milestone_signoff(name: str) -> bool:
+	"""Agent asks the client to sign off a milestone. Marks it customer-visible
+	so the client can actually see it. Assigned agents and managers only."""
+	doc = frappe.get_doc("HD Milestone", name)
+	_assert_agent_project(doc.project)
+	doc.signoff_status = "Requested"
+	doc.customer_visible = 1
+	doc.signed_off_by = None
+	doc.signed_off_on = None
+	doc.signoff_note = None
+	doc.save(ignore_permissions=True)
+	return True
+
+
+@frappe.whitelist()
+def submit_milestone_signoff(name: str, approved: int, note: str | None = None) -> bool:
+	"""The client approves a milestone or requests changes. Allowed for the
+	project's customer (and agents, e.g. to record it on a call)."""
+	doc = frappe.get_doc("HD Milestone", name)
+	project = frappe.get_doc("HD Project", doc.project)
+	_assert_project_access(project)
+	if not doc.customer_visible:
+		frappe.throw(_("This milestone is not open for sign-off"))
+	if cint(approved):
+		doc.signoff_status = "Approved"
+		if doc.status != "Completed":
+			doc.status = "Completed"
+		if not doc.completed_on:
+			doc.completed_on = today()
+	else:
+		doc.signoff_status = "Changes Requested"
+	doc.signed_off_by = frappe.session.user
+	doc.signed_off_on = frappe.utils.now()
+	doc.signoff_note = (note or "").strip() or None
+	doc.save(ignore_permissions=True)
 	return True
 
 

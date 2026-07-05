@@ -14,6 +14,10 @@
   "sequence",
   "completed_on",
   "customer_visible",
+  "signoff_status",
+  "signed_off_by",
+  "signed_off_on",
+  "signoff_note",
   "section_break_desc",
   "description"
  ],
@@ -73,6 +77,32 @@
    "fieldname": "customer_visible",
    "fieldtype": "Check",
    "label": "Customer Visible"
+  },
+  {
+   "description": "Client sign-off workflow state",
+   "fieldname": "signoff_status",
+   "fieldtype": "Select",
+   "in_standard_filter": 1,
+   "label": "Sign-off Status",
+   "options": "\nRequested\nApproved\nChanges Requested"
+  },
+  {
+   "fieldname": "signed_off_by",
+   "fieldtype": "Data",
+   "label": "Signed Off By",
+   "read_only": 1
+  },
+  {
+   "fieldname": "signed_off_on",
+   "fieldtype": "Datetime",
+   "label": "Signed Off On",
+   "read_only": 1
+  },
+  {
+   "fieldname": "signoff_note",
+   "fieldtype": "Small Text",
+   "label": "Sign-off Note",
+   "read_only": 1
   },
   {
    "fieldname": "section_break_desc",

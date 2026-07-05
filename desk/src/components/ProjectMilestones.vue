@@ -54,15 +54,22 @@
         </div>
 
         <!-- Body -->
+        <div class="flex-1 flex flex-col min-w-0 mb-2">
         <button
           type="button"
-          class="flex-1 text-start rounded-lg px-3 py-2 mb-2 -mt-0.5 transition-colors"
+          class="text-start rounded-lg px-3 py-2 -mt-0.5 transition-colors"
           :class="editable ? 'hover:bg-surface-menu-bar' : 'cursor-default'"
           @click="editable && openEdit(m)"
         >
           <div class="flex flex-wrap items-center gap-2">
             <span class="text-sm font-medium text-ink-gray-9">{{ m.title }}</span>
             <Badge :label="m.status" :theme="statusTheme(m.status)" variant="subtle" />
+            <Badge
+              v-if="m.signoff_status"
+              :label="signoffLabel(m.signoff_status)"
+              :theme="signoffTheme(m.signoff_status)"
+              variant="subtle"
+            />
             <span
               v-if="editable && !m.customer_visible"
               class="text-[10px] rounded-full px-1.5 py-0.5 bg-surface-gray-2 text-ink-gray-6 inline-flex items-center gap-0.5"
@@ -144,11 +151,86 @@
             </div>
           </div>
         </button>
+
+        <!-- Client sign-off controls -->
+        <div
+          v-if="showSignoff(m)"
+          class="px-3 pb-1 flex flex-wrap items-center gap-2"
+        >
+          <Button
+            v-if="editable && m.signoff_status !== 'Approved'"
+            size="sm"
+            variant="subtle"
+            theme="blue"
+            :loading="signoffRes.loading"
+            :disabled="m.signoff_status === 'Requested'"
+            :label="
+              m.signoff_status === 'Requested'
+                ? __('Awaiting client sign-off')
+                : __('Request client sign-off')
+            "
+            @click="requestSignoff(m)"
+          />
+          <template v-if="!editable && m.signoff_status === 'Requested'">
+            <Button
+              size="sm"
+              variant="solid"
+              theme="green"
+              :loading="submitRes.loading"
+              :label="__('Approve')"
+              @click="approve(m)"
+            />
+            <Button
+              size="sm"
+              variant="subtle"
+              :label="__('Request changes')"
+              @click="openChanges(m)"
+            />
+          </template>
+          <span
+            v-if="m.signoff_status === 'Approved' && m.signed_off_on"
+            class="text-[11px] text-green-700 inline-flex items-center gap-1"
+          >
+            <LucideCheck class="size-3" />
+            {{ __("Signed off {0}", [fmtDate(m.signed_off_on)]) }}
+          </span>
+          <span
+            v-else-if="m.signoff_status === 'Changes Requested'"
+            class="text-[11px] text-amber-700"
+          >
+            {{ __("Changes requested") }}<template v-if="m.signoff_note">: {{ m.signoff_note }}</template>
+          </span>
+        </div>
+        </div>
       </div>
     </div>
     <p v-else-if="!milestones.loading" class="text-sm text-ink-gray-5">
       {{ __("No milestones yet.") }}
     </p>
+
+    <!-- Request changes dialog (customer) -->
+    <Dialog
+      v-model="showChanges"
+      :options="{ title: __('Request changes') }"
+    >
+      <template #body-content>
+        <FormControl
+          v-model="changesNote"
+          type="textarea"
+          :label="__('What needs changing?')"
+          :placeholder="__('Describe what should be revised…')"
+        />
+      </template>
+      <template #actions>
+        <Button
+          variant="solid"
+          class="w-full"
+          :loading="submitRes.loading"
+          :label="__('Send to the team')"
+          @click="submitChanges"
+        />
+      </template>
+    </Dialog>
 
     <!-- Create / edit dialog (agent) -->
     <Dialog
@@ -419,6 +501,65 @@ const deleteRes = createResource({
     reload();
   },
 });
+
+// --- Client sign-off ---
+const signoffRes = createResource({
+  url: "helpdesk.api.project.request_milestone_signoff",
+  onSuccess: () => reload(),
+  onError: (e: any) =>
+    toast.error(e?.messages?.[0] || __("Could not request sign-off")),
+});
+const submitRes = createResource({
+  url: "helpdesk.api.project.submit_milestone_signoff",
+  onSuccess: () => {
+    showChanges.value = false;
+    reload();
+  },
+  onError: (e: any) =>
+    toast.error(e?.messages?.[0] || __("Could not submit sign-off")),
+});
+const showChanges = ref(false);
+const changesMilestone = ref<string | null>(null);
+const changesNote = ref("");
+
+function showSignoff(m: any) {
+  // Agents: on client-facing milestones. Customers: once sign-off is in play.
+  return props.editable ? !!m.customer_visible : !!m.signoff_status;
+}
+function requestSignoff(m: any) {
+  signoffRes.submit({ name: m.name });
+}
+function approve(m: any) {
+  submitRes.submit({ name: m.name, approved: 1 });
+}
+function openChanges(m: any) {
+  changesMilestone.value = m.name;
+  changesNote.value = "";
+  showChanges.value = true;
+}
+function submitChanges() {
+  if (!changesMilestone.value) return;
+  submitRes.submit({
+    name: changesMilestone.value,
+    approved: 0,
+    note: changesNote.value,
+  });
+}
+function signoffLabel(s: string) {
+  return (
+    {
+      Requested: __("Sign-off requested"),
+      Approved: __("Client approved"),
+      "Changes Requested": __("Changes requested"),
+    }[s] || s
+  );
+}
+function signoffTheme(s: string) {
+  return { Requested: "orange", Approved: "green", "Changes Requested": "red" }[s] || "gray";
+}
+function fmtDate(d: string) {
+  return dayjs(d).format("MMM D, YYYY");
+}
 
 function submit() {
   if (!form.title.trim()) {
