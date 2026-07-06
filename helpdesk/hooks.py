@@ -38,9 +38,13 @@ scheduler_events = {
         "helpdesk.search.build_index_if_not_exists",
         "helpdesk.search.download_corpus",
     ],
-    "hourly": [
-        "helpdesk.api.reminder.send_due_reminders",
-    ],
+    # Reminders must fire close to their scheduled minute, not up to an hour
+    # late — run the due-check every 5 minutes.
+    "cron": {
+        "*/5 * * * *": [
+            "helpdesk.api.reminder.send_due_reminders",
+        ],
+    },
     "daily": [
         "helpdesk.helpdesk.doctype.hd_ticket.hd_ticket.close_tickets_after_n_days"
     ],

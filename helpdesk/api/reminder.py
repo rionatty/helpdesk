@@ -113,8 +113,8 @@ def dismiss_reminder(name: str) -> bool:
 
 
 def send_due_reminders() -> None:
-	"""Scheduled hourly. Publishes realtime events for overdue Pending reminders,
-	sends email when requested, then marks them Notified."""
+	"""Scheduled every 5 minutes. Publishes realtime events for overdue Pending
+	reminders, sends email when requested, then marks them Notified."""
 	overdue = frappe.get_all(
 		"HD Reminder",
 		filters={"status": "Pending", "remind_at": ["<=", now()]},
@@ -145,6 +145,17 @@ def send_due_reminders() -> None:
 			try:
 				user_email = frappe.db.get_value("User", r.owner, "email") or r.owner
 				user_name = frappe.db.get_value("User", r.owner, "full_name") or r.owner
+				# Resolve a sender explicitly — frappe.sendmail silently fails when
+				# no account is flagged Default Outgoing.
+				sender = frappe.db.get_value(
+					"Email Account",
+					{"enable_outgoing": 1, "default_outgoing": 1},
+					"email_id",
+				) or frappe.db.get_value(
+					"Email Account", {"enable_outgoing": 1}, "email_id"
+				)
+				if not sender:
+					raise Exception("No outgoing Email Account configured")
 				ref_line = (
 					f"<p><strong>Reference:</strong> {r.reference_doctype} — {r.reference_name}</p>"
 					if r.reference_name
@@ -152,6 +163,7 @@ def send_due_reminders() -> None:
 				)
 				frappe.sendmail(
 					recipients=[user_email],
+					sender=sender,
 					subject=_("Reminder: {0}").format(r.message[:80]),
 					message=f"""
 						<p>Hi {user_name},</p>
