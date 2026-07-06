@@ -117,6 +117,11 @@ const routes = [
     component: () => import("@/pages/ProjectsList.vue"),
   },
   {
+    path: "/portfolio",
+    name: "Portfolio",
+    component: () => import("@/pages/PortfolioView.vue"),
+  },
+  {
     path: "/projects/:projectId",
     name: "ProjectAgent",
     component: () => import("@/pages/ProjectView.vue"),

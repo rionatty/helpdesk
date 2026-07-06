@@ -255,6 +255,79 @@ def get_projects(
 
 
 @frappe.whitelist()
+def get_portfolio() -> dict:
+	"""Cross-project rollup for the agent desk. Managers see every project;
+	other agents see the ones they're assigned to. Each project carries task /
+	milestone / budget rollups and an at-risk flag; plus a portfolio summary."""
+	_assert_agent()
+	filters: dict = {}
+	if not is_agent_manager():
+		names = assigned_project_names()
+		if not names:
+			return {"projects": [], "summary": {}}
+		filters["name"] = ["in", names]
+	projects = frappe.get_all(
+		"HD Project",
+		filters=filters,
+		fields=PROJECT_FIELDS,
+		order_by="modified desc",
+		ignore_permissions=True,
+	)
+	today = frappe.utils.getdate()
+	out = []
+	for p in projects:
+		tasks = frappe.get_all(
+			"HD Addon Task",
+			filters={"project": p.name},
+			fields=["status", "end_date"],
+			ignore_permissions=True,
+		)
+		total = len(tasks)
+		done = len([t for t in tasks if t.status == "Done"])
+		overdue = len(
+			[
+				t
+				for t in tasks
+				if t.status != "Done"
+				and t.end_date
+				and frappe.utils.getdate(t.end_date) < today
+			]
+		)
+		ms = frappe.get_all(
+			"HD Milestone",
+			filters={"project": p.name},
+			fields=["status"],
+			ignore_permissions=True,
+		)
+		budget = _project_budget(p.name, p.budget_hours, p.budget_amount)
+		past_due = bool(
+			p.end_date
+			and frappe.utils.getdate(p.end_date) < today
+			and p.status not in ("Completed", "Cancelled")
+		)
+		p["tasks_total"] = total
+		p["tasks_done"] = done
+		p["tasks_overdue"] = overdue
+		p["milestones_total"] = len(ms)
+		p["milestones_done"] = len([m for m in ms if m.status == "Completed"])
+		p["budget"] = budget
+		p["at_risk"] = bool(overdue or budget["over_budget"] or past_due)
+		p["lead_name"] = (
+			frappe.db.get_value("HD Agent", p.lead, "agent_name") if p.lead else None
+		)
+		out.append(p)
+	summary = {
+		"total": len(out),
+		"active": len([p for p in out if p["status"] == "Active"]),
+		"at_risk": len([p for p in out if p["at_risk"]]),
+		"completed": len([p for p in out if p["status"] == "Completed"]),
+		"budget_hours": round(sum(p["budget"]["budget_hours"] for p in out), 1),
+		"logged_hours": round(sum(p["budget"]["logged_hours"] for p in out), 1),
+	}
+	return {"projects": out, "summary": summary}
+
+
+@frappe.whitelist()
 def get_project(name: str) -> dict:
 	"""A single project with its linked tickets, comments, milestones and tasks."""
 	doc = frappe.get_doc("HD Project", name)

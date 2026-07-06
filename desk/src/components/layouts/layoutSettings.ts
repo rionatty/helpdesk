@@ -3,6 +3,7 @@ import LucideContact2 from "~icons/lucide/contact-2";
 import LucideTicket from "~icons/lucide/ticket";
 import LucideLayoutDashboard from "~icons/lucide/layout-dashboard";
 import LucideFolderKanban from "~icons/lucide/folder-kanban";
+import LucideLayoutGrid from "~icons/lucide/layout-grid";
 import LucideLayoutTemplate from "~icons/lucide/layout-template";
 import LucidePackage from "~icons/lucide/package";
 import LucideListChecks from "~icons/lucide/list-checks";
@@ -32,6 +33,11 @@ export const agentPortalSidebarOptions = [
     label: __("Projects"),
     icon: LucideFolderKanban,
     to: "ProjectsAgent",
+  },
+  {
+    label: __("Portfolio"),
+    icon: LucideLayoutGrid,
+    to: "Portfolio",
   },
   {
     label: __("Templates"),
