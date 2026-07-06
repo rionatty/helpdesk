@@ -201,6 +201,34 @@
               {{ __("Also send me an email when due") }}
             </span>
           </label>
+
+          <template v-if="!editing">
+            <div class="flex flex-col gap-1">
+              <label class="text-xs font-medium text-ink-gray-6">
+                {{ __("Also send to (emails)") }}
+              </label>
+              <input
+                v-model="form.recipients"
+                type="text"
+                :placeholder="__('name@example.com, other@example.com')"
+                class="w-full text-sm rounded-lg border border-outline-gray-2 bg-surface-white px-3 py-2 text-ink-gray-7 focus:outline-none focus:border-blue-400"
+              />
+            </div>
+            <label
+              v-if="form.recipients.trim()"
+              class="flex items-center gap-2 cursor-pointer select-none"
+            >
+              <input
+                v-model="form.addToCalendar"
+                type="checkbox"
+                class="rounded border-outline-gray-2"
+              />
+              <span class="text-sm text-ink-gray-7 flex items-center gap-1">
+                <LucideCalendarPlus class="size-3.5 text-ink-gray-5" />
+                {{ __("Attach a calendar invite (.ics)") }}
+              </span>
+            </label>
+          </template>
         </div>
       </template>
       <template #actions>
@@ -245,6 +273,7 @@ import LucideRefreshCw from "~icons/lucide/refresh-cw";
 import LucideX from "~icons/lucide/x";
 import LucidePlus from "~icons/lucide/plus";
 import LucideMail from "~icons/lucide/mail";
+import LucideCalendarPlus from "~icons/lucide/calendar-plus";
 import LucideExternalLink from "~icons/lucide/external-link";
 
 // ── Data ──────────────────────────────────────────────────────────────────────
@@ -371,6 +400,8 @@ const form = reactive({
   refDoctype: "",
   refName: "",
   sendEmail: false,
+  recipients: "",
+  addToCalendar: false,
 });
 
 function openCreate() {
@@ -381,6 +412,8 @@ function openCreate() {
   form.refDoctype = "";
   form.refName = "";
   form.sendEmail = false;
+  form.recipients = "";
+  form.addToCalendar = false;
   showForm.value = true;
 }
 
@@ -409,6 +442,8 @@ async function save() {
         reference_doctype: form.refDoctype || null,
         reference_name: form.refName || null,
         send_email: form.sendEmail ? 1 : 0,
+        recipients: form.recipients.trim() || null,
+        add_to_calendar: form.addToCalendar ? 1 : 0,
       });
       toast.success(__("Reminder set"));
     }

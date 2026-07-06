@@ -11,7 +11,9 @@
   "reference_doctype",
   "reference_name",
   "status",
-  "send_email"
+  "send_email",
+  "recipients",
+  "add_to_calendar"
  ],
  "fields": [
   {
@@ -53,6 +55,19 @@
    "fieldname": "send_email",
    "fieldtype": "Check",
    "label": "Send Email"
+  },
+  {
+   "description": "Comma-separated emails to also notify / invite",
+   "fieldname": "recipients",
+   "fieldtype": "Small Text",
+   "label": "Also Send To"
+  },
+  {
+   "default": "0",
+   "description": "Attach a calendar invite (.ics) to the email",
+   "fieldname": "add_to_calendar",
+   "fieldtype": "Check",
+   "label": "Add to Calendar"
   }
  ],
  "index_web_pages_for_search": 0,

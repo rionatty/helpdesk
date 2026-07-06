@@ -4,6 +4,8 @@
 # reminders. The scheduler publishes realtime events for due reminders and
 # optionally sends email.
 
+from datetime import datetime, timedelta
+
 import frappe
 from frappe import _
 from frappe.utils import now
@@ -16,8 +18,11 @@ def create_reminder(
 	reference_doctype: str | None = None,
 	reference_name: str | None = None,
 	send_email: bool | int = False,
+	recipients: str | None = None,
+	add_to_calendar: bool | int = False,
 ) -> str:
-	"""Create a personal reminder. Any authenticated user."""
+	"""Create a personal reminder. Any authenticated user. If `recipients` are
+	given, they also get notified — with an optional calendar invite."""
 	if not (message or "").strip():
 		frappe.throw(_("Message is required"))
 	doc = frappe.get_doc(
@@ -29,9 +34,140 @@ def create_reminder(
 			"reference_name": reference_name or None,
 			"status": "Pending",
 			"send_email": 1 if send_email else 0,
+			"recipients": (recipients or "").strip() or None,
+			"add_to_calendar": 1 if add_to_calendar else 0,
 		}
 	).insert(ignore_permissions=True)
+	# Send the invite to any extra recipients up front (books their calendar).
+	if doc.recipients:
+		_send_reminder_invite(doc)
 	return doc.name
+
+
+def _outgoing_sender() -> str | None:
+	"""Best available outgoing sender — frappe.sendmail needs one, and it isn't
+	always flagged Default Outgoing."""
+	return frappe.db.get_value(
+		"Email Account", {"enable_outgoing": 1, "default_outgoing": 1}, "email_id"
+	) or frappe.db.get_value("Email Account", {"enable_outgoing": 1}, "email_id")
+
+
+def _parse_recipients(raw: str | None) -> list[str]:
+	"""Split a comma/semicolon/newline-separated recipient string into valid
+	email addresses."""
+	if not raw:
+		return []
+	import re
+
+	parts = [p.strip() for p in re.split(r"[,\n;]+", raw) if p.strip()]
+	out = []
+	for p in parts:
+		try:
+			frappe.utils.validate_email_address(p, throw=True)
+			out.append(p)
+		except Exception:
+			continue
+	return out
+
+
+def _ics_escape(text: str) -> str:
+	return (
+		(text or "")
+		.replace("\\", "\\\\")
+		.replace(";", "\\;")
+		.replace(",", "\\,")
+		.replace("\n", "\\n")
+	)
+
+
+def _build_ics(doc) -> str:
+	"""A minimal single-event .ics (VEVENT) at the reminder time, in UTC."""
+	import pytz
+
+	start = frappe.utils.get_datetime(doc.remind_at)  # naive, system tz
+	tz = pytz.timezone(frappe.utils.get_system_timezone())
+	start_utc = tz.localize(start).astimezone(pytz.utc)
+	end_utc = start_utc + timedelta(minutes=30)
+	stamp = datetime.now(pytz.utc)
+	fmt = lambda d: d.strftime("%Y%m%dT%H%M%SZ")  # noqa: E731
+	summary = _ics_escape((doc.message or "Reminder").replace("\n", " ")[:200])
+	return "\r\n".join(
+		[
+			"BEGIN:VCALENDAR",
+			"VERSION:2.0",
+			"PRODID:-//CyveTech//Helpdesk//EN",
+			"METHOD:PUBLISH",
+			"BEGIN:VEVENT",
+			f"UID:{doc.name}@cyvetech-helpdesk",
+			f"DTSTAMP:{fmt(stamp)}",
+			f"DTSTART:{fmt(start_utc)}",
+			f"DTEND:{fmt(end_utc)}",
+			f"SUMMARY:{summary}",
+			f"DESCRIPTION:{_ics_escape(doc.message or '')}",
+			"END:VEVENT",
+			"END:VCALENDAR",
+		]
+	)
+
+
+def _reminder_ref_line(doc) -> str:
+	if not doc.reference_name:
+		return ""
+	return (
+		f"<p><strong>Reference:</strong> "
+		f"{frappe.utils.escape_html(doc.reference_doctype or '')} — "
+		f"{frappe.utils.escape_html(doc.reference_name)}</p>"
+	)
+
+
+def _send_reminder_invite(doc) -> None:
+	"""Email the extra recipients about the reminder, attaching a calendar
+	invite when requested. Best-effort."""
+	to = _parse_recipients(doc.recipients)
+	if not to:
+		return
+	sender = _outgoing_sender()
+	if not sender:
+		frappe.log_error(
+			title="Reminder invite skipped",
+			message="No outgoing Email Account configured.",
+		)
+		return
+	setter = frappe.db.get_value("User", doc.owner, "full_name") or doc.owner
+	when = frappe.utils.format_datetime(doc.remind_at, "medium")
+	attachments = (
+		[{"fname": "reminder.ics", "fcontent": _build_ics(doc)}]
+		if doc.add_to_calendar
+		else []
+	)
+	tail = (
+		f"<p style='color:#888;font-size:12px'>{_('Add the attached invite to your calendar.')}</p>"
+		if doc.add_to_calendar
+		else ""
+	)
+	try:
+		frappe.sendmail(
+			recipients=to,
+			sender=sender,
+			subject=_("Reminder: {0}").format(doc.message[:80]),
+			message=f"""
+				<p>{frappe.utils.escape_html(setter)} {_('scheduled a reminder for you')}:</p>
+				<p><strong>{when}</strong></p>
+				<blockquote style="border-left:3px solid #ccc;margin:8px 0;padding:4px 12px">
+					{frappe.utils.escape_html(doc.message)}
+				</blockquote>
+				{_reminder_ref_line(doc)}
+				{tail}
+			""",
+			attachments=attachments,
+			reference_doctype="HD Reminder",
+			reference_name=doc.name,
+			now=True,
+		)
+	except Exception:
+		frappe.log_error(
+			title="Reminder invite email failed", message=frappe.get_traceback()
+		)
 
 
 @frappe.whitelist()
@@ -125,11 +261,12 @@ def send_due_reminders() -> None:
 			"reference_doctype",
 			"reference_name",
 			"send_email",
+			"recipients",
 		],
 		ignore_permissions=True,
 	)
 	for r in overdue:
-		# Realtime popup in the browser
+		# Realtime popup in the browser (owner only)
 		frappe.publish_realtime(
 			"helpdesk:reminder_due",
 			{
@@ -140,46 +277,40 @@ def send_due_reminders() -> None:
 			},
 			user=r.owner,
 		)
-		# Optional email
+		# Email the owner (if opted in) and any extra recipients.
+		to = []
 		if r.send_email:
-			try:
-				user_email = frappe.db.get_value("User", r.owner, "email") or r.owner
-				user_name = frappe.db.get_value("User", r.owner, "full_name") or r.owner
-				# Resolve a sender explicitly — frappe.sendmail silently fails when
-				# no account is flagged Default Outgoing.
-				sender = frappe.db.get_value(
-					"Email Account",
-					{"enable_outgoing": 1, "default_outgoing": 1},
-					"email_id",
-				) or frappe.db.get_value(
-					"Email Account", {"enable_outgoing": 1}, "email_id"
+			to.append(frappe.db.get_value("User", r.owner, "email") or r.owner)
+		to += _parse_recipients(r.recipients)
+		to = list(dict.fromkeys([e for e in to if e]))
+		if to:
+			sender = _outgoing_sender()
+			if not sender:
+				frappe.log_error(
+					title="Reminder email skipped",
+					message="No outgoing Email Account configured.",
 				)
-				if not sender:
-					raise Exception("No outgoing Email Account configured")
-				ref_line = (
-					f"<p><strong>Reference:</strong> {r.reference_doctype} — {r.reference_name}</p>"
-					if r.reference_name
-					else ""
-				)
-				frappe.sendmail(
-					recipients=[user_email],
-					sender=sender,
-					subject=_("Reminder: {0}").format(r.message[:80]),
-					message=f"""
-						<p>Hi {user_name},</p>
-						<p>This is a reminder you set in the support portal:</p>
-						<blockquote style="border-left:3px solid #ccc;margin:8px 0;padding:4px 12px">
-							{r.message}
-						</blockquote>
-						{ref_line}
-						<p style="color:#888;font-size:12px">
-							You can view and manage all your reminders from the support portal.
-						</p>
-					""",
-					now=True,
-				)
-			except Exception:
-				frappe.log_error(frappe.get_traceback(), "HD Reminder email failed")
+			else:
+				try:
+					frappe.sendmail(
+						recipients=to,
+						sender=sender,
+						subject=_("Reminder: {0}").format(r.message[:80]),
+						message=f"""
+							<p>{_('This is a reminder')}:</p>
+							<blockquote style="border-left:3px solid #ccc;margin:8px 0;padding:4px 12px">
+								{frappe.utils.escape_html(r.message)}
+							</blockquote>
+							{_reminder_ref_line(r)}
+						""",
+						reference_doctype="HD Reminder",
+						reference_name=r.name,
+						now=True,
+					)
+				except Exception:
+					frappe.log_error(
+						frappe.get_traceback(), "HD Reminder email failed"
+					)
 
 		frappe.db.set_value(
 			"HD Reminder", r.name, "status", "Notified", update_modified=False
