@@ -80,8 +80,13 @@ def _ics_escape(text: str) -> str:
 	)
 
 
-def _build_ics(doc) -> str:
-	"""A minimal single-event .ics (VEVENT) at the reminder time, in UTC."""
+def _build_ics(doc, organizer: str | None = None, attendees: list | None = None) -> str:
+	"""A single-event .ics meeting REQUEST at the reminder time (UTC).
+
+	Using METHOD:REQUEST with ORGANIZER + ATTENDEE (RSVP) makes Outlook/Gmail
+	treat it as an actionable invite that lands on the calendar, rather than a
+	plain file attachment.
+	"""
 	import pytz
 
 	start = frappe.utils.get_datetime(doc.remind_at)  # naive, system tz
@@ -91,23 +96,41 @@ def _build_ics(doc) -> str:
 	stamp = datetime.now(pytz.utc)
 	fmt = lambda d: d.strftime("%Y%m%dT%H%M%SZ")  # noqa: E731
 	summary = _ics_escape((doc.message or "Reminder").replace("\n", " ")[:200])
-	return "\r\n".join(
-		[
-			"BEGIN:VCALENDAR",
-			"VERSION:2.0",
-			"PRODID:-//CyveTech//Helpdesk//EN",
-			"METHOD:PUBLISH",
-			"BEGIN:VEVENT",
-			f"UID:{doc.name}@cyvetech-helpdesk",
-			f"DTSTAMP:{fmt(stamp)}",
-			f"DTSTART:{fmt(start_utc)}",
-			f"DTEND:{fmt(end_utc)}",
-			f"SUMMARY:{summary}",
-			f"DESCRIPTION:{_ics_escape(doc.message or '')}",
-			"END:VEVENT",
-			"END:VCALENDAR",
-		]
-	)
+
+	lines = [
+		"BEGIN:VCALENDAR",
+		"VERSION:2.0",
+		"PRODID:-//CyveTech//Helpdesk//EN",
+		"CALSCALE:GREGORIAN",
+		"METHOD:REQUEST",
+		"BEGIN:VEVENT",
+		f"UID:{doc.name}@cyvetech-helpdesk",
+		f"DTSTAMP:{fmt(stamp)}",
+		f"DTSTART:{fmt(start_utc)}",
+		f"DTEND:{fmt(end_utc)}",
+		f"SUMMARY:{summary}",
+		f"DESCRIPTION:{_ics_escape(doc.message or '')}",
+		"SEQUENCE:0",
+		"STATUS:CONFIRMED",
+		"TRANSP:OPAQUE",
+	]
+	if organizer:
+		lines.append(f"ORGANIZER;CN={organizer}:mailto:{organizer}")
+	for a in attendees or []:
+		lines.append(
+			"ATTENDEE;CUTYPE=INDIVIDUAL;ROLE=REQ-PARTICIPANT;"
+			f"PARTSTAT=NEEDS-ACTION;RSVP=TRUE;CN={a}:mailto:{a}"
+		)
+	lines += [
+		"BEGIN:VALARM",
+		"TRIGGER:-PT10M",
+		"ACTION:DISPLAY",
+		"DESCRIPTION:Reminder",
+		"END:VALARM",
+		"END:VEVENT",
+		"END:VCALENDAR",
+	]
+	return "\r\n".join(lines)
 
 
 def _reminder_ref_line(doc) -> str:
@@ -136,7 +159,14 @@ def _send_reminder_invite(doc) -> None:
 	setter = frappe.db.get_value("User", doc.owner, "full_name") or doc.owner
 	when = frappe.utils.format_datetime(doc.remind_at, "medium")
 	attachments = (
-		[{"fname": "reminder.ics", "fcontent": _build_ics(doc)}]
+		[
+			{
+				"fname": "invite.ics",
+				"fcontent": _build_ics(doc, organizer=sender, attendees=to),
+				# The method param is what makes Outlook treat it as an invite.
+				"content_type": "text/calendar; charset=UTF-8; method=REQUEST",
+			}
+		]
 		if doc.add_to_calendar
 		else []
 	)
