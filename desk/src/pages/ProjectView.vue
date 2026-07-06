@@ -278,6 +278,71 @@
               {{ resource.data.description }}
             </p>
           </div>
+
+          <!-- Budget & effort -->
+          <div
+            v-if="editable || budget.budget_hours || budget.logged_hours"
+            class="flex flex-col gap-2 pt-1"
+          >
+            <div class="flex items-center gap-2">
+              <LucideWallet class="size-4 text-emerald-600" />
+              <span class="text-xs font-semibold text-ink-gray-7">
+                {{ __("Budget & effort") }}
+              </span>
+            </div>
+            <div v-if="editable" class="grid grid-cols-2 gap-3">
+              <div class="flex flex-col gap-1">
+                <span class="text-xs text-ink-gray-5">{{ __("Budget (hours)") }}</span>
+                <input
+                  v-model.number="form.budget_hours"
+                  type="number"
+                  min="0"
+                  step="1"
+                  class="text-sm rounded-md border border-outline-gray-2 bg-surface-white px-2 py-1 text-ink-gray-8 focus:outline-none focus:border-blue-400"
+                />
+              </div>
+              <div class="flex flex-col gap-1">
+                <span class="text-xs text-ink-gray-5">{{ __("Budget (amount)") }}</span>
+                <input
+                  v-model.number="form.budget_amount"
+                  type="number"
+                  min="0"
+                  class="text-sm rounded-md border border-outline-gray-2 bg-surface-white px-2 py-1 text-ink-gray-8 focus:outline-none focus:border-blue-400"
+                />
+              </div>
+            </div>
+            <div
+              v-if="budget.budget_hours || budget.logged_hours"
+              class="flex flex-col gap-1"
+            >
+              <div class="h-2 w-full rounded-full bg-surface-gray-3 overflow-hidden">
+                <div
+                  class="h-full rounded-full transition-all duration-500"
+                  :class="budget.over_budget ? 'bg-red-500' : 'bg-emerald-500'"
+                  :style="{ width: Math.min(budget.consumed_pct, 100) + '%' }"
+                />
+              </div>
+              <div
+                class="flex items-center justify-between text-[11px]"
+                :class="budget.over_budget ? 'text-red-600 font-medium' : 'text-ink-gray-6'"
+              >
+                <span>
+                  {{ budget.logged_hours }}h {{ __("logged") }}
+                  <template v-if="budget.budget_hours">
+                    / {{ budget.budget_hours }}h {{ __("budget") }}
+                  </template>
+                </span>
+                <span>
+                  {{ budget.consumed_pct }}%<template v-if="budget.over_budget">
+                    · {{ __("over budget") }}</template
+                  >
+                </span>
+              </div>
+              <div v-if="budget.estimated_hours" class="text-[11px] text-ink-gray-4">
+                {{ budget.estimated_hours }}h {{ __("estimated across tasks") }}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -907,6 +972,7 @@ import LucideCircleCheck from "~icons/lucide/circle-check";
 import LucideCircleX from "~icons/lucide/circle-x";
 import LucideTrophy from "~icons/lucide/trophy";
 import LucideActivity from "~icons/lucide/activity";
+import LucideWallet from "~icons/lucide/wallet";
 import LucideAlertTriangle from "~icons/lucide/alert-triangle";
 import LucideCalendarClock from "~icons/lucide/calendar-clock";
 import { globalStore } from "@/stores/globalStore";
@@ -1178,8 +1244,22 @@ const form = reactive({
   start_date: "",
   end_date: "",
   progress: 0,
+  budget_hours: 0,
+  budget_amount: 0,
   description: "",
 });
+
+const budget = computed(
+  () =>
+    resource.data?.budget || {
+      budget_hours: 0,
+      budget_amount: 0,
+      estimated_hours: 0,
+      logged_hours: 0,
+      consumed_pct: 0,
+      over_budget: false,
+    }
+);
 
 const resource = createResource({
   url: "helpdesk.api.project.get_project",
@@ -1196,6 +1276,8 @@ const resource = createResource({
     form.start_date = d.start_date || "";
     form.end_date = d.end_date || "";
     form.progress = d.progress || 0;
+    form.budget_hours = d.budget_hours || 0;
+    form.budget_amount = d.budget_amount || 0;
     form.description = d.description || "";
   },
   onError: (e: any) => {

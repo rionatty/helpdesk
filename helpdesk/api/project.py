@@ -8,7 +8,7 @@
 
 import frappe
 from frappe import _
-from frappe.utils import cint, today
+from frappe.utils import cint, flt, today
 
 from helpdesk.utils import (
 	agent_has_project,
@@ -32,6 +32,8 @@ PROJECT_FIELDS = [
 	"end_date",
 	"team",
 	"lead",
+	"budget_hours",
+	"budget_amount",
 	"description",
 	"modified",
 ]
@@ -44,6 +46,8 @@ WRITABLE = {
 	"priority",
 	"team",
 	"lead",
+	"budget_hours",
+	"budget_amount",
 	"start_date",
 	"end_date",
 	"progress",
@@ -127,6 +131,39 @@ def _linked_tickets(project: str) -> list:
 	except Exception:
 		# `project` field may not exist yet (pre-migrate); fail soft.
 		return []
+
+
+def _project_budget(project: str, budget_hours, budget_amount) -> dict:
+	"""Effort rollup for a project: budget vs estimated vs actually logged."""
+	task_names = frappe.get_all(
+		"HD Addon Task", filters={"project": project}, pluck="name"
+	)
+	estimated = sum(
+		flt(v)
+		for v in frappe.get_all(
+			"HD Addon Task", filters={"project": project}, pluck="estimated_hours"
+		)
+	)
+	logged = 0.0
+	if task_names:
+		logged = sum(
+			flt(v)
+			for v in frappe.get_all(
+				"HD Task Subtask",
+				filters={"task": ["in", task_names]},
+				pluck="hours_spent",
+				ignore_permissions=True,
+			)
+		)
+	budget_hours = flt(budget_hours)
+	return {
+		"budget_hours": budget_hours,
+		"budget_amount": flt(budget_amount),
+		"estimated_hours": round(estimated, 2),
+		"logged_hours": round(logged, 2),
+		"consumed_pct": round(logged / budget_hours * 100) if budget_hours else 0,
+		"over_budget": bool(budget_hours and logged > budget_hours),
+	}
 
 
 def _project_features(project: str) -> list:
@@ -230,6 +267,7 @@ def get_project(name: str) -> dict:
 	data["features"] = _project_features(name)
 	data["tasks"] = _get_tasks(project=name)
 	data["milestones"] = _get_milestones(name)
+	data["budget"] = _project_budget(name, doc.budget_hours, doc.budget_amount)
 	data["lead_name"] = (
 		frappe.db.get_value("HD Agent", doc.lead, "agent_name") if doc.lead else None
 	)

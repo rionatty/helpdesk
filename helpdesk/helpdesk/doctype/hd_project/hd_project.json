@@ -17,6 +17,8 @@
   "start_date",
   "end_date",
   "progress",
+  "budget_hours",
+  "budget_amount",
   "section_break_desc",
   "description"
  ],
@@ -101,6 +103,21 @@
    "in_list_view": 1,
    "label": "Progress %",
    "non_negative": 1
+  },
+  {
+   "default": "0",
+   "description": "Budgeted effort for the engagement",
+   "fieldname": "budget_hours",
+   "fieldtype": "Float",
+   "label": "Budget (hours)",
+   "non_negative": 1,
+   "precision": "2"
+  },
+  {
+   "description": "Budgeted amount for the engagement",
+   "fieldname": "budget_amount",
+   "fieldtype": "Currency",
+   "label": "Budget (amount)"
   },
   {
    "fieldname": "section_break_desc",
