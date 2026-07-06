@@ -116,7 +116,7 @@
             <button
               v-if="r.status !== 'Performed' && r.status !== 'Dismissed'"
               class="size-8 rounded-lg flex items-center justify-center text-ink-gray-4 hover:bg-blue-50 hover:text-blue-600 transition-colors"
-              :title="__('Reschedule')"
+              :title="__('Edit')"
               @click="openEdit(r)"
             >
               <LucideRefreshCw class="size-4" />
@@ -139,14 +139,14 @@
       v-if="showForm"
       v-model="showForm"
       :options="{
-        title: editing ? __('Reschedule reminder') : __('New reminder'),
+        title: editing ? __('Edit reminder') : __('New reminder'),
         size: 'sm',
       }"
     >
       <template #body-content>
         <div class="flex flex-col gap-4">
-          <!-- Reference — only when creating -->
-          <template v-if="!editing">
+          <!-- Reference -->
+          <template>
             <div class="flex flex-col gap-1">
               <label class="text-xs font-medium text-ink-gray-6">
                 {{ __("Linked to (optional)") }}
@@ -190,7 +190,7 @@
             />
           </div>
 
-          <label v-if="!editing" class="flex items-center gap-2 cursor-pointer select-none">
+          <label class="flex items-center gap-2 cursor-pointer select-none">
             <input
               v-model="form.sendEmail"
               type="checkbox"
@@ -202,7 +202,7 @@
             </span>
           </label>
 
-          <template v-if="!editing">
+          <template>
             <div class="flex flex-col gap-1">
               <label class="text-xs font-medium text-ink-gray-6">
                 {{ __("Also send to (emails)") }}
@@ -240,7 +240,7 @@
           :disabled="!form.message.trim() || !form.remindAt"
           @click="save"
         >
-          {{ editing ? __("Reschedule") : __("Set reminder") }}
+          {{ editing ? __("Save changes") : __("Set reminder") }}
         </Button>
       </template>
     </Dialog>
@@ -421,6 +421,11 @@ function openEdit(r: any) {
   editing.value = r;
   form.message = r.message;
   form.remindAt = dayjs(r.remind_at).format("YYYY-MM-DDTHH:mm");
+  form.refDoctype = r.reference_doctype || "";
+  form.refName = r.reference_name || "";
+  form.sendEmail = !!r.send_email;
+  form.recipients = r.recipients || "";
+  form.addToCalendar = !!r.add_to_calendar;
   showForm.value = true;
 }
 
@@ -433,8 +438,13 @@ async function save() {
         name: editing.value.name,
         message: form.message.trim(),
         remind_at: form.remindAt.replace("T", " ") + ":00",
+        reference_doctype: form.refDoctype || null,
+        reference_name: form.refName || null,
+        send_email: form.sendEmail ? 1 : 0,
+        recipients: form.recipients.trim() || null,
+        add_to_calendar: form.addToCalendar ? 1 : 0,
       });
-      toast.success(__("Rescheduled"));
+      toast.success(__("Reminder updated"));
     } else {
       await call("helpdesk.api.reminder.create_reminder", {
         message: form.message.trim(),

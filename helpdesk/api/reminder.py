@@ -187,6 +187,8 @@ def get_my_reminders() -> list[dict]:
 			"reference_name",
 			"status",
 			"send_email",
+			"recipients",
+			"add_to_calendar",
 		],
 		order_by="remind_at asc",
 		ignore_permissions=True,
@@ -207,6 +209,8 @@ def get_all_my_reminders() -> list[dict]:
 			"reference_name",
 			"status",
 			"send_email",
+			"recipients",
+			"add_to_calendar",
 		],
 		order_by="remind_at desc",
 		ignore_permissions=True,
@@ -224,17 +228,37 @@ def mark_performed(name: str) -> bool:
 
 
 @frappe.whitelist()
-def update_reminder(name: str, message: str, remind_at: str) -> bool:
-	"""Reschedule a reminder and reset it to Pending. Only the owner may do this."""
-	owner = frappe.db.get_value("HD Reminder", name, "owner")
-	if owner != frappe.session.user:
+def update_reminder(
+	name: str,
+	message: str,
+	remind_at: str,
+	reference_doctype: str | None = None,
+	reference_name: str | None = None,
+	send_email: bool | int | None = None,
+	recipients: str | None = None,
+	add_to_calendar: bool | int | None = None,
+) -> bool:
+	"""Edit a reminder and reset it to Pending. Only the owner may do this.
+	Any field left as None is not touched."""
+	doc = frappe.get_doc("HD Reminder", name)
+	if doc.owner != frappe.session.user:
 		frappe.throw(_("Not permitted"), frappe.PermissionError)
-	frappe.db.set_value(
-		"HD Reminder",
-		name,
-		{"message": message.strip(), "remind_at": remind_at, "status": "Pending"},
-		update_modified=False,
-	)
+	if not (message or "").strip():
+		frappe.throw(_("Message is required"))
+	doc.message = message.strip()
+	doc.remind_at = remind_at
+	doc.status = "Pending"
+	if reference_doctype is not None:
+		doc.reference_doctype = reference_doctype or None
+	if reference_name is not None:
+		doc.reference_name = reference_name or None
+	if send_email is not None:
+		doc.send_email = 1 if int(send_email) else 0
+	if recipients is not None:
+		doc.recipients = (recipients or "").strip() or None
+	if add_to_calendar is not None:
+		doc.add_to_calendar = 1 if int(add_to_calendar) else 0
+	doc.save(ignore_permissions=True)
 	return True
 
 
