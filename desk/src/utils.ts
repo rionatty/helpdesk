@@ -876,6 +876,60 @@ export function shortDuration(target: string | Date): string {
   return `${Math.floor(seconds / MINUTE)}m`;
 }
 
+// ── Milestone colours ─────────────────────────────────────────────────────────
+// A fixed palette of visually-distinct hues. Milestones are coloured by their
+// position in the project's ordered list, so each gets a unique colour (no
+// clashing up to 14 milestones; it wraps after that). Hex + inline styles keep
+// it independent of the Tailwind build. The same map drives the milestone list
+// and the milestone chip on task cards, so a milestone looks the same on both.
+export interface MilestoneColor {
+  bg: string; // chip background
+  text: string; // chip text
+  dot: string; // solid marker / accent
+}
+export const MILESTONE_PALETTE: MilestoneColor[] = [
+  { bg: "#ffe4e6", text: "#be123c", dot: "#f43f5e" }, // rose
+  { bg: "#ffedd5", text: "#c2410c", dot: "#f97316" }, // orange
+  { bg: "#fef3c7", text: "#b45309", dot: "#f59e0b" }, // amber
+  { bg: "#ecfccb", text: "#4d7c0f", dot: "#84cc16" }, // lime
+  { bg: "#d1fae5", text: "#047857", dot: "#10b981" }, // emerald
+  { bg: "#ccfbf1", text: "#0f766e", dot: "#14b8a6" }, // teal
+  { bg: "#cffafe", text: "#0e7490", dot: "#06b6d4" }, // cyan
+  { bg: "#e0f2fe", text: "#0369a1", dot: "#0ea5e9" }, // sky
+  { bg: "#dbeafe", text: "#1d4ed8", dot: "#3b82f6" }, // blue
+  { bg: "#e0e7ff", text: "#4338ca", dot: "#6366f1" }, // indigo
+  { bg: "#ede9fe", text: "#6d28d9", dot: "#8b5cf6" }, // violet
+  { bg: "#fae8ff", text: "#a21caf", dot: "#d946ef" }, // fuchsia
+  { bg: "#fce7f3", text: "#be185d", dot: "#ec4899" }, // pink
+  { bg: "#f1f5f9", text: "#334155", dot: "#64748b" }, // slate
+];
+
+const NEUTRAL_MILESTONE: MilestoneColor = {
+  bg: "#f1f5f9",
+  text: "#475569",
+  dot: "#94a3b8",
+};
+
+/** Map each milestone name → a palette colour, keyed by its order in the list. */
+export function buildMilestoneColors(
+  orderedNames: (string | null | undefined)[]
+): Record<string, MilestoneColor> {
+  const map: Record<string, MilestoneColor> = {};
+  orderedNames
+    .filter((n): n is string => !!n)
+    .forEach((name, i) => {
+      map[name] = MILESTONE_PALETTE[i % MILESTONE_PALETTE.length];
+    });
+  return map;
+}
+
+export function milestoneColorOf(
+  name: string | null | undefined,
+  map: Record<string, MilestoneColor>
+): MilestoneColor {
+  return (name && map[name]) || NEUTRAL_MILESTONE;
+}
+
 export function buildPercentageChange(value: number | null) {
   if (value === null || value === undefined) {
     return { icon: "lucide-arrow-right", value: "0", color: "text-ink-gray-5" };

@@ -35,11 +35,11 @@
         :key="m.name"
         class="flex gap-3"
       >
-        <!-- Rail -->
+        <!-- Rail (each milestone has its own colour) -->
         <div class="flex flex-col items-center w-5 shrink-0">
           <span
-            class="size-4 rounded-full border-2 shrink-0 mt-1.5 flex items-center justify-center"
-            :class="dotClass(m.status)"
+            class="size-4 rounded-full shrink-0 mt-1.5 flex items-center justify-center ring-2 ring-inset ring-white/50 shadow-sm"
+            :style="{ backgroundColor: mColor(m.name).dot }"
           >
             <LucideCheck
               v-if="m.status === 'Completed'"
@@ -48,8 +48,8 @@
           </span>
           <span
             v-if="i < milestones.data.length - 1"
-            class="w-0.5 flex-1 my-0.5"
-            :class="m.status === 'Completed' ? 'bg-green-400' : 'bg-outline-gray-2'"
+            class="w-0.5 flex-1 my-0.5 rounded-full"
+            :style="{ backgroundColor: mColor(m.name).dot, opacity: 0.35 }"
           />
         </div>
 
@@ -57,8 +57,9 @@
         <div class="flex-1 flex flex-col min-w-0 mb-2">
         <button
           type="button"
-          class="text-start rounded-lg px-3 py-2 -mt-0.5 transition-colors"
+          class="text-start rounded-lg border-l-[3px] px-3 py-2 -mt-0.5 transition-colors"
           :class="editable ? 'hover:bg-surface-menu-bar' : 'cursor-default'"
+          :style="{ borderLeftColor: mColor(m.name).dot }"
           @click="editable && openEdit(m)"
         >
           <div class="flex flex-wrap items-center gap-2">
@@ -91,8 +92,11 @@
           >
             <div class="h-1.5 w-32 rounded-full bg-surface-gray-3 overflow-hidden">
               <div
-                class="h-full rounded-full bg-green-500 transition-all duration-500"
-                :style="{ width: (m.tasks_done / m.tasks_total) * 100 + '%' }"
+                class="h-full rounded-full transition-all duration-500"
+                :style="{
+                  width: (m.tasks_done / m.tasks_total) * 100 + '%',
+                  backgroundColor: mColor(m.name).dot,
+                }"
               />
             </div>
             <span class="text-[11px] text-ink-gray-5">
@@ -355,7 +359,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, watch } from "vue";
+import { reactive, ref, watch, computed } from "vue";
 import {
   Badge,
   Button,
@@ -366,6 +370,7 @@ import {
   toast,
 } from "frappe-ui";
 import { __ } from "@/translation";
+import { buildMilestoneColors, milestoneColorOf } from "@/utils";
 import LucidePlus from "~icons/lucide/plus";
 import LucideCheck from "~icons/lucide/check";
 import LucideFlag from "~icons/lucide/flag";
@@ -393,6 +398,14 @@ watch(
 );
 
 defineExpose({ reload: () => milestones.reload(), data: milestones });
+
+// Each milestone gets a distinct colour, keyed by its order in the project.
+const milestoneColors = computed(() =>
+  buildMilestoneColors((milestones.data || []).map((m: any) => m.name))
+);
+function mColor(name: string) {
+  return milestoneColorOf(name, milestoneColors.value);
+}
 
 function dotClass(status: string) {
   return (

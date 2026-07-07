@@ -415,7 +415,11 @@
             </span>
             <span
               v-if="t.milestone && milestoneTitle(t.milestone)"
-              class="text-[10px] rounded-full px-1.5 py-0.5 bg-violet-100 text-violet-700 inline-flex items-center gap-0.5"
+              class="text-[10px] rounded-full px-1.5 py-0.5 inline-flex items-center gap-0.5"
+              :style="{
+                backgroundColor: mColor(t.milestone).bg,
+                color: mColor(t.milestone).text,
+              }"
             >
               <LucideFlag class="size-3" /> {{ milestoneTitle(t.milestone) }}
             </span>
@@ -934,7 +938,7 @@ import {
 } from "frappe-ui";
 import DocAttachments from "@/components/DocAttachments.vue";
 import TaskSubtasks from "@/components/TaskSubtasks.vue";
-import { timeAgo, dataTheme } from "@/utils";
+import { timeAgo, dataTheme, buildMilestoneColors, milestoneColorOf } from "@/utils";
 import { __ } from "@/translation";
 import { useAuthStore } from "@/stores/auth";
 import { globalStore } from "@/stores/globalStore";
@@ -1506,6 +1510,14 @@ const featureOptions = computed(() =>
 );
 function milestoneTitle(name: string) {
   return (milestonesRes.data || []).find((m: any) => m.name === name)?.title;
+}
+// Each milestone gets its own colour (same mapping the project's milestone
+// list uses), so a task's milestone chip matches its milestone.
+const milestoneColors = computed(() =>
+  buildMilestoneColors((milestonesRes.data || []).map((m: any) => m.name))
+);
+function mColor(name: string) {
+  return milestoneColorOf(name, milestoneColors.value);
 }
 defineExpose({
   refreshMilestones: () => props.projectId && milestonesRes.reload(),
