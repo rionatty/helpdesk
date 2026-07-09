@@ -23,6 +23,9 @@
   "end_date",
   "estimated_hours",
   "completed_on",
+  "customer_review",
+  "customer_rating",
+  "customer_reviewed_on",
   "is_internal",
   "section_break_desc",
   "description"
@@ -149,6 +152,29 @@
    "fieldname": "completed_on",
    "fieldtype": "Datetime",
    "label": "Completed On",
+   "read_only": 1
+  },
+  {
+   "description": "Customer review state",
+   "fieldname": "customer_review",
+   "fieldtype": "Select",
+   "in_standard_filter": 1,
+   "label": "Customer Review",
+   "options": "\nRequested\nReviewed"
+  },
+  {
+   "default": "0",
+   "description": "Rating given by the customer (0 = not rated, 1-5)",
+   "fieldname": "customer_rating",
+   "fieldtype": "Int",
+   "label": "Customer Rating",
+   "non_negative": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "customer_reviewed_on",
+   "fieldtype": "Datetime",
+   "label": "Customer Reviewed On",
    "read_only": 1
   },
   {

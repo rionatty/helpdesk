@@ -787,6 +787,115 @@
             />
           </div>
 
+          <!-- Customer review -->
+          <div
+            v-if="showCustomerReview"
+            class="flex flex-col gap-2.5 rounded-lg border border-outline-blue-1 bg-surface-blue-1 px-3 py-2.5"
+          >
+            <div class="flex items-center gap-2">
+              <LucideStar class="size-4 text-blue-600" />
+              <span class="text-sm font-semibold text-ink-gray-8">
+                {{ __("Customer review") }}
+              </span>
+              <span class="flex-1" />
+              <span
+                v-if="selected.customer_review === 'Reviewed'"
+                class="text-xs rounded-full px-2 py-0.5 bg-green-100 text-green-700 font-medium"
+              >
+                {{ __("Reviewed") }}
+              </span>
+              <span
+                v-else-if="selected.customer_review === 'Requested'"
+                class="text-xs rounded-full px-2 py-0.5 bg-amber-100 text-amber-700 font-medium"
+              >
+                {{ __("Awaiting customer") }}
+              </span>
+            </div>
+
+            <!-- Reviewed → show the customer's rating (both sides, read-only) -->
+            <div
+              v-if="selected.customer_review === 'Reviewed'"
+              class="flex items-center gap-1.5"
+            >
+              <div class="flex items-center gap-0.5">
+                <LucideStar
+                  v-for="n in 5"
+                  :key="n"
+                  class="size-4"
+                  :class="
+                    n <= Number(selected.customer_rating || 0)
+                      ? 'text-amber-400 fill-amber-400'
+                      : 'text-ink-gray-3'
+                  "
+                />
+              </div>
+              <span class="text-xs text-ink-gray-5">
+                {{ selected.customer_rating }}/5
+              </span>
+            </div>
+
+            <!-- Agent, not yet reviewed → request button -->
+            <Button
+              v-else-if="editable"
+              size="sm"
+              variant="subtle"
+              theme="blue"
+              class="self-start"
+              :loading="custReviewReqRes.loading"
+              :label="
+                selected.customer_review === 'Requested'
+                  ? __('Re-send review request')
+                  : __('Request customer review')
+              "
+              @click="requestCustomerReview"
+            />
+
+            <!-- Customer, requested → rate + comment + submit -->
+            <div
+              v-else-if="selected.customer_review === 'Requested'"
+              class="flex flex-col gap-2"
+            >
+              <span class="text-xs text-ink-gray-6">
+                {{ __("How would you rate this work?") }}
+              </span>
+              <div class="flex items-center gap-0.5">
+                <button
+                  v-for="n in 5"
+                  :key="n"
+                  type="button"
+                  class="cursor-pointer hover:scale-110 transition-transform"
+                  :aria-label="__('Rate {0} of 5', [n])"
+                  @click="custRating = n"
+                >
+                  <LucideStar
+                    class="size-6"
+                    :class="
+                      n <= custRating
+                        ? 'text-amber-400 fill-amber-400'
+                        : 'text-ink-gray-3'
+                    "
+                  />
+                </button>
+              </div>
+              <textarea
+                v-model="custComment"
+                rows="2"
+                :placeholder="__('Add a comment (optional)')"
+                class="text-sm rounded-md border border-outline-gray-2 bg-surface-white px-3 py-2 text-ink-gray-8 focus:outline-none focus:border-blue-400 resize-none"
+              />
+              <Button
+                size="sm"
+                variant="solid"
+                theme="blue"
+                class="self-start"
+                :disabled="!custRating"
+                :loading="custReviewSubmitRes.loading"
+                :label="__('Submit review')"
+                @click="submitCustomerReview"
+              />
+            </div>
+          </div>
+
           <!-- Description -->
           <div class="flex flex-col gap-1">
             <span class="text-xs text-ink-gray-5">{{ __("Description") }}</span>
@@ -1657,6 +1766,8 @@ const activity = createResource({
 });
 function open(t: any) {
   selected.value = { ...t };
+  custRating.value = 0;
+  custComment.value = "";
   showDetail.value = true;
   comments.reload();
   if (props.editable) activity.reload();
@@ -1704,6 +1815,57 @@ const reviewRes = createResource({
 });
 function requestReview() {
   if (selected.value) reviewRes.submit({ name: selected.value.name });
+}
+
+// --- Customer review ---
+const custRating = ref(0);
+const custComment = ref("");
+// Does this task belong to a customer (add-on / project) that can review it?
+const taskHasCustomer = computed(() => {
+  if (props.addonId || props.projectId) return true;
+  const pt = selected.value?.parent_type;
+  return pt === "project" || pt === "addon";
+});
+const showCustomerReview = computed(() => {
+  if (!taskHasCustomer.value || !selected.value?.name) return false;
+  // Agents can always request/see it; customers only once it's in play.
+  if (props.editable) return true;
+  return ["Requested", "Reviewed"].includes(selected.value?.customer_review);
+});
+const custReviewReqRes = createResource({
+  url: "helpdesk.api.addon.request_customer_review",
+  onSuccess: () => {
+    if (selected.value) selected.value.customer_review = "Requested";
+    toast.success(__("Review requested from the customer"));
+    tasks.reload();
+  },
+  onError: (e: any) =>
+    toast.error(e?.messages?.[0] || __("Could not request review")),
+});
+function requestCustomerReview() {
+  if (selected.value) custReviewReqRes.submit({ name: selected.value.name });
+}
+const custReviewSubmitRes = createResource({
+  url: "helpdesk.api.addon.submit_customer_review",
+  onSuccess: () => {
+    if (selected.value) {
+      selected.value.customer_review = "Reviewed";
+      selected.value.customer_rating = custRating.value;
+    }
+    toast.success(__("Thanks for your review"));
+    comments.reload();
+    tasks.reload();
+  },
+  onError: (e: any) =>
+    toast.error(e?.messages?.[0] || __("Could not submit review")),
+});
+function submitCustomerReview() {
+  if (!selected.value || !custRating.value) return;
+  custReviewSubmitRes.submit({
+    name: selected.value.name,
+    rating: custRating.value,
+    comment: custComment.value.trim() || null,
+  });
 }
 
 // --- Bulk selection & actions (agent only) ---

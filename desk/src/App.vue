@@ -55,6 +55,27 @@ function onTaskReviewRequested(data: { subject?: string }) {
   });
 }
 
+// Customer: a task is ready for their review.
+function onCustomerReviewRequested(data: { subject?: string }) {
+  toast.create({
+    title: __("Ready for your review"),
+    message: __("“{0}” is ready for your review", [data?.subject || ""]),
+    icon: h(LucideListChecks, { class: "text-ink-white" }),
+  });
+}
+
+// Agent: the customer reviewed a task.
+function onTaskReviewed(data: { subject?: string; rating?: number }) {
+  toast.create({
+    title: __("Customer review"),
+    message: __("The customer rated “{0}” {1}/5", [
+      data?.subject || "",
+      String(data?.rating ?? ""),
+    ]),
+    icon: h(LucideListChecks, { class: "text-ink-white" }),
+  });
+}
+
 onMounted(() => {
   window.addEventListener("online", () => {
     toast.create({
@@ -75,12 +96,16 @@ onMounted(() => {
   const { $socket } = globalStore();
   $socket?.on("helpdesk:task_assigned", onTaskAssigned);
   $socket?.on("helpdesk:task_review_requested", onTaskReviewRequested);
+  $socket?.on("helpdesk:customer_review_requested", onCustomerReviewRequested);
+  $socket?.on("helpdesk:task_reviewed", onTaskReviewed);
 });
 
 onUnmounted(() => {
   const { $socket } = globalStore();
   $socket?.off("helpdesk:task_assigned", onTaskAssigned);
   $socket?.off("helpdesk:task_review_requested", onTaskReviewRequested);
+  $socket?.off("helpdesk:customer_review_requested", onCustomerReviewRequested);
+  $socket?.off("helpdesk:task_reviewed", onTaskReviewed);
 });
 
 const AgentPortalRoot = defineAsyncComponent(

@@ -237,6 +237,9 @@ TASK_FIELDS = [
 	"estimated_hours",
 	"completed_on",
 	"review_status",
+	"customer_review",
+	"customer_rating",
+	"customer_reviewed_on",
 	"description",
 	"creation",
 ]
@@ -872,6 +875,181 @@ def request_review(name: str) -> bool:
 	doc.review_status = "Pending Review"
 	doc.save(ignore_permissions=True)
 	_notify_task_reviewer(doc)
+	return True
+
+
+# ---------------------------------------------------------------------------
+# Customer review of a task
+# ---------------------------------------------------------------------------
+
+
+def _outgoing_sender() -> str | None:
+	"""Best available outgoing sender — frappe.sendmail needs one and it isn't
+	always flagged Default Outgoing."""
+	return frappe.db.get_value(
+		"Email Account", {"enable_outgoing": 1, "default_outgoing": 1}, "email_id"
+	) or frappe.db.get_value("Email Account", {"enable_outgoing": 1}, "email_id")
+
+
+def _task_customer(doc) -> str | None:
+	"""The HD Customer this task belongs to (via its add-on or project).
+	Standalone tasks have none."""
+	if doc.get("addon"):
+		return frappe.db.get_value("HD Addon", doc.addon, "customer")
+	if doc.get("project"):
+		return frappe.db.get_value("HD Project", doc.project, "customer")
+	return None
+
+
+def _customer_contact_emails(customer: str) -> list:
+	"""Email addresses of the contacts linked to an HD Customer."""
+	contacts = frappe.get_all(
+		"Dynamic Link",
+		filters={
+			"parenttype": "Contact",
+			"parentfield": "links",
+			"link_doctype": "HD Customer",
+			"link_name": customer,
+		},
+		pluck="parent",
+		ignore_permissions=True,
+	)
+	if not contacts:
+		return []
+	return [
+		e
+		for e in frappe.get_all(
+			"Contact", filters={"name": ["in", contacts]}, pluck="email_id",
+			ignore_permissions=True,
+		)
+		if e
+	]
+
+
+def _customer_task_link(doc) -> str:
+	if doc.get("addon"):
+		return frappe.utils.get_url(f"/helpdesk/my-addons/{doc.addon}")
+	if doc.get("project"):
+		return frappe.utils.get_url(f"/helpdesk/my-projects/{doc.project}")
+	return frappe.utils.get_url("/helpdesk")
+
+
+def _notify_customer_review_requested(doc, customer: str) -> None:
+	"""Tell the customer a task is ready for their review (in-app + email)."""
+	emails = _customer_contact_emails(customer)
+	for e in emails:
+		try:
+			frappe.publish_realtime(
+				"helpdesk:customer_review_requested",
+				{"task": doc.name, "subject": doc.subject},
+				user=e,
+			)
+		except Exception:
+			pass
+	if not emails:
+		return
+	sender = _outgoing_sender()
+	if not sender:
+		return
+	link = _customer_task_link(doc)
+	try:
+		frappe.sendmail(
+			recipients=emails,
+			sender=sender,
+			subject=_("A task is ready for your review: {0}").format(doc.subject),
+			message=f"""
+				<p>{_('Your CyveTech team has completed a task and would value your review')}:</p>
+				<p style="font-size:15px;font-weight:600;margin:12px 0;">
+					{frappe.utils.escape_html(doc.subject)}</p>
+				<p style="margin-top:16px;">
+					<a href="{link}" style="background:#2563eb;color:#fff;padding:8px 16px;
+					border-radius:6px;text-decoration:none;">{_('Review it')}</a>
+				</p>
+			""",
+			reference_doctype="HD Addon Task",
+			reference_name=doc.name,
+			now=True,
+		)
+	except Exception:
+		frappe.log_error(
+			title="Customer review request email failed",
+			message=frappe.get_traceback(),
+		)
+
+
+def _notify_review_submitted(doc, rating: int) -> None:
+	"""Tell the assignee the customer has reviewed their task."""
+	agent = doc.get("assigned_to")
+	if not agent:
+		return
+	try:
+		frappe.publish_realtime(
+			"helpdesk:task_reviewed",
+			{"task": doc.name, "subject": doc.subject, "rating": rating},
+			user=agent,
+		)
+	except Exception:
+		pass
+	sender = _outgoing_sender()
+	if not sender:
+		return
+	try:
+		frappe.sendmail(
+			recipients=[agent],
+			sender=sender,
+			subject=_("Customer reviewed: {0}").format(doc.subject),
+			message=f"<p>{_('The customer rated')} <strong>"
+			f"{frappe.utils.escape_html(doc.subject)}</strong> {rating}/5.</p>",
+			reference_doctype="HD Addon Task",
+			reference_name=doc.name,
+			now=True,
+		)
+	except Exception:
+		frappe.log_error(
+			title="Customer review notification failed",
+			message=frappe.get_traceback(),
+		)
+
+
+@frappe.whitelist()
+def request_customer_review(name: str) -> bool:
+	"""Send a task to its customer for review and notify them. Agents only;
+	only for tasks linked to a customer (add-on/project)."""
+	_assert_agent()
+	_assert_task_access(name)
+	doc = frappe.get_doc("HD Addon Task", name)
+	customer = _task_customer(doc)
+	if not customer:
+		frappe.throw(_("This task isn't linked to a customer to review it"))
+	if doc.customer_review == "Reviewed":
+		frappe.throw(_("The customer has already reviewed this task"))
+	doc.customer_review = "Requested"
+	doc.save(ignore_permissions=True)
+	_notify_customer_review_requested(doc, customer)
+	return True
+
+
+@frappe.whitelist()
+def submit_customer_review(name: str, rating: int, comment: str | None = None) -> bool:
+	"""Record the customer's review of a task and lock it. Allowed for the
+	task's customer while it is open for review; once reviewed it can't be
+	reviewed again."""
+	_assert_task_access(name)
+	doc = frappe.get_doc("HD Addon Task", name)
+	if doc.customer_review != "Requested":
+		# Covers both "not requested yet" and "already reviewed" — once reviewed
+		# a task is not available for review again.
+		frappe.throw(_("This task is not open for review"))
+	doc.customer_rating = max(1, min(5, cint(rating)))
+	doc.customer_review = "Reviewed"
+	doc.customer_reviewed_on = frappe.utils.now()
+	doc.save(ignore_permissions=True)
+	comment = (comment or "").strip()
+	if comment:
+		frappe.get_doc(
+			{"doctype": "HD Task Comment", "task": name, "content": comment}
+		).insert(ignore_permissions=True)
+	_notify_review_submitted(doc, doc.customer_rating)
 	return True
 
 
