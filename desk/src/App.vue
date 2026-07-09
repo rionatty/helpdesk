@@ -55,11 +55,15 @@ function onTaskReviewRequested(data: { subject?: string }) {
   });
 }
 
-// Customer: a task is ready for their review.
-function onCustomerReviewRequested(data: { subject?: string }) {
+// Customer: one or more tasks are ready for their review.
+function onCustomerReviewRequested(data: { subject?: string; count?: number }) {
+  const n = data?.count || 0;
   toast.create({
     title: __("Ready for your review"),
-    message: __("“{0}” is ready for your review", [data?.subject || ""]),
+    message:
+      n > 1
+        ? __("{0} tasks are ready for your review", [String(n)])
+        : __("“{0}” is ready for your review", [data?.subject || ""]),
     icon: h(LucideListChecks, { class: "text-ink-white" }),
   });
 }

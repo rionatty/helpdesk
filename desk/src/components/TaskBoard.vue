@@ -307,6 +307,17 @@
         </option>
       </select>
       <Button
+        v-if="addonId || projectId"
+        theme="blue"
+        variant="subtle"
+        size="sm"
+        :loading="bulkCustomerReviewRes.loading"
+        :label="__('Request customer review')"
+        @click="bulkRequestCustomerReview"
+      >
+        <template #prefix><LucideStar class="size-3.5" /></template>
+      </Button>
+      <Button
         theme="red"
         variant="subtle"
         size="sm"
@@ -1897,6 +1908,24 @@ const bulkDeleteRes = createResource({
   onError: (e: any) =>
     toast.error(e?.messages?.[0] || __("Could not delete tasks")),
 });
+const bulkCustomerReviewRes = createResource({
+  url: "helpdesk.api.addon.request_customer_review_bulk",
+  onSuccess: (n: number) => {
+    toast.success(
+      n
+        ? __("Sent {0} tasks to the customer for review", [String(n)])
+        : __("Nothing to request — those tasks are already reviewed")
+    );
+    clearSelection();
+    reload();
+  },
+  onError: (e: any) =>
+    toast.error(e?.messages?.[0] || __("Could not request review")),
+});
+function bulkRequestCustomerReview() {
+  if (!selectedTasks.value.size) return;
+  bulkCustomerReviewRes.submit({ names: [...selectedTasks.value] });
+}
 function bulkSetStatus(e: any) {
   const status = e.target.value;
   if (!status || !selectedTasks.value.size) return;

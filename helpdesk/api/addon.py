@@ -1053,6 +1053,73 @@ def submit_customer_review(name: str, rating: int, comment: str | None = None) -
 	return True
 
 
+def _notify_customer_review_requested_bulk(customer: str, tasks: list) -> None:
+	"""One consolidated 'these tasks are ready for your review' message per
+	customer, instead of one email per task."""
+	emails = _customer_contact_emails(customer)
+	for e in emails:
+		try:
+			frappe.publish_realtime(
+				"helpdesk:customer_review_requested",
+				{"count": len(tasks)},
+				user=e,
+			)
+		except Exception:
+			pass
+	if not emails:
+		return
+	sender = _outgoing_sender()
+	if not sender:
+		return
+	items = "".join(
+		f'<li style="margin:4px 0"><a href="{t["link"]}">'
+		f'{frappe.utils.escape_html(t["subject"])}</a></li>'
+		for t in tasks
+	)
+	try:
+		frappe.sendmail(
+			recipients=emails,
+			sender=sender,
+			subject=_("{0} tasks are ready for your review").format(len(tasks)),
+			message=f"""
+				<p>{_('Your CyveTech team has completed work and would value your review')}:</p>
+				<ul style="padding-left:18px">{items}</ul>
+			""",
+			now=True,
+		)
+	except Exception:
+		frappe.log_error(
+			title="Customer review request email failed",
+			message=frappe.get_traceback(),
+		)
+
+
+@frappe.whitelist()
+def request_customer_review_bulk(names) -> int:
+	"""Request customer review for many tasks at once, sending each customer a
+	single consolidated notification. Agents only. Skips tasks with no customer
+	or already reviewed. Returns the number of tasks newly requested."""
+	_assert_agent()
+	names = frappe.parse_json(names) if isinstance(names, str) else (names or [])
+	by_customer: dict = {}
+	count = 0
+	for name in names:
+		_assert_task_access(name)
+		doc = frappe.get_doc("HD Addon Task", name)
+		customer = _task_customer(doc)
+		if not customer or doc.customer_review == "Reviewed":
+			continue
+		doc.customer_review = "Requested"
+		doc.save(ignore_permissions=True)
+		by_customer.setdefault(customer, []).append(
+			{"subject": doc.subject, "link": _customer_task_link(doc)}
+		)
+		count += 1
+	for cust, tasks in by_customer.items():
+		_notify_customer_review_requested_bulk(cust, tasks)
+	return count
+
+
 @frappe.whitelist()
 def bulk_update_tasks(names, **fields) -> int:
 	"""Apply the same field update (status / priority / assigned_to) to many
