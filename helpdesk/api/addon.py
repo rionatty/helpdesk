@@ -977,25 +977,62 @@ def _notify_customer_review_requested(doc, customer: str) -> None:
 		)
 
 
-def _notify_review_submitted(doc, rating: int) -> None:
-	"""Tell the assignee the customer has reviewed their task."""
-	agent = doc.get("assigned_to")
-	if not agent:
-		return
-	try:
-		frappe.publish_realtime(
-			"helpdesk:task_reviewed",
-			{"task": doc.name, "subject": doc.subject, "rating": rating},
-			user=agent,
+def _task_stakeholders(doc) -> list:
+	"""Agents who should hear about customer activity on a task: its assignee,
+	reviewer and creator, plus every member of the parent add-on/project (and
+	the project lead). Excludes the acting user."""
+	people = {doc.get("assigned_to"), doc.get("reviewer"), doc.get("owner")}
+	if doc.get("addon"):
+		people.update(
+			frappe.get_all(
+				"HD Addon Member", filters={"addon": doc.addon}, pluck="agent",
+				ignore_permissions=True,
+			)
 		)
-	except Exception:
-		pass
+	elif doc.get("project"):
+		people.update(
+			frappe.get_all(
+				"HD Project Member", filters={"project": doc.project}, pluck="agent",
+				ignore_permissions=True,
+			)
+		)
+		lead = frappe.db.get_value("HD Project", doc.project, "lead")
+		if lead:
+			people.add(lead)
+	people.discard(None)
+	people.discard(frappe.session.user)
+	# Only real agents get notified (owner may be a portal user).
+	if not people:
+		return []
+	return frappe.get_all(
+		"HD Agent",
+		filters={"name": ["in", list(people)], "is_active": 1},
+		pluck="name",
+		ignore_permissions=True,
+	)
+
+
+def _notify_review_submitted(doc, rating: int) -> None:
+	"""Tell everyone working on the task (assignee, reviewer, parent members)
+	that the customer has reviewed it."""
+	recipients = _task_stakeholders(doc)
+	if not recipients:
+		return
+	for agent in recipients:
+		try:
+			frappe.publish_realtime(
+				"helpdesk:task_reviewed",
+				{"task": doc.name, "subject": doc.subject, "rating": rating},
+				user=agent,
+			)
+		except Exception:
+			pass
 	sender = _outgoing_sender()
 	if not sender:
 		return
 	try:
 		frappe.sendmail(
-			recipients=[agent],
+			recipients=recipients,
 			sender=sender,
 			subject=_("Customer reviewed: {0}").format(doc.subject),
 			message=f"<p>{_('The customer rated')} <strong>"
@@ -1007,6 +1044,53 @@ def _notify_review_submitted(doc, rating: int) -> None:
 	except Exception:
 		frappe.log_error(
 			title="Customer review notification failed",
+			message=frappe.get_traceback(),
+		)
+
+
+def _notify_customer_comment(doc, content: str) -> None:
+	"""Tell everyone working on the task that the customer commented."""
+	recipients = _task_stakeholders(doc)
+	if not recipients:
+		return
+	preview = (content or "")[:140]
+	for agent in recipients:
+		try:
+			frappe.publish_realtime(
+				"helpdesk:customer_commented",
+				{"task": doc.name, "subject": doc.subject, "preview": preview},
+				user=agent,
+			)
+		except Exception:
+			pass
+	sender = _outgoing_sender()
+	if not sender:
+		return
+	link = frappe.utils.get_url(
+		f"/helpdesk/addons/{doc.addon}" if doc.get("addon")
+		else f"/helpdesk/projects/{doc.project}" if doc.get("project")
+		else "/helpdesk/tasks"
+	)
+	try:
+		frappe.sendmail(
+			recipients=recipients,
+			sender=sender,
+			subject=_("Customer commented on: {0}").format(doc.subject),
+			message=f"""
+				<p>{_('The customer commented on')} <strong>
+				{frappe.utils.escape_html(doc.subject)}</strong>:</p>
+				<blockquote style="border-left:3px solid #ccc;margin:8px 0;padding:4px 12px">
+					{frappe.utils.escape_html(content)}
+				</blockquote>
+				<p style="margin-top:12px;"><a href="{link}">{_('Open it')}</a></p>
+			""",
+			reference_doctype="HD Addon Task",
+			reference_name=doc.name,
+			now=True,
+		)
+	except Exception:
+		frappe.log_error(
+			title="Customer comment notification failed",
 			message=frappe.get_traceback(),
 		)
 
@@ -1234,7 +1318,8 @@ def get_task_comments(task: str) -> list:
 
 @frappe.whitelist()
 def add_task_comment(task: str, content: str) -> str:
-	"""Post a comment on a task. Agents and the parent's customer."""
+	"""Post a comment on a task. Agents and the parent's customer. Customer
+	comments notify everyone working on the task."""
 	_assert_task_access(task)
 	content = (content or "").strip()
 	if not content:
@@ -1242,6 +1327,9 @@ def add_task_comment(task: str, content: str) -> str:
 	c = frappe.get_doc(
 		{"doctype": "HD Task Comment", "task": task, "content": content}
 	).insert(ignore_permissions=True)
+	if not is_agent():
+		doc = frappe.get_doc("HD Addon Task", task)
+		_notify_customer_comment(doc, content)
 	return c.name
 
 

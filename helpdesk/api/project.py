@@ -474,9 +474,74 @@ def get_project_comments(project: str) -> list:
 	return _get_comments(project)
 
 
+def _notify_project_comment(doc, content: str) -> None:
+	"""Tell the project's members (and lead) that the customer commented."""
+	people = set(
+		frappe.get_all(
+			"HD Project Member", filters={"project": doc.name}, pluck="agent",
+			ignore_permissions=True,
+		)
+	)
+	if doc.lead:
+		people.add(doc.lead)
+	people.discard(frappe.session.user)
+	if not people:
+		return
+	recipients = frappe.get_all(
+		"HD Agent",
+		filters={"name": ["in", list(people)], "is_active": 1},
+		pluck="name",
+		ignore_permissions=True,
+	)
+	if not recipients:
+		return
+	for agent in recipients:
+		try:
+			frappe.publish_realtime(
+				"helpdesk:customer_commented",
+				{
+					"task": doc.name,
+					"subject": doc.project_name,
+					"preview": (content or "")[:140],
+				},
+				user=agent,
+			)
+		except Exception:
+			pass
+	sender = frappe.db.get_value(
+		"Email Account", {"enable_outgoing": 1, "default_outgoing": 1}, "email_id"
+	) or frappe.db.get_value("Email Account", {"enable_outgoing": 1}, "email_id")
+	if not sender:
+		return
+	link = frappe.utils.get_url(f"/helpdesk/projects/{doc.name}")
+	try:
+		frappe.sendmail(
+			recipients=recipients,
+			sender=sender,
+			subject=_("Customer commented on project: {0}").format(doc.project_name),
+			message=f"""
+				<p>{_('The customer commented on')} <strong>
+				{frappe.utils.escape_html(doc.project_name or doc.name)}</strong>:</p>
+				<blockquote style="border-left:3px solid #ccc;margin:8px 0;padding:4px 12px">
+					{frappe.utils.escape_html(content)}
+				</blockquote>
+				<p style="margin-top:12px;"><a href="{link}">{_('Open the project')}</a></p>
+			""",
+			reference_doctype="HD Project",
+			reference_name=doc.name,
+			now=True,
+		)
+	except Exception:
+		frappe.log_error(
+			title="Project comment notification failed",
+			message=frappe.get_traceback(),
+		)
+
+
 @frappe.whitelist()
 def add_project_comment(project: str, content: str) -> str:
-	"""Post a comment on a project. Agents and the project's customer."""
+	"""Post a comment on a project. Agents and the project's customer.
+	Customer comments notify the project's members and lead."""
 	doc = frappe.get_doc("HD Project", project)
 	_assert_project_access(doc)
 	content = (content or "").strip()
@@ -485,6 +550,8 @@ def add_project_comment(project: str, content: str) -> str:
 	c = frappe.get_doc(
 		{"doctype": "HD Project Comment", "project": project, "content": content}
 	).insert(ignore_permissions=True)
+	if not is_agent():
+		_notify_project_comment(doc, content)
 	return c.name
 
 

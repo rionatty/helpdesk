@@ -80,6 +80,15 @@ function onTaskReviewed(data: { subject?: string; rating?: number }) {
   });
 }
 
+// Agent: the customer commented on a task/project they work on.
+function onCustomerCommented(data: { subject?: string; preview?: string }) {
+  toast.create({
+    title: __("Customer comment on “{0}”", [data?.subject || ""]),
+    message: data?.preview || __("The customer left a comment"),
+    icon: h(LucideListChecks, { class: "text-ink-white" }),
+  });
+}
+
 onMounted(() => {
   window.addEventListener("online", () => {
     toast.create({
@@ -102,6 +111,7 @@ onMounted(() => {
   $socket?.on("helpdesk:task_review_requested", onTaskReviewRequested);
   $socket?.on("helpdesk:customer_review_requested", onCustomerReviewRequested);
   $socket?.on("helpdesk:task_reviewed", onTaskReviewed);
+  $socket?.on("helpdesk:customer_commented", onCustomerCommented);
 });
 
 onUnmounted(() => {
@@ -110,6 +120,7 @@ onUnmounted(() => {
   $socket?.off("helpdesk:task_review_requested", onTaskReviewRequested);
   $socket?.off("helpdesk:customer_review_requested", onCustomerReviewRequested);
   $socket?.off("helpdesk:task_reviewed", onTaskReviewed);
+  $socket?.off("helpdesk:customer_commented", onCustomerCommented);
 });
 
 const AgentPortalRoot = defineAsyncComponent(
