@@ -241,7 +241,9 @@ export function formatTime(
     formattedTime += `${minutes}m `;
   }
 
-  if (config.second) {
+  // Second-level precision only matters for short durations — on an "8h 42m"
+  // SLA countdown a frozen seconds value just looks broken.
+  if (config.second && days === 0 && hours === 0) {
     formattedTime += `${
       remainingSeconds >= 10
         ? remainingSeconds

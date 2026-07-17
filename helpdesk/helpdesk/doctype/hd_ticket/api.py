@@ -149,7 +149,26 @@ def get_one(name: str, is_customer_portal: bool = False):
             if ticket.get("addon")
             else None
         ),
+        "assignee_name": _assignee_display_name(name),
     }
+
+
+def _assignee_display_name(ticket: str) -> str | None:
+    """Display name of the first assigned agent — portal-safe (never the
+    email). Used by the customer sidebar's "who's handling this" card."""
+    try:
+        assign = frappe.db.get_value("HD Ticket", ticket, "_assign")
+        parsed = frappe.parse_json(assign or "[]")
+        agent = parsed[0] if isinstance(parsed, list) and parsed else None
+        if not agent:
+            return None
+        return (
+            frappe.db.get_value("HD Agent", agent, "agent_name")
+            or frappe.db.get_value("User", agent, "full_name")
+            or None
+        )
+    except Exception:
+        return None
 
 
 def _linked_project_name(project: str | None, _is_agent: bool) -> str | None:

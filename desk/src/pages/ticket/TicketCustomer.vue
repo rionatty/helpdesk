@@ -193,6 +193,20 @@
             "
           >
             <template #bottom-left>
+              <Tooltip :text="__('Attach files')">
+                <Button theme="gray" variant="ghost" @click="filePicker?.click()">
+                  <template #icon>
+                    <LucidePaperclip class="size-4" />
+                  </template>
+                </Button>
+              </Tooltip>
+              <input
+                ref="filePicker"
+                type="file"
+                multiple
+                class="hidden"
+                @change="onFilePicked"
+              />
               <Tooltip :text="__('Paste image from clipboard')">
                 <Button
                   theme="gray"
@@ -438,7 +452,12 @@ async function onDrop(e: DragEvent) {
   isDragging.value = false;
   const files = e.dataTransfer?.files;
   if (!files?.length) return;
-  for (const f of Array.from(files)) {
+  await attachFiles(Array.from(files));
+}
+
+// Shared by drag-drop and the paperclip file picker.
+async function attachFiles(files: File[]) {
+  for (const f of files) {
     try {
       const result = await uploadFunction(f, "HD Ticket", props.ticketId);
       if (result) attachments.value = [...attachments.value, result];
@@ -446,6 +465,14 @@ async function onDrop(e: DragEvent) {
       toast.error(__("Failed to attach {0}", [f.name]));
     }
   }
+}
+
+const filePicker = ref<HTMLInputElement | null>(null);
+async function onFilePicked(e: Event) {
+  const input = e.target as HTMLInputElement;
+  if (!input.files?.length) return;
+  await attachFiles(Array.from(input.files));
+  input.value = ""; // allow re-picking the same file
 }
 
 function getTodayKey() {

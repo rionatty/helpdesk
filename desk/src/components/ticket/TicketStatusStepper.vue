@@ -72,10 +72,25 @@ const { statuses } = useTicketStatusStore();
 
 const visibleSteps = computed<HDTicketStatus[]>(() => {
   const all = (statuses.data || []) as HDTicketStatus[];
-  return all
+  const sorted = all
     .filter((s) => s.enabled)
     .slice()
     .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  // A linear stepper should show ONE "Open" step. Sites often define extra
+  // Open-category statuses (e.g. "Reopened") which would otherwise render as
+  // a permanently-checked first step on brand-new tickets. Keep the current
+  // status when the ticket is in an Open-category state, else the canonical
+  // (last-ordered) Open status.
+  const opens = sorted.filter((s) => s.category === "Open");
+  if (opens.length > 1) {
+    const current = ticket?.data?.status;
+    const keep =
+      opens.find(
+        (s) => s.label_agent === current || s.label_customer === current
+      ) || opens[opens.length - 1];
+    return sorted.filter((s) => s.category !== "Open" || s === keep);
+  }
+  return sorted;
 });
 
 const currentIndex = computed(() => {

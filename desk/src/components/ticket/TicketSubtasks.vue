@@ -1,5 +1,7 @@
 <template>
+  <!-- Customers only see this card when there's something to show. -->
   <div
+    v-if="editable || (subtasks.data && subtasks.data.length)"
     class="rounded-xl border border-outline-gray-2 bg-surface-white shadow-sm overflow-hidden"
   >
     <!-- Standout header -->
