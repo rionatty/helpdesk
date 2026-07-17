@@ -55,6 +55,8 @@
   "customer_portal_section",
   "support_email",
   "support_hours",
+  "sla_response_reminder_lead",
+  "sla_resolution_reminder_lead",
   "images_column",
   "misc_tab",
   "setup_section",
@@ -488,6 +490,22 @@
    "fieldname": "support_hours",
    "fieldtype": "Data",
    "label": "Business Hours"
+  },
+  {
+   "default": "30",
+   "description": "Remind assigned agents this many minutes before a ticket's first-response SLA deadline. 0 disables.",
+   "fieldname": "sla_response_reminder_lead",
+   "fieldtype": "Int",
+   "label": "SLA First-Response Reminder Lead (minutes)",
+   "non_negative": 1
+  },
+  {
+   "default": "120",
+   "description": "Remind assigned agents this many minutes before a ticket's resolution SLA deadline. 0 disables.",
+   "fieldname": "sla_resolution_reminder_lead",
+   "fieldtype": "Int",
+   "label": "SLA Resolution Reminder Lead (minutes)",
+   "non_negative": 1
   },
   {
    "description": "Appears next to the title in your browser tab. Recommended size is minimum 32x32 px in PNG or ICO",

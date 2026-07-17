@@ -42,6 +42,9 @@ scheduler_events = {
     # late — run the due-check every 5 minutes.
     "cron": {
         "*/5 * * * *": [
+            # SLA reminders are created first so ones already inside their
+            # lead window fire on the same tick.
+            "helpdesk.api.reminder.create_sla_reminders",
             "helpdesk.api.reminder.send_due_reminders",
         ],
     },

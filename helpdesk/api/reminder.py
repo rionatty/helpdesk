@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 
 import frappe
 from frappe import _
-from frappe.utils import now
+from frappe.utils import add_to_date, cint, now, now_datetime
 
 
 @frappe.whitelist()
@@ -371,3 +371,143 @@ def send_due_reminders() -> None:
 		)
 	if overdue:
 		frappe.db.commit()
+
+
+# ---------------------------------------------------------------------------
+# SLA-based ticket reminders (auto-created ahead of SLA deadlines)
+# ---------------------------------------------------------------------------
+
+SLA_RESPONSE_TAG = "[SLA] First response"
+SLA_RESOLUTION_TAG = "[SLA] Resolution"
+
+
+def _ticket_reminder_targets(ticket_row) -> list:
+	"""The ticket's assigned agents; unassigned tickets fall back to enabled
+	Agent Managers (someone has to triage before the SLA blows)."""
+	agents = []
+	try:
+		parsed = frappe.parse_json(ticket_row._assign or "[]")
+		if isinstance(parsed, list):
+			agents = [a for a in parsed if a]
+	except Exception:
+		agents = []
+	if agents:
+		return agents
+	managers = frappe.get_all(
+		"Has Role",
+		filters={"role": "Agent Manager", "parenttype": "User"},
+		pluck="parent",
+	)
+	if not managers:
+		return []
+	return frappe.get_all(
+		"User",
+		filters=[
+			["name", "in", managers],
+			["enabled", "=", 1],
+			["name", "not in", ["Administrator", "Guest"]],
+		],
+		pluck="name",
+	)
+
+
+def _ensure_sla_reminder(ticket, agent, tag, deadline, remind_at) -> None:
+	"""Create (or retime) one agent's SLA reminder for a ticket. The (owner,
+	ticket, tag) triple is the dedupe key so each deadline reminds once."""
+	existing = frappe.get_all(
+		"HD Reminder",
+		filters={
+			"reference_doctype": "HD Ticket",
+			"reference_name": ticket.name,
+			"owner": agent,
+			"message": ["like", f"{tag}%"],
+		},
+		fields=["name", "status", "remind_at"],
+		limit_page_length=1,
+		ignore_permissions=True,
+	)
+	if existing:
+		row = existing[0]
+		# Deadline moved (SLA reset/pause) — retime a still-pending reminder.
+		if row.status == "Pending" and str(row.remind_at) != str(remind_at):
+			frappe.db.set_value(
+				"HD Reminder", row.name, "remind_at", remind_at,
+				update_modified=False,
+			)
+		return
+	msg = (
+		f"{tag} for #{ticket.name} due "
+		f"{frappe.utils.format_datetime(deadline, 'medium')} — "
+		f"{ticket.subject or ''}"
+	)[:500]
+	doc = frappe.get_doc(
+		{
+			"doctype": "HD Reminder",
+			"message": msg,
+			"remind_at": remind_at,
+			"reference_doctype": "HD Ticket",
+			"reference_name": ticket.name,
+			"status": "Pending",
+			"send_email": 1,
+		}
+	).insert(ignore_permissions=True)
+	# Owner drives who gets the popup/email; the scheduler runs as Administrator.
+	frappe.db.set_value(
+		"HD Reminder", doc.name, "owner", agent, update_modified=False
+	)
+
+
+def create_sla_reminders() -> None:
+	"""Scheduler: auto-create agent reminders ahead of ticket SLA deadlines
+	(first response and resolution), using the lead times configured in HD
+	Settings. Runs on the same 5-minute cron as send_due_reminders, before it,
+	so a reminder created inside its lead window fires on the same tick."""
+	resp_lead = cint(
+		frappe.db.get_single_value("HD Settings", "sla_response_reminder_lead")
+	)
+	reso_lead = cint(
+		frappe.db.get_single_value("HD Settings", "sla_resolution_reminder_lead")
+	)
+	if not resp_lead and not reso_lead:
+		return
+	now_dt = now_datetime()
+
+	if resp_lead:
+		rows = frappe.get_all(
+			"HD Ticket",
+			filters={
+				"response_by": [
+					"between", [now_dt, add_to_date(now_dt, minutes=resp_lead)],
+				],
+				"first_responded_on": ["is", "not set"],
+				"agreement_status": "First Response Due",
+			},
+			fields=["name", "subject", "response_by", "_assign"],
+			ignore_permissions=True,
+		)
+		for t in rows:
+			remind_at = max(add_to_date(t.response_by, minutes=-resp_lead), now_dt)
+			for agent in _ticket_reminder_targets(t):
+				_ensure_sla_reminder(
+					t, agent, SLA_RESPONSE_TAG, t.response_by, remind_at
+				)
+
+	if reso_lead:
+		rows = frappe.get_all(
+			"HD Ticket",
+			filters={
+				"resolution_by": [
+					"between", [now_dt, add_to_date(now_dt, minutes=reso_lead)],
+				],
+				"resolution_date": ["is", "not set"],
+			},
+			fields=["name", "subject", "resolution_by", "_assign"],
+			ignore_permissions=True,
+		)
+		for t in rows:
+			remind_at = max(add_to_date(t.resolution_by, minutes=-reso_lead), now_dt)
+			for agent in _ticket_reminder_targets(t):
+				_ensure_sla_reminder(
+					t, agent, SLA_RESOLUTION_TAG, t.resolution_by, remind_at
+				)
+	frappe.db.commit()
