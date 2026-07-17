@@ -89,6 +89,15 @@ function onCustomerCommented(data: { subject?: string; preview?: string }) {
   });
 }
 
+// Customer: an agent replied to their ticket.
+function onTicketReplied(data: { ticket?: string; subject?: string }) {
+  toast.create({
+    title: __("New reply on your ticket"),
+    message: __("“{0}” has a new reply from support", [data?.subject || ""]),
+    icon: h(LucideListChecks, { class: "text-ink-white" }),
+  });
+}
+
 onMounted(() => {
   window.addEventListener("online", () => {
     toast.create({
@@ -112,6 +121,7 @@ onMounted(() => {
   $socket?.on("helpdesk:customer_review_requested", onCustomerReviewRequested);
   $socket?.on("helpdesk:task_reviewed", onTaskReviewed);
   $socket?.on("helpdesk:customer_commented", onCustomerCommented);
+  $socket?.on("helpdesk:ticket_replied", onTicketReplied);
 });
 
 onUnmounted(() => {
@@ -121,6 +131,7 @@ onUnmounted(() => {
   $socket?.off("helpdesk:customer_review_requested", onCustomerReviewRequested);
   $socket?.off("helpdesk:task_reviewed", onTaskReviewed);
   $socket?.off("helpdesk:customer_commented", onCustomerCommented);
+  $socket?.off("helpdesk:ticket_replied", onTicketReplied);
 });
 
 const AgentPortalRoot = defineAsyncComponent(

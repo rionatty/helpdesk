@@ -690,9 +690,29 @@ class HDTicket(Document):
             self.attach_file_with_doc("HD Ticket", self.name, file_url)
             _attachments.append({"file_url": file_url})
 
+        # Tell the customer in-app right away (works even when email is off).
+        try:
+            if self.raised_by:
+                frappe.publish_realtime(
+                    "helpdesk:ticket_replied",
+                    {"ticket": self.name, "subject": self.subject},
+                    user=self.raised_by,
+                )
+        except Exception:
+            pass
+
         if skip_email_workflow or not frappe.db.get_single_value(
             "HD Settings", "enable_reply_email_via_agent"
         ):
+            # Don't skip silently — the agent should know no email went out.
+            frappe.msgprint(
+                _(
+                    "Reply saved, but no email was sent to the customer — "
+                    "reply emails are turned off in HD Settings."
+                ),
+                indicator="orange",
+                alert=True,
+            )
             return
 
         if not sender_email:
@@ -718,12 +738,12 @@ class HDTicket(Document):
             except Exception as e:
                 frappe.throw(_("Could not an email due to: {0}").format(e))
 
-        send_delayed = True
-        send_now = False
-
-        if self.instantly_send_email():
-            send_delayed = False
-            send_now = True
+        # Always send within the request. The email queue depends on the
+        # scheduler/long worker, which must not be a single point of failure
+        # for customer-facing replies (queued mail sat unsent when workers
+        # stalled). instantly_send_email is therefore no longer consulted.
+        send_delayed = False
+        send_now = True
 
         try:
             frappe.sendmail(
@@ -887,7 +907,8 @@ class HDTicket(Document):
             )
 
     def notify_managers_new_ticket(self):
-        """Email every enabled Agent Manager the moment a new ticket arrives."""
+        """Email every active agent and Agent Manager the moment a new ticket
+        arrives."""
         # Skip bulk imports and the bundled sample ticket
         if frappe.flags.initial_sync or self.subject == "Welcome to Helpdesk":
             return
@@ -897,19 +918,23 @@ class HDTicket(Document):
             filters={"role": "Agent Manager", "parenttype": "User"},
             pluck="parent",
         )
-        if not manager_ids:
+        agent_ids = frappe.get_all(
+            "HD Agent", filters={"is_active": 1}, pluck="name"
+        )
+        candidate_ids = list({*manager_ids, *agent_ids})
+        if not candidate_ids:
             return
 
         recipients = frappe.get_all(
             "User",
             filters=[
-                ["name", "in", manager_ids],
+                ["name", "in", candidate_ids],
                 ["enabled", "=", 1],
                 ["name", "not in", ["Administrator", "Guest"]],
             ],
             pluck="email",
         )
-        # Dedupe and don't notify the requester if they happen to be a manager
+        # Dedupe and don't notify the requester if they happen to be an agent
         recipients = list({e for e in recipients if e and e != self.raised_by})
         if not recipients:
             return
@@ -939,9 +964,16 @@ class HDTicket(Document):
             </p>
         """
 
+        # Resolve a sender explicitly — sendmail fails silently on sites with
+        # no account flagged "Default Outgoing".
+        sender = frappe.db.get_value(
+            "Email Account", {"enable_outgoing": 1, "default_outgoing": 1}, "email_id"
+        ) or frappe.db.get_value("Email Account", {"enable_outgoing": 1}, "email_id")
+
         try:
             frappe.sendmail(
                 recipients=recipients,
+                sender=sender,
                 subject=_("New Ticket #{0}: {1}").format(self.name, self.subject or ""),
                 message=message,
                 reference_doctype="HD Ticket",
@@ -951,7 +983,7 @@ class HDTicket(Document):
                 email_headers={"X-Auto-Generated": "hd-new-ticket-manager"},
             )
         except Exception:
-            frappe.log_error(title=f"Failed to notify managers of ticket {self.name}")
+            frappe.log_error(title=f"Failed to notify agents of ticket {self.name}")
 
     @frappe.whitelist()
     def mark_seen(self):
