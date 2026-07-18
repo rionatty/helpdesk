@@ -757,15 +757,35 @@ class HDTicket(Document):
         except Exception:
             pass
 
-        if skip_email_workflow or not frappe.db.get_single_value(
-            "HD Settings", "enable_reply_email_via_agent"
-        ):
-            # Don't skip silently — the agent should know no email went out.
+        # Name the exact gate when no email goes out, so it's diagnosable
+        # from the toast alone.
+        if skip_email_workflow:
             frappe.msgprint(
                 _(
-                    "Reply saved, but no email was sent to the customer — "
-                    "reply emails are turned off in HD Settings."
+                    "Reply saved, but no email was sent — 'Skip email workflow' "
+                    "is enabled in HD Settings."
                 ),
+                indicator="orange",
+                alert=True,
+            )
+            return
+        reply_email_enabled = frappe.db.get_single_value(
+            "HD Settings", "enable_reply_email_via_agent"
+        )
+        # Unset (NULL, pre-migration) means ON — replies must email by default.
+        if reply_email_enabled is not None and not int(reply_email_enabled):
+            frappe.msgprint(
+                _(
+                    "Reply saved, but no email was sent — the 'Reply from agent' "
+                    "notification is turned off in Settings → Email Notifications."
+                ),
+                indicator="orange",
+                alert=True,
+            )
+            return
+        if not recipients:
+            frappe.msgprint(
+                _("Reply saved, but no email was sent — the To field was empty."),
                 indicator="orange",
                 alert=True,
             )
@@ -822,6 +842,13 @@ class HDTicket(Document):
                 in_reply_to=(
                     last_communication.name if last_communication.name else None
                 ),
+            )
+            # Positive confirmation so "did the customer get it?" is never
+            # a guess.
+            frappe.msgprint(
+                _("Reply emailed to {0}").format(recipients),
+                indicator="green",
+                alert=True,
             )
         except Exception as e:
             frappe.throw(_(e))
