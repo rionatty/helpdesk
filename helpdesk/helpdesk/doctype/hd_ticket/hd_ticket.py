@@ -882,15 +882,59 @@ class HDTicket(Document):
                     last_communication.name if last_communication.name else None
                 ),
             )
-            # Positive confirmation so "did the customer get it?" is never
-            # a guess.
-            frappe.msgprint(
-                _("Reply emailed to {0}").format(recipients),
-                indicator="green",
-                alert=True,
-            )
         except Exception as e:
-            frappe.throw(_(e))
+            frappe.throw(str(e))
+
+        # Report SMTP's actual verdict, not just "we tried": read back the
+        # Email Queue row this send created and surface its real status.
+        self._report_reply_email_outcome(communication.name, recipients)
+
+    def _report_reply_email_outcome(self, communication: str, recipients: str):
+        try:
+            rows = frappe.get_all(
+                "Email Queue",
+                filters={"communication": communication},
+                fields=["name", "status", "error"],
+                order_by="creation desc",
+                limit_page_length=1,
+                ignore_permissions=True,
+            )
+            if not rows:
+                frappe.msgprint(
+                    _(
+                        "Reply saved, but no email entry was created — "
+                        "check Error Log."
+                    ),
+                    indicator="orange",
+                    alert=True,
+                )
+                return
+            row = rows[0]
+            if row.status == "Sent":
+                frappe.msgprint(
+                    _("Reply emailed to {0}").format(recipients),
+                    indicator="green",
+                    alert=True,
+                )
+            elif row.status in ("Error", "Partially Errored"):
+                frappe.msgprint(
+                    _("Email to {0} FAILED at SMTP: {1}").format(
+                        recipients, (row.error or _("unknown error"))[:300]
+                    ),
+                    indicator="red",
+                    alert=True,
+                )
+            else:
+                frappe.msgprint(
+                    _(
+                        "Reply email to {0} is queued (status: {1}) — it only "
+                        "goes out if the scheduler/workers are running."
+                    ).format(recipients, row.status),
+                    indicator="orange",
+                    alert=True,
+                )
+        except Exception:
+            pass
 
     @frappe.whitelist()
     # flake8: noqa
