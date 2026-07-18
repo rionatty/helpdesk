@@ -22,6 +22,52 @@ def get_helpdesk_email_addresses() -> list:
 
 
 @frappe.whitelist()
+@agent_only
+def diagnose_ticket_email(ticket: str) -> dict:
+	"""One-shot answer to 'why didn't the reply email go out?' — the settings
+	gates, the outgoing accounts, and the actual Email Queue rows for this
+	ticket with their real SMTP status/error. Agent-only."""
+	settings = frappe.get_single("HD Settings")
+	outgoing = frappe.get_all(
+		"Email Account",
+		filters={"enable_outgoing": 1},
+		fields=["name", "email_id", "default_outgoing"],
+	)
+	comms = frappe.get_all(
+		"Communication",
+		filters={"reference_doctype": "HD Ticket", "reference_name": ticket},
+		pluck="name",
+	)
+	queue = []
+	if comms:
+		queue = frappe.get_all(
+			"Email Queue",
+			filters={"communication": ["in", comms]},
+			fields=["name", "status", "error", "creation"],
+			order_by="creation desc",
+			limit_page_length=10,
+		)
+	return {
+		"gates": {
+			"skip_email_workflow": settings.get("skip_email_workflow"),
+			"enable_reply_email_via_agent": settings.get(
+				"enable_reply_email_via_agent"
+			),
+			"send_acknowledgement_email": settings.get("send_acknowledgement_email"),
+		},
+		"outgoing_accounts": outgoing,
+		"has_default_outgoing": any(a.default_outgoing for a in outgoing),
+		"email_queue_for_ticket": queue,
+		"note": (
+			"If email_queue_for_ticket is empty, replies are being blocked by a "
+			"settings gate (a 'Sent' Communication is created regardless). If a "
+			"row shows status Error, its 'error' field is the SMTP reason. If "
+			"status Sent, the mail was accepted — check Gmail spam."
+		),
+	}
+
+
+@frappe.whitelist()
 def get_customer_ticket_stats() -> dict:
     """Ticket stats for the customer portal home page.
 
