@@ -1,7 +1,7 @@
 import json
 import uuid
 from datetime import timedelta
-from email.utils import parseaddr
+from email.utils import formataddr, parseaddr
 
 import frappe
 from bs4 import BeautifulSoup
@@ -567,15 +567,30 @@ class HDTicket(Document):
         return bool(int(skip))
 
     def _resolve_sender_email(self, email_account_name, from_email_id):
-        if not email_account_name:
-            sender_email = self.sender_email()
-            return sender_email, (sender_email.name if sender_email else None)
+        """Resolve the Email Account the reply goes out from.
 
-        if not frappe.db.exists("Email Account", email_account_name):
-            frappe.throw(_("No Email Account found for {0}").format(from_email_id))
+        The composer's choice is honored only when it names a real,
+        outgoing-enabled Email Account — and the address used is that
+        account's own email_id, never a client-supplied string (a stale
+        composer value once sent customer mail from an agent's personal
+        address). Anything else falls back to the helpdesk's support
+        account (ticket's account → default ticket outgoing → default
+        outgoing → any outgoing)."""
+        if email_account_name:
+            account = frappe.db.get_value(
+                "Email Account",
+                {"name": email_account_name, "enable_outgoing": 1},
+                ["name", "email_id"],
+                as_dict=True,
+            )
+            if account and account.email_id:
+                return (
+                    frappe._dict(name=account.name, email_id=account.email_id),
+                    account.name,
+                )
 
-        sender_email = frappe._dict(name=email_account_name, email_id=from_email_id)
-        return sender_email, email_account_name
+        sender_email = self.sender_email()
+        return sender_email, (sender_email.name if sender_email else None)
 
     def instantly_send_email(self):
         check: str = (
@@ -707,6 +722,12 @@ class HDTicket(Document):
             sender_email, email_account_name = self._resolve_sender_email(
                 email_account_name, from_email_id
             )
+            # The customer-facing sender is the support mailbox, not the
+            # agent's login email — on the Communication too, so the feed
+            # shows exactly what the customer received.
+            if sender_email and sender_email.email_id:
+                sender = sender_email.email_id
+        agent_full_name = frappe.utils.get_fullname(frappe.session.user)
 
         if recipients == "Administrator":
             recipients = frappe.get_value("User", "Administrator", "email")
@@ -764,6 +785,7 @@ class HDTicket(Document):
                 "reference_doctype": "HD Ticket",
                 "reference_name": self.name,
                 "sender": sender,
+                "sender_full_name": agent_full_name,
                 "sent_or_received": "Sent",
                 "status": "Linked",
                 "subject": subject,
@@ -880,7 +902,13 @@ class HDTicket(Document):
                 reference_doctype="HD Ticket",
                 reference_name=self.name,
                 reply_to=reply_to_email,
-                sender=reply_to_email,
+                # From: shows the agent's name but the support mailbox's
+                # address, so customer replies come back into the helpdesk.
+                sender=(
+                    formataddr((agent_full_name, reply_to_email))
+                    if agent_full_name
+                    else reply_to_email
+                ),
                 subject=subject,
                 with_container=False,
                 add_unsubscribe_link=0,

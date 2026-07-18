@@ -396,8 +396,11 @@ function toggleBCC() {
 
 const fromEmail = useStorage<string | "">("from-email", "");
 
+// The From list is the helpdesk's shared support mailboxes (default
+// first) — not the agent's personal linked emails, which must never be
+// the sender on customer-facing replies.
 const outgoingEmails = computed<{ email_account: string; email_id: string }[]>(
-  () => userResource.data?.outgoing_emails ?? []
+  () => userResource.data?.support_outgoing_emails ?? []
 );
 
 // selected mail from the outgoing emails list

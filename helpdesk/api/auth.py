@@ -1,5 +1,6 @@
 import frappe
 
+from helpdesk.helpdesk.utils.email import default_ticket_outgoing_email_account
 from helpdesk.utils import agent_only, get_agents_team
 from helpdesk.utils import is_agent as _is_agent
 
@@ -76,8 +77,28 @@ def get_current_user_email_info():
         pluck="name",
     )
 
+    # The user's own linked mailboxes — used by the profile email
+    # settings page only. Customer-facing replies must NOT default to
+    # these (they put the agent's personal address on outgoing mail).
     outgoing_emails = [
         row for row in user_emails if row.email_account in outgoing_account_names
+    ]
+
+    # The reply composer's From list: the helpdesk's shared support
+    # mailboxes. The composer auto-selects entry [0], so the helpdesk's
+    # default support account must sort first.
+    support_accounts = frappe.db.get_all(
+        "Email Account",
+        filters={"enable_outgoing": 1},
+        fields=["name", "email_id"],
+        order_by="default_outgoing desc, creation asc",
+    )
+    if ticket_default := default_ticket_outgoing_email_account():
+        support_accounts.sort(key=lambda a: 0 if a.name == ticket_default.name else 1)
+    support_outgoing_emails = [
+        {"email_account": a.name, "email_id": a.email_id}
+        for a in support_accounts
+        if a.email_id
     ]
 
     available_emails = frappe.db.get_all(
@@ -90,5 +111,6 @@ def get_current_user_email_info():
         "email_signature": email_signature,
         "email": email,
         "outgoing_emails": outgoing_emails,
+        "support_outgoing_emails": support_outgoing_emails,
         "available_emails": available_emails,
     }
