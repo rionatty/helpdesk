@@ -200,11 +200,9 @@ class HDTicket(Document):
         send_ack_email = frappe.db.get_single_value(
             "HD Settings", "send_acknowledgement_email"
         )
-        if (
-            not self.via_customer_portal
-            and not frappe.flags.initial_sync
-            and send_ack_email
-        ):
+        # Acknowledge every channel — portal-created tickets deserve the
+        # confirmation email just as much as email-created ones.
+        if not frappe.flags.initial_sync and send_ack_email:
             self.send_acknowledgement_email()
 
     def capture_ticket_created_telemetry_events(self):
@@ -632,6 +630,14 @@ class HDTicket(Document):
         if email_account := default_outgoing_email_account():
             return email_account
 
+        # Last resort: any enabled outgoing account, even if none is flagged
+        # "Default Outgoing" — better a reply from the wrong alias than none.
+        any_outgoing = frappe.db.get_value(
+            "Email Account", {"enable_outgoing": 1}, "name"
+        )
+        if any_outgoing:
+            return frappe.get_doc("Email Account", any_outgoing)
+
     @property
     def portal_uri(self):
         root_uri = frappe.utils.get_url()
@@ -937,9 +943,11 @@ class HDTicket(Document):
             "acknowledgement"
         )
 
+        sender_account = self.sender_email()
         try:
             frappe.sendmail(
                 recipients=[self.raised_by],
+                sender=sender_account.email_id if sender_account else None,
                 subject=_("Ticket #{0}: We've received your request").format(self.name),
                 message=self._get_rendered_template(
                     acknowledgement_email_content,
@@ -951,9 +959,11 @@ class HDTicket(Document):
                 expose_recipients="header",
                 email_headers={"X-Auto-Generated": "hd-acknowledgement"},
             )
-        except Exception as e:
-            frappe.throw(
-                _("Could not send an acknowledgement email due to: {0}").format(e)
+        except Exception:
+            # Never let a failed acknowledgement email break ticket creation —
+            # log the real cause so it can be diagnosed.
+            frappe.log_error(
+                title=f"Acknowledgement email failed for {self.name}"
             )
 
     def notify_managers_new_ticket(self):
