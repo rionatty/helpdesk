@@ -711,6 +711,45 @@ class HDTicket(Document):
         if recipients == "Administrator":
             recipients = frappe.get_value("User", "Administrator", "email")
 
+        # Authoritative recipient cleanup: the reply must reach the requester,
+        # and must never target the helpdesk's own inboxes (which happens when
+        # a thread email addressed to our support account is "replied" — and
+        # creates mail loops). The requester is forced into To; own accounts
+        # are stripped from To/Cc; Cc drops anyone already in To.
+        own_addresses = {
+            (e or "").lower()
+            for e in frappe.get_all(
+                "Email Account",
+                or_filters=[["enable_incoming", "=", 1], ["enable_outgoing", "=", 1]],
+                pluck="email_id",
+            )
+            if e
+        }
+
+        def _clean_addresses(value) -> list:
+            items = value if isinstance(value, list) else (value or "").split(",")
+            out = []
+            for a in items:
+                a = (a or "").strip()
+                if a and a.lower() not in own_addresses and a not in out:
+                    out.append(a)
+            return out
+
+        recips = _clean_addresses(recipients)
+        if (
+            self.raised_by
+            and self.raised_by.lower() not in own_addresses
+            and self.raised_by.lower() not in {r.lower() for r in recips}
+        ):
+            recips.insert(0, self.raised_by)
+        recipients = ", ".join(recips)
+        cc_list = [
+            a
+            for a in _clean_addresses(cc)
+            if a.lower() not in {r.lower() for r in recips}
+        ]
+        cc = ", ".join(cc_list) if cc_list else None
+
         communication = frappe.get_doc(
             {
                 "bcc": bcc,

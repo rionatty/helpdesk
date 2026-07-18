@@ -163,10 +163,22 @@ function splitIfString(str: string | string[]) {
 function replyToEmail(data: object) {
   showEmailBox.value = true;
 
+  // A helpdesk reply always targets the requester — never the thread email's
+  // own To (which is often our support inbox). Everyone else from the
+  // original email rides along as Cc, minus the requester.
+  const primary = (props.toEmails || []).filter(Boolean) as string[];
+  const extras = [
+    ...(splitIfString(data.sender) || []),
+    ...(splitIfString(data.to) || []),
+    ...(splitIfString(data.cc) || []),
+  ]
+    .map((e: string) => (e || "").trim())
+    .filter((e: string) => e && !primary.includes(e));
+
   emailEditorRef.value.addToReply(
     data.content,
-    splitIfString(data.to),
-    splitIfString(data.cc),
+    primary.length ? primary : splitIfString(data.to),
+    [...new Set(extras)],
     splitIfString(data.bcc)
   );
 }
