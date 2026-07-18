@@ -187,6 +187,12 @@ class HDTicket(Document):
                 title=f"New-ticket notification failed for {self.name}"
             )
 
+        # Auto-assign so tickets don't sit unassigned past their SLA.
+        try:
+            self.auto_assign_agent()
+        except Exception:
+            frappe.log_error(title=f"Auto-assignment failed for {self.name}")
+
         if self.get("description"):
             self.create_communication_via_contact(self.description, new_ticket=True)
             self.handle_inline_media_new_ticket()
@@ -459,6 +465,50 @@ class HDTicket(Document):
 
         if frappe.session.user != agent:
             self.notify_agent(agent, "Assignment")
+
+    def auto_assign_agent(self):
+        """Least-loaded auto-assignment for new tickets: pick the active agent
+        (scoped to the ticket's team when set) with the fewest open assigned
+        tickets. Opt-out via HD Settings > enable_ticket_auto_assignment."""
+        if frappe.flags.initial_sync or self.subject == "Welcome to Helpdesk":
+            return
+        if self._assign and frappe.parse_json(self._assign):
+            return
+        enabled = frappe.db.get_single_value(
+            "HD Settings", "enable_ticket_auto_assignment"
+        )
+        # Default ON when the field hasn't been migrated/set yet.
+        if enabled is not None and not int(enabled):
+            return
+
+        candidates = []
+        if self.agent_group:
+            candidates = frappe.get_all(
+                "HD Team Member", filters={"parent": self.agent_group}, pluck="user"
+            )
+        if not candidates:
+            candidates = frappe.get_all(
+                "HD Agent", filters={"is_active": 1}, pluck="name"
+            )
+        # Never hand the requester their own ticket.
+        candidates = [c for c in candidates if c and c != self.raised_by]
+        if not candidates:
+            return
+
+        best, best_load = None, None
+        for agent in candidates:
+            load = frappe.db.count(
+                "HD Ticket",
+                {
+                    "_assign": ["like", f'%"{agent}"%'],
+                    "status_category": ["!=", "Resolved"],
+                },
+            )
+            if best is None or load < best_load:
+                best, best_load = agent, load
+
+        assign({"assign_to": [best], "doctype": "HD Ticket", "name": self.name})
+        self.notify_agent(best, "Assignment")
 
     def get_assigned_agents(self):
         assignees = get_assignees({"doctype": "HD Ticket", "name": self.name})

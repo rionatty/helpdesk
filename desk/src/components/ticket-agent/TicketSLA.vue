@@ -158,9 +158,10 @@ const firstResponse = computed(() => {
           ticket.value.doc.first_responded_on,
           ticket.value.doc.response_by
         );
+    // Historical breach (a response did happen) — calmer than a live overdue.
     return {
-      label: `Failed by ${failed}`,
-      color: "red",
+      label: `Responded ${failed} late`,
+      color: "gray",
       date: ticket.value.doc.response_by,
     };
   }
@@ -239,9 +240,10 @@ const resolutionBy = computed(() => {
           ticket.value.doc?.resolution_by,
           ticket.value.doc?.resolution_date
         );
+    // Historical breach (the ticket did get resolved) — calmer than live red.
     return {
-      label: `Failed by ${failed}`,
-      color: "red",
+      label: `Resolved ${failed} late`,
+      color: "gray",
       date: ticket.value.doc?.resolution_by,
     };
   }

@@ -35,6 +35,19 @@
 
         <!-- Assignee component -->
         <AssignTo />
+
+        <!-- Push real work to the add-on/project task board -->
+        <Button
+          v-if="ticket?.doc?.addon || ticket?.doc?.project"
+          class="w-full mt-3"
+          variant="subtle"
+          theme="blue"
+          :label="__('Create task from ticket')"
+          :loading="createTaskRes.loading"
+          @click="createTaskFromTicket"
+        >
+          <template #prefix><LucideListPlus class="size-4" /></template>
+        </Button>
       </div>
     </div>
 
@@ -156,8 +169,9 @@ import {
   TicketSymbol,
 } from "@/types";
 import { useStorage } from "@vueuse/core";
-import { dayjs, Tooltip } from "frappe-ui";
-import { computed, inject, ref } from "vue";
+import { Button, createResource, dayjs, toast, Tooltip } from "frappe-ui";
+import { computed, inject, ref, watch } from "vue";
+import { __ } from "@/translation";
 import LucideChevronRight from "~icons/lucide/chevron-right";
 import Section from "../Section.vue";
 import TicketField from "../TicketField.vue";
@@ -203,11 +217,66 @@ const coreFields = computed(() => {
 
       f = getFieldInFormat(f, f);
       f["visible"] = true;
+      // Show the human name for Add-on / Project instead of the raw ID
+      // (picking a new value still emits the docname).
+      if (f.fieldname === "addon" && f.value) {
+        f.value = addonNameRes.data?.addon_name || f.value;
+      }
+      if (f.fieldname === "project" && f.value) {
+        f.value = projectNameRes.data?.project_name || f.value;
+      }
       return f;
     });
   });
   return _coreFields;
 });
+
+// Display names for the linked add-on / project (raw IDs are meaningless).
+const addonNameRes = createResource({
+  url: "frappe.client.get_value",
+  makeParams: () => ({
+    doctype: "HD Addon",
+    filters: ticket.value?.doc?.addon,
+    fieldname: "addon_name",
+  }),
+});
+const projectNameRes = createResource({
+  url: "frappe.client.get_value",
+  makeParams: () => ({
+    doctype: "HD Project",
+    filters: ticket.value?.doc?.project,
+    fieldname: "project_name",
+  }),
+});
+watch(
+  () => ticket.value?.doc?.addon,
+  (v) => (v ? addonNameRes.reload() : (addonNameRes.data = null)),
+  { immediate: true }
+);
+watch(
+  () => ticket.value?.doc?.project,
+  (v) => (v ? projectNameRes.reload() : (projectNameRes.data = null)),
+  { immediate: true }
+);
+
+// --- Create a linked task on the ticket's add-on / project ---
+const createTaskRes = createResource({
+  url: "helpdesk.api.addon.add_task",
+  onSuccess: () => toast.success(__("Task created from this ticket")),
+  onError: (e: any) =>
+    toast.error(e?.messages?.[0] || __("Could not create task")),
+});
+function createTaskFromTicket() {
+  const d = ticket.value?.doc;
+  if (!d || (!d.addon && !d.project)) return;
+  createTaskRes.submit({
+    subject: d.subject,
+    addon: d.addon || null,
+    project: d.addon ? null : d.project || null,
+    ticket: d.name,
+    description: __("Created from ticket #{0}", [d.name]),
+  });
+}
 
 const customFields = computed(() => {
   const fieldsMeta = getFields();

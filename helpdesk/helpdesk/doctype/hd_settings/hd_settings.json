@@ -57,6 +57,7 @@
   "support_hours",
   "sla_response_reminder_lead",
   "sla_resolution_reminder_lead",
+  "enable_ticket_auto_assignment",
   "images_column",
   "misc_tab",
   "setup_section",
@@ -506,6 +507,13 @@
    "fieldtype": "Int",
    "label": "SLA Resolution Reminder Lead (minutes)",
    "non_negative": 1
+  },
+  {
+   "default": "1",
+   "description": "Assign new tickets automatically to the least-loaded active agent (team-scoped when the ticket has a team)",
+   "fieldname": "enable_ticket_auto_assignment",
+   "fieldtype": "Check",
+   "label": "Auto-assign New Tickets"
   },
   {
    "description": "Appears next to the title in your browser tab. Recommended size is minimum 32x32 px in PNG or ICO",
