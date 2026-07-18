@@ -114,7 +114,19 @@ import { useScreenSize } from "@/composables/screen";
 import { useShortcut } from "@/composables/shortcuts";
 import { showCommentBox, showEmailBox } from "@/pages/ticket/modalStates";
 import { onClickOutside } from "@vueuse/core";
+import { createResource } from "frappe-ui";
 import { ref, watch } from "vue";
+
+// Our own inbox/outbox addresses — never To/Cc the helpdesk itself.
+const ownAddresses = createResource({
+  url: "helpdesk.api.ticket.get_helpdesk_email_addresses",
+  auto: true,
+  onError: () => {},
+});
+function isOwnAddress(email: string) {
+  const list = (ownAddresses.data || []).map((e: string) => e.toLowerCase());
+  return list.includes((email || "").toLowerCase());
+}
 
 const emit = defineEmits(["update"]);
 const content = defineModel("content");
@@ -165,7 +177,8 @@ function replyToEmail(data: object) {
 
   // A helpdesk reply always targets the requester — never the thread email's
   // own To (which is often our support inbox). Everyone else from the
-  // original email rides along as Cc, minus the requester.
+  // original email rides along as Cc, minus the requester and minus our own
+  // helpdesk addresses (the server strips those too, belt and braces).
   const primary = (props.toEmails || []).filter(Boolean) as string[];
   const extras = [
     ...(splitIfString(data.sender) || []),
@@ -173,7 +186,7 @@ function replyToEmail(data: object) {
     ...(splitIfString(data.cc) || []),
   ]
     .map((e: string) => (e || "").trim())
-    .filter((e: string) => e && !primary.includes(e));
+    .filter((e: string) => e && !primary.includes(e) && !isOwnAddress(e));
 
   emailEditorRef.value.addToReply(
     data.content,

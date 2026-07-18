@@ -6,6 +6,22 @@ from helpdesk.utils import agent_only
 
 
 @frappe.whitelist()
+@agent_only
+def get_helpdesk_email_addresses() -> list:
+	"""The helpdesk's own inbox/outbox addresses. Used by the reply composer
+	so replies never To/Cc the helpdesk itself (mail loops)."""
+	return [
+		e
+		for e in frappe.get_all(
+			"Email Account",
+			or_filters=[["enable_incoming", "=", 1], ["enable_outgoing", "=", 1]],
+			pluck="email_id",
+		)
+		if e
+	]
+
+
+@frappe.whitelist()
 def get_customer_ticket_stats() -> dict:
     """Ticket stats for the customer portal home page.
 
