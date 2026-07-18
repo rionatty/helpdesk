@@ -465,16 +465,53 @@ const sendMail = createResource({
           : ""),
     },
   }),
-  onSuccess: () => {
+  onSuccess: (outcome) => {
     resetState();
     emit("submit");
+    notifyEmailOutcome(outcome);
 
     if (isManager) {
       updateOnboardingStep("reply_on_ticket");
     }
   },
+  onError: (error: any) => {
+    // Server threw (SMTP failure, no outgoing account, …): the reply was
+    // rolled back and the composer still holds the text — tell the agent.
+    const detail =
+      error?.messages?.join?.("\n") || error?.message || String(error);
+    toast.error(`Reply not sent: ${detail}`);
+  },
   debounce: 300,
 });
+
+// reply_via_agent returns a structured verdict about the customer email.
+// Server-side msgprints never render in this SPA, so this toast is the
+// agent's ONLY signal when a reply saved but no email reached the customer.
+function notifyEmailOutcome(outcome: {
+  email?: string;
+  reason?: string;
+  recipients?: string;
+}) {
+  if (!outcome || typeof outcome !== "object" || !outcome.email) return;
+  const to = outcome.recipients ? ` to ${outcome.recipients}` : "";
+  switch (outcome.email) {
+    case "sent":
+      toast.success(`Reply emailed${to}`);
+      break;
+    case "queued":
+      toast.warning(
+        `Reply email${to} is queued (${outcome.reason}) — it only goes out if the site's workers are running.`
+      );
+      break;
+    case "blocked":
+    case "none":
+    case "failed":
+      toast.error(`Reply saved, but NO email went out${to}: ${outcome.reason}`, {
+        duration: 15000,
+      });
+      break;
+  }
+}
 
 const label = computed(() => (sendMail.loading ? "Sending..." : props.label));
 

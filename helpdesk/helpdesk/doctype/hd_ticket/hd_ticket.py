@@ -796,39 +796,37 @@ class HDTicket(Document):
         except Exception:
             pass
 
-        # Name the exact gate when no email goes out, so it's diagnosable
-        # from the toast alone.
+        # Name the exact gate when no email goes out. msgprint alone is NOT
+        # enough: the agent desk is a frappe-ui SPA where server msgprints
+        # never render — so every blocked/sent/failed path also RETURNS a
+        # structured outcome that EmailEditor.vue turns into a visible toast.
         if skip_email_workflow:
-            frappe.msgprint(
+            return self._reply_email_blocked(
                 _(
-                    "Reply saved, but no email was sent — 'Skip email workflow' "
-                    "is enabled in HD Settings."
-                ),
-                indicator="orange",
-                alert=True,
+                    "'Skip email workflow' is enabled in HD Settings, "
+                    "so replies never email the customer."
+                )
             )
-            return
         reply_email_enabled = frappe.db.get_single_value(
             "HD Settings", "enable_reply_email_via_agent"
         )
         # Unset (NULL, pre-migration) means ON — replies must email by default.
         if reply_email_enabled is not None and not int(reply_email_enabled):
-            frappe.msgprint(
+            return self._reply_email_blocked(
                 _(
-                    "Reply saved, but no email was sent — the 'Reply from agent' "
-                    "notification is turned off in Settings → Email Notifications."
-                ),
-                indicator="orange",
-                alert=True,
+                    "The 'Reply from agent' notification is turned off in "
+                    "Settings → Email Notifications."
+                )
             )
-            return
         if not recipients:
-            frappe.msgprint(
-                _("Reply saved, but no email was sent — the To field was empty."),
-                indicator="orange",
-                alert=True,
+            return self._reply_email_blocked(_("The To field was empty."))
+        if frappe.conf.get("mute_emails") or frappe.flags.mute_emails:
+            return self._reply_email_blocked(
+                _(
+                    "Outgoing email is muted on this site "
+                    "(mute_emails in site_config.json)."
+                )
             )
-            return
 
         if not sender_email:
             frappe.throw(
@@ -860,6 +858,13 @@ class HDTicket(Document):
         send_delayed = False
         send_now = True
 
+        # Ticket replies are transactional mail: frappe silently DROPS any
+        # recipient with an Email Unsubscribe row (mail scanners follow
+        # unsubscribe links, so customers end up unsubscribed without ever
+        # knowing). Clear such rows for this reply's recipients, and stop
+        # embedding an unsubscribe link in replies going forward.
+        self._clear_unsubscribes(recips + cc_list)
+
         try:
             frappe.sendmail(
                 attachments=_attachments,
@@ -878,18 +883,69 @@ class HDTicket(Document):
                 sender=reply_to_email,
                 subject=subject,
                 with_container=False,
+                add_unsubscribe_link=0,
                 in_reply_to=(
-                    last_communication.name if last_communication.name else None
+                    last_communication.message_id
+                    if last_communication and last_communication.get("message_id")
+                    else None
                 ),
             )
         except Exception as e:
-            frappe.throw(str(e))
+            # Let the whole transaction roll back: the composer keeps the
+            # text, and EmailEditor's onError shows this message.
+            frappe.throw(
+                _("Reply NOT sent — email failed: {0}").format(str(e))
+            )
 
         # Report SMTP's actual verdict, not just "we tried": read back the
         # Email Queue row this send created and surface its real status.
-        self._report_reply_email_outcome(communication.name, recipients)
+        return self._report_reply_email_outcome(communication.name, recipients)
 
-    def _report_reply_email_outcome(self, communication: str, recipients: str):
+    def _reply_email_blocked(self, reason: str) -> dict:
+        """The reply was saved but no email will go out; say exactly why.
+        msgprint covers the Frappe desk, the returned dict covers the SPA."""
+        frappe.msgprint(
+            _("Reply saved, but no email was sent — {0}").format(reason),
+            indicator="orange",
+            alert=True,
+        )
+        return {"email": "blocked", "reason": reason}
+
+    def _clear_unsubscribes(self, emails: list):
+        """Remove Email Unsubscribe rows that would silently drop these
+        recipients (either global or scoped to this ticket)."""
+        if not emails:
+            return
+        try:
+            rows = frappe.get_all(
+                "Email Unsubscribe",
+                filters=[["email", "in", emails]],
+                or_filters=[
+                    ["global_unsubscribe", "=", 1],
+                    ["reference_name", "=", self.name],
+                ],
+                fields=["name", "email"],
+            )
+            for row in rows:
+                frappe.delete_doc(
+                    "Email Unsubscribe",
+                    row.name,
+                    ignore_permissions=True,
+                    force=True,
+                )
+                frappe.log_error(
+                    title=f"HD Ticket {self.name}: cleared unsubscribe",
+                    message=(
+                        f"Removed Email Unsubscribe for {row.email} so the "
+                        "agent reply can reach them (ticket replies are "
+                        "transactional)."
+                    ),
+                )
+        except Exception:
+            # Never let unsubscribe housekeeping break the reply itself.
+            pass
+
+    def _report_reply_email_outcome(self, communication: str, recipients: str) -> dict:
         try:
             rows = frappe.get_all(
                 "Email Queue",
@@ -900,15 +956,16 @@ class HDTicket(Document):
                 ignore_permissions=True,
             )
             if not rows:
+                reason = _(
+                    "No email entry was created — the recipient may be "
+                    "unsubscribed or outgoing email is muted. Check Error Log."
+                )
                 frappe.msgprint(
-                    _(
-                        "Reply saved, but no email entry was created — "
-                        "check Error Log."
-                    ),
+                    _("Reply saved, but no email was sent — {0}").format(reason),
                     indicator="orange",
                     alert=True,
                 )
-                return
+                return {"email": "none", "reason": reason, "recipients": recipients}
             row = rows[0]
             if row.status == "Sent":
                 frappe.msgprint(
@@ -916,25 +973,32 @@ class HDTicket(Document):
                     indicator="green",
                     alert=True,
                 )
-            elif row.status in ("Error", "Partially Errored"):
+                return {"email": "sent", "recipients": recipients}
+            if row.status in ("Error", "Partially Errored"):
+                reason = (row.error or _("unknown error"))[:300]
                 frappe.msgprint(
-                    _("Email to {0} FAILED at SMTP: {1}").format(
-                        recipients, (row.error or _("unknown error"))[:300]
-                    ),
+                    _("Email to {0} FAILED at SMTP: {1}").format(recipients, reason),
                     indicator="red",
                     alert=True,
                 )
-            else:
-                frappe.msgprint(
-                    _(
-                        "Reply email to {0} is queued (status: {1}) — it only "
-                        "goes out if the scheduler/workers are running."
-                    ).format(recipients, row.status),
-                    indicator="orange",
-                    alert=True,
-                )
+                return {"email": "failed", "reason": reason, "recipients": recipients}
+            frappe.msgprint(
+                _(
+                    "Reply email to {0} is queued (status: {1}) — it only "
+                    "goes out if the scheduler/workers are running."
+                ).format(recipients, row.status),
+                indicator="orange",
+                alert=True,
+            )
+            return {
+                "email": "queued",
+                "reason": row.status,
+                "recipients": recipients,
+            }
         except Exception:
-            pass
+            # The reply itself succeeded; never fail the request while
+            # reporting. The SPA treats a missing outcome as "no verdict".
+            return {"email": "unknown", "recipients": recipients}
 
     @frappe.whitelist()
     # flake8: noqa

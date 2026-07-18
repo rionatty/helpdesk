@@ -39,6 +39,7 @@ def diagnose_ticket_email(ticket: str) -> dict:
 		pluck="name",
 	)
 	queue = []
+	recipients_status = []
 	if comms:
 		queue = frappe.get_all(
 			"Email Queue",
@@ -47,6 +48,29 @@ def diagnose_ticket_email(ticket: str) -> dict:
 			order_by="creation desc",
 			limit_page_length=10,
 		)
+		if queue:
+			recipients_status = frappe.get_all(
+				"Email Queue Recipient",
+				filters={"parent": ["in", [q.name for q in queue]]},
+				fields=["parent", "recipient", "status", "error"],
+				parent_doctype="Email Queue",
+			)
+	requester = frappe.db.get_value("HD Ticket", ticket, "raised_by")
+	unsubscribed = (
+		frappe.get_all(
+			"Email Unsubscribe",
+			filters={"email": requester},
+			fields=[
+				"name",
+				"email",
+				"global_unsubscribe",
+				"reference_doctype",
+				"reference_name",
+			],
+		)
+		if requester
+		else []
+	)
 	return {
 		"gates": {
 			"skip_email_workflow": settings.get("skip_email_workflow"),
@@ -54,15 +78,24 @@ def diagnose_ticket_email(ticket: str) -> dict:
 				"enable_reply_email_via_agent"
 			),
 			"send_acknowledgement_email": settings.get("send_acknowledgement_email"),
+			"mute_emails_site_config": bool(
+				frappe.conf.get("mute_emails") or frappe.flags.mute_emails
+			),
 		},
+		"requester": requester,
+		"requester_unsubscribed": unsubscribed,
 		"outgoing_accounts": outgoing,
 		"has_default_outgoing": any(a.default_outgoing for a in outgoing),
 		"email_queue_for_ticket": queue,
+		"email_queue_recipients": recipients_status,
 		"note": (
 			"If email_queue_for_ticket is empty, replies are being blocked by a "
-			"settings gate (a 'Sent' Communication is created regardless). If a "
-			"row shows status Error, its 'error' field is the SMTP reason. If "
-			"status Sent, the mail was accepted — check Gmail spam."
+			"settings gate, mute_emails, or an unsubscribe row (a 'Sent' "
+			"Communication is created regardless). requester_unsubscribed rows "
+			"mean frappe silently DROPS that address — new replies now clear "
+			"these automatically. If a row shows status Error, its 'error' "
+			"field is the SMTP reason. If status Sent, the mail was accepted "
+			"by SMTP — check the recipient's spam folder."
 		),
 	}
 
