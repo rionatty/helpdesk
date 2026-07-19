@@ -8,17 +8,13 @@ from helpdesk.utils import agent_only
 @frappe.whitelist()
 @agent_only
 def get_helpdesk_email_addresses() -> list:
-	"""The helpdesk's own inbox/outbox addresses. Used by the reply composer
-	so replies never To/Cc the helpdesk itself (mail loops)."""
-	return [
-		e
-		for e in frappe.get_all(
-			"Email Account",
-			or_filters=[["enable_incoming", "=", 1], ["enable_outgoing", "=", 1]],
-			pluck="email_id",
-		)
-		if e
-	]
+	"""The helpdesk's ticket-ingesting inbox addresses. Used by the reply
+	composer so replies never To/Cc the helpdesk itself (mail loops).
+	Deliberately NOT every site Email Account: a personal mailbox that has
+	an Email Account is a valid recipient."""
+	from helpdesk.helpdesk.utils.email import ticket_ingest_addresses
+
+	return sorted(ticket_ingest_addresses())
 
 
 @frappe.whitelist()
@@ -55,6 +51,9 @@ def diagnose_ticket_email(ticket: str) -> dict:
 				fields=["parent", "recipient", "status", "error"],
 				parent_doctype="Email Queue",
 			)
+	from helpdesk.helpdesk.utils.email import ticket_ingest_addresses
+
+	ticket_ingest_addresses_set = ticket_ingest_addresses()
 	requester = frappe.db.get_value("HD Ticket", ticket, "raised_by")
 	unsubscribed = (
 		frappe.get_all(
@@ -85,6 +84,10 @@ def diagnose_ticket_email(ticket: str) -> dict:
 		"requester": requester,
 		"requester_unsubscribed": unsubscribed,
 		"outgoing_accounts": outgoing,
+		"ticket_ingest_addresses": sorted(ticket_ingest_addresses_set),
+		"requester_is_ingest_address": bool(
+			requester and requester.lower() in ticket_ingest_addresses_set
+		),
 		"has_default_outgoing": any(a.default_outgoing for a in outgoing),
 		"email_queue_for_ticket": queue,
 		"email_queue_recipients": recipients_status,

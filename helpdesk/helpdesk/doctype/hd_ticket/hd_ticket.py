@@ -28,6 +28,7 @@ from helpdesk.helpdesk.doctype.hd_ticket_activity.hd_ticket_activity import (
 from helpdesk.helpdesk.utils.email import (
     default_outgoing_email_account,
     default_ticket_outgoing_email_account,
+    ticket_ingest_addresses,
 )
 from helpdesk.utils import (
     agent_only,
@@ -733,19 +734,17 @@ class HDTicket(Document):
             recipients = frappe.get_value("User", "Administrator", "email")
 
         # Authoritative recipient cleanup: the reply must reach the requester,
-        # and must never target the helpdesk's own inboxes (which happens when
-        # a thread email addressed to our support account is "replied" — and
-        # creates mail loops). The requester is forced into To; own accounts
-        # are stripped from To/Cc; Cc drops anyone already in To.
-        own_addresses = {
-            (e or "").lower()
-            for e in frappe.get_all(
-                "Email Account",
-                or_filters=[["enable_incoming", "=", 1], ["enable_outgoing", "=", 1]],
-                pluck="email_id",
-            )
-            if e
-        }
+        # and must never target a helpdesk-ingesting inbox (mailing an address
+        # whose Email Account appends into HD Ticket loops the reply back in
+        # as a new message). ONLY those addresses — plus the mailbox this
+        # reply is sent from — are stripped. Stripping every site Email
+        # Account address here once silently emptied To when the requester's
+        # own address happened to have an Email Account (e.g. agent-created
+        # tickets where raised_by fell back to the agent). The requester is
+        # forced into To; Cc drops anyone already in To.
+        own_addresses = ticket_ingest_addresses()
+        if sender_email and sender_email.email_id:
+            own_addresses.add(sender_email.email_id.lower())
 
         def _clean_addresses(value) -> list:
             items = value if isinstance(value, list) else (value or "").split(",")
@@ -931,11 +930,16 @@ class HDTicket(Document):
 
     def _reply_email_blocked(self, reason: str) -> dict:
         """The reply was saved but no email will go out; say exactly why.
-        msgprint covers the Frappe desk, the returned dict covers the SPA."""
+        msgprint covers the Frappe desk, the returned dict covers the SPA,
+        and the Error Log entry covers a stale/unbuilt frontend."""
         frappe.msgprint(
             _("Reply saved, but no email was sent — {0}").format(reason),
             indicator="orange",
             alert=True,
+        )
+        frappe.log_error(
+            title=f"HD Ticket {self.name}: reply email blocked",
+            message=reason,
         )
         return {"email": "blocked", "reason": reason}
 

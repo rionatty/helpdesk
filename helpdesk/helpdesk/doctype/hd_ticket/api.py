@@ -35,9 +35,37 @@ def new(doc: dict, attachments: list[dict] = []):
     doc["doctype"] = "HD Ticket"
     doc["via_customer_portal"] = bool(frappe.session.user)
     doc["attachments"] = attachments
-    doc["raised_by"] = frappe.session.user
+    # The requester. For portal tickets that's the logged-in customer —
+    # but an agent files tickets on a customer's behalf, and stamping the
+    # agent as raised_by routed every reply email to the agent instead of
+    # the customer. Keep an explicit raised_by from the form; otherwise,
+    # for agents, use the chosen customer's (single) contact.
+    if not is_agent():
+        doc["raised_by"] = frappe.session.user
+    elif not doc.get("raised_by"):
+        doc["raised_by"] = (
+            _customer_contact_email(doc.get("customer")) or frappe.session.user
+        )
     d = frappe.get_doc(doc).insert()
     return d
+
+
+def _customer_contact_email(customer: str | None) -> str | None:
+    """The email of the HD Customer's contact — only when unambiguous
+    (exactly one distinct contact email), so we never guess the wrong
+    person on multi-contact customers."""
+    if not customer:
+        return None
+    emails = frappe.get_all(
+        "Contact",
+        filters=[
+            ["Dynamic Link", "link_doctype", "=", "HD Customer"],
+            ["Dynamic Link", "link_name", "=", customer],
+        ],
+        pluck="email_id",
+    )
+    emails = list(dict.fromkeys(e for e in emails if e))
+    return emails[0] if len(emails) == 1 else None
 
 
 @frappe.whitelist()
