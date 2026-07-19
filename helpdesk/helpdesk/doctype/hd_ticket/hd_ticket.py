@@ -97,6 +97,7 @@ class HDTicket(Document):
             self.handle_ticket_activity_update()
 
         self.handle_email_feedback()
+        self.handle_status_change_email()
 
         if self.is_new():
             self.raised_outside_working_hours = (
@@ -168,6 +169,82 @@ class HDTicket(Document):
             frappe.msgprint(_("Feedback email has been sent to the customer"))
         except Exception as e:
             frappe.throw(_("Could not send feedback email,due to: {0}").format(e))
+
+    def handle_status_change_email(self):
+        """Email the requester when their ticket is resolved or closed.
+
+        Fires on any status change into a Resolved-category status (stock
+        'Resolved' and 'Closed' both are), including Resolved → Closed, so
+        the customer hears about each step. Never blocks the save."""
+        if self.is_new() or not self.has_value_changed("status"):
+            return
+        new_category = frappe.get_value("HD Ticket Status", self.status, "category")
+        if new_category != "Resolved":
+            return
+        if not self.raised_by or self.raised_by.lower() in ticket_ingest_addresses():
+            return
+
+        from helpdesk.api.profile import wants_email_updates
+
+        if not wants_email_updates(self.raised_by):
+            return
+
+        sender_account = self.sender_email()
+        if not sender_account:
+            return
+
+        status_label = (self.status or "").strip()
+        if status_label.lower() == "resolved":
+            headline = _("Your ticket has been resolved")
+        elif status_label.lower() == "closed":
+            headline = _("Your ticket has been closed")
+        else:
+            headline = _("Your ticket has been marked as {0}").format(status_label)
+
+        subject_html = frappe.utils.escape_html(self.subject or "")
+        greeting = _("Hello,")
+        reopen_hint = _(
+            "If your issue isn't fully sorted, just reply to this email "
+            "and the ticket will be reopened for you automatically."
+        )
+        view_label = _("View ticket")
+        message = f"""
+            <p>{greeting}</p>
+            <p>{headline} — <b>#{self.name}</b>: {subject_html}</p>
+            <p>{reopen_hint}</p>
+            <p>
+                <a href="{self.portal_uri}" style="display:inline-block;background:#2563eb;
+                   color:#fff;padding:8px 18px;border-radius:6px;text-decoration:none;
+                   font-weight:600">
+                   {view_label}
+                </a>
+            </p>
+        """
+
+        last_communication = self.get_last_communication()
+        try:
+            frappe.sendmail(
+                recipients=[self.raised_by],
+                sender=formataddr((sender_account.name, sender_account.email_id)),
+                reply_to=sender_account.email_id,
+                subject=f"Re: {self.subject}",
+                message=message,
+                reference_doctype="HD Ticket",
+                reference_name=self.name,
+                now=True,
+                expose_recipients="header",
+                in_reply_to=(
+                    last_communication.message_id
+                    if last_communication and last_communication.get("message_id")
+                    else None
+                ),
+                email_headers={"X-Auto-Generated": "hd-status-change"},
+            )
+        except Exception:
+            # A failed notification must never block resolving the ticket.
+            frappe.log_error(
+                title=f"Status-change email failed for {self.name}"
+            )
 
     def after_insert(self):
 
