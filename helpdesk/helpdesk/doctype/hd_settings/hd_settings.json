@@ -35,6 +35,8 @@
   "auto_close_tickets",
   "auto_close_status",
   "auto_close_after_days",
+  "filter_automated_emails",
+  "automated_email_patterns",
   "section_break_ylvs",
   "enable_outside_hours_banner",
   "outside_working_hours_message",
@@ -313,6 +315,20 @@
    "mandatory_depends_on": "eval: doc.auto_close_tickets"
   },
   {
+   "default": "1",
+   "description": "Tickets created from automated senders (noreply@, mailer-daemon, newsletters, abuse reports…) are closed immediately with no SLA, no agent notification and no acknowledgement email",
+   "fieldname": "filter_automated_emails",
+   "fieldtype": "Check",
+   "label": "Silence tickets from automated senders"
+  },
+  {
+   "depends_on": "filter_automated_emails",
+   "description": "One pattern per line, matched case-insensitively against the sender address. Leave empty to use the built-in list (noreply, no-reply, donotreply, mailer-daemon, postmaster, bounce, newsletter, abuse@, notifications@…)",
+   "fieldname": "automated_email_patterns",
+   "fieldtype": "Small Text",
+   "label": "Automated sender patterns"
+  },
+  {
    "fieldname": "feedback_section",
    "fieldtype": "Section Break",
    "label": "Feedback"
@@ -556,7 +572,7 @@
  "grid_page_length": 50,
  "issingle": 1,
  "links": [],
- "modified": "2026-01-23 18:30:40.906948",
+ "modified": "2026-07-22 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Helpdesk",
  "name": "HD Settings",

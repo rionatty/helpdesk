@@ -91,8 +91,76 @@ class HDTicket(Document):
     def validate(self):
         self.validate_feedback()
 
+    # Matched (lower-cased, substring) against the sender of email-created
+    # tickets when no custom patterns are configured in HD Settings.
+    AUTOMATED_SENDER_PATTERNS = [
+        "noreply",
+        "no-reply",
+        "no_reply",
+        "donotreply",
+        "do-not-reply",
+        "mailer-daemon",
+        "postmaster@",
+        "bounce",
+        "newsletter",
+        "abuse@",
+        "notifications@",
+        "notification@",
+        "alerts@",
+        "alert@",
+        "mailchimp",
+        "sendgrid",
+    ]
+
+    @classmethod
+    def _sender_matches_automated_patterns(cls, email: str | None) -> bool:
+        """Whether `email` looks like an automated sender, per HD Settings
+        (unset filter_automated_emails means ON — the field defaults to 1)."""
+        if not email:
+            return False
+        enabled = frappe.db.get_single_value("HD Settings", "filter_automated_emails")
+        if enabled is not None and not int(enabled):
+            return False
+        custom = frappe.db.get_single_value("HD Settings", "automated_email_patterns")
+        patterns = [
+            p.strip().lower() for p in (custom or "").splitlines() if p.strip()
+        ] or cls.AUTOMATED_SENDER_PATTERNS
+        return any(p in email.lower() for p in patterns)
+
+    def is_automated_requester(self) -> bool:
+        """Whether this ticket's requester is an automated sender.
+        Computed once per doc instance; True only for email-channel
+        tickets (portal/agent tickets always have a human behind them)."""
+        cached = getattr(self, "_automated_email", None)
+        if cached is None:
+            cached = self._automated_email = bool(
+                not self.via_customer_portal
+                and self._sender_matches_automated_patterns(self.raised_by)
+            )
+        return cached
+
+    def flag_automated_email_ticket(self):
+        """Close tickets from automated senders (newsletters, abuse
+        reports, invoices, delivery bounces) on arrival. The rest of the
+        pipeline skips SLA, agent notifications and the acknowledgement
+        email for them — a human reply on the thread reopens the ticket
+        as usual."""
+        if not self.is_new() or not self.is_automated_requester():
+            return
+
+        closed_status = frappe.db.get_single_value(
+            "HD Settings", "auto_close_status"
+        ) or frappe.db.get_value(
+            "HD Ticket Status", {"category": "Resolved"}, "name"
+        )
+        if closed_status:
+            self.status = closed_status
+            self.status_category = "Resolved"
+
     def before_save(self):
-        self.apply_sla()
+        self.flag_automated_email_ticket()
+        if not self.is_automated_requester():
+            self.apply_sla()
         if not self.is_new():
             self.handle_ticket_activity_update()
 
@@ -251,25 +319,41 @@ class HDTicket(Document):
         # Telemetry Event
         self.capture_ticket_created_telemetry_events()
 
+        is_automated = getattr(self, "_automated_email", False)
+
+        # Automated senders: keep the content, skip the humans — no agent
+        # popup/emails, no auto-assignment, no acknowledgement (which would
+        # bounce or answer a robot), and an activity line explaining why
+        # the ticket arrived already closed.
+        if is_automated:
+            try:
+                log_ticket_activity(
+                    self.name,
+                    f"closed automatically — automated sender ({self.raised_by})",
+                )
+            except Exception:
+                pass
+
         # Notify agents of the new ticket (realtime popup + manager emails).
         # Wrapped so a notification failure can never roll back the insert.
-        try:
-            publish_event("helpdesk:new-ticket", data={
-                "ticket_id": self.name,
-                "subject": self.subject or "",
-                "customer": self.contact or self.raised_by or "",
-            })
-            self.notify_managers_new_ticket()
-        except Exception:
-            frappe.log_error(
-                title=f"New-ticket notification failed for {self.name}"
-            )
+        if not is_automated:
+            try:
+                publish_event("helpdesk:new-ticket", data={
+                    "ticket_id": self.name,
+                    "subject": self.subject or "",
+                    "customer": self.contact or self.raised_by or "",
+                })
+                self.notify_managers_new_ticket()
+            except Exception:
+                frappe.log_error(
+                    title=f"New-ticket notification failed for {self.name}"
+                )
 
-        # Auto-assign so tickets don't sit unassigned past their SLA.
-        try:
-            self.auto_assign_agent()
-        except Exception:
-            frappe.log_error(title=f"Auto-assignment failed for {self.name}")
+            # Auto-assign so tickets don't sit unassigned past their SLA.
+            try:
+                self.auto_assign_agent()
+            except Exception:
+                frappe.log_error(title=f"Auto-assignment failed for {self.name}")
 
         if self.get("description"):
             self.create_communication_via_contact(self.description, new_ticket=True)
@@ -280,7 +364,7 @@ class HDTicket(Document):
         )
         # Acknowledge every channel — portal-created tickets deserve the
         # confirmation email just as much as email-created ones.
-        if not frappe.flags.initial_sync and send_ack_email:
+        if not frappe.flags.initial_sync and send_ack_email and not is_automated:
             self.send_acknowledgement_email()
 
     def capture_ticket_created_telemetry_events(self):
@@ -1382,6 +1466,10 @@ class HDTicket(Document):
         """
         Find an SLA to apply to this ticket.
         """
+        # Automated-sender tickets never get an SLA — there is no human
+        # waiting on a response (see flag_automated_email_ticket).
+        if self.is_automated_requester():
+            return
         if sla := get_sla(self):
             self.sla = sla.name
 
@@ -1389,6 +1477,8 @@ class HDTicket(Document):
         """
         Apply SLA if set.
         """
+        if not self.sla:
+            return
         if sla := frappe.get_last_doc("HD Service Level Agreement", {"name": self.sla}):
             sla.apply(self)
 
@@ -1455,14 +1545,21 @@ class HDTicket(Document):
         # be reopened.
         # handle re opening tickets for email
         if c.sent_or_received == "Received":
-            # check if agent has replied
-
-            if self.has_agent_replied:
-                self.status = self.ticket_reopen_status
+            # An automated sender must never (re)open its ticket — this
+            # fires right after insert for the initial inbound mail, which
+            # would undo the automated-ticket auto-close, and again for
+            # every follow-up robot mail on the same thread. A human
+            # replying from a real address still reopens as usual.
+            if self._sender_matches_automated_patterns(c.sender):
+                self.last_customer_response = frappe.utils.now_datetime()
             else:
-                self.status = self.default_open_status
-            # if received that means customer has replied
-            self.last_customer_response = frappe.utils.now_datetime()
+                # check if agent has replied
+                if self.has_agent_replied:
+                    self.status = self.ticket_reopen_status
+                else:
+                    self.status = self.default_open_status
+                # if received that means customer has replied
+                self.last_customer_response = frappe.utils.now_datetime()
         # If communication is outgoing, it must be a reply from agent
         if c.sent_or_received == "Sent":
             # Ignore system notifications
