@@ -372,8 +372,10 @@ import { getIcon, isCustomerPortal, shortDuration } from "@/utils";
 import {
   Avatar,
   Badge,
+  createListResource,
   createResource,
   dayjs,
+  Dropdown,
   FeatherIcon,
   toast,
   Tooltip,
@@ -503,7 +505,81 @@ function filterBy(metric: string) {
   listViewRef.value?.setFilters?.(f);
 }
 
-const { getStatus } = useTicketStatusStore();
+const ticketStatusStore = useTicketStatusStore();
+const { getStatus } = ticketStatusStore;
+
+// ── Row quick actions (agent list) ─────────────────────────────────
+// Change priority/status and claim unassigned tickets straight from the
+// row — opening each ticket just to triage it was the queue bottleneck.
+
+const priorityListRes = createListResource({
+  doctype: "HD Ticket Priority",
+  fields: ["name"],
+  cache: ["HD Ticket Priority", "list"],
+  pageLength: 100,
+  auto: !isCustomerPortal.value,
+});
+
+function reloadQueueStats() {
+  [
+    _agentOpenRes,
+    _agentUnassignedRes,
+    _agentUrgentRes,
+    _agentSlaFailedRes,
+    _agentResolvedTodayRes,
+    _agentMyOpenRes,
+  ].forEach((r) => r.reload());
+}
+
+const quickSetFieldRes = createResource({ url: "frappe.client.set_value" });
+function quickSetField(ticket: string, fieldname: string, value: string) {
+  quickSetFieldRes
+    .submit({ doctype: "HD Ticket", name: ticket, fieldname, value })
+    .then(() => {
+      toast.success(__("Ticket #{0} updated", [ticket]));
+      listViewRef.value?.reload();
+      reloadQueueStats();
+    })
+    .catch((e) =>
+      toast.error(e?.messages?.[0] || __("Could not update the ticket"))
+    );
+}
+
+const assignToMeRes = createResource({ url: "frappe.desk.form.assign_to.add" });
+function assignToMe(ticket: string) {
+  assignToMeRes
+    .submit({ doctype: "HD Ticket", name: ticket, assign_to: [userId] })
+    .then(() => {
+      toast.success(__("Ticket #{0} assigned to you", [ticket]));
+      listViewRef.value?.reload();
+      reloadQueueStats();
+    })
+    .catch((e) =>
+      toast.error(e?.messages?.[0] || __("Could not assign the ticket"))
+    );
+}
+
+// Wraps a cell's content in a click-safe dropdown (row navigation must
+// not fire while picking an option).
+function quickActionDropdown(options: any[], content: any) {
+  return h("div", { class: "flex", onClick: (e: Event) => e.stopPropagation() }, [
+    h(
+      Dropdown,
+      { options },
+      {
+        default: () =>
+          h(
+            "button",
+            {
+              class:
+                "-mx-1 flex items-center rounded px-1 hover:bg-surface-gray-2",
+            },
+            [content]
+          ),
+      }
+    ),
+  ]);
+}
 
 // Status renders as a calm subtle Badge in the status's configured color.
 // Strong/loud treatment is reserved for genuine alarms (Failed SLA, Urgent).
@@ -563,17 +639,52 @@ const options = computed(() => ({
       custom: ({ row, item }) => {
         const seenBy = row._seen ? JSON.parse(row._seen) : [];
         const isSeen = seenBy.includes(userId || "");
+        const children = [];
+        // Who's waiting on whom: amber dot = the customer wrote last (or
+        // was never answered) and is waiting on us; gray dot = ball is in
+        // the customer's court. Resolved tickets get no dot.
+        if (!isCustomerPortal.value) {
+          const category = getStatus(row.status)?.category;
+          if (category && category !== "Resolved") {
+            const lastAgent = row.last_agent_response;
+            const lastCustomer = row.last_customer_response;
+            const awaitingAgent =
+              !lastAgent ||
+              (lastCustomer && dayjs(lastCustomer).isAfter(dayjs(lastAgent)));
+            children.push(
+              h(
+                Tooltip,
+                {
+                  text: awaitingAgent
+                    ? __("Customer is waiting on your reply")
+                    : __("Waiting on the customer"),
+                },
+                h("span", {
+                  class: [
+                    "inline-block h-2 w-2 shrink-0 rounded-full",
+                    awaitingAgent ? "bg-amber-500" : "bg-surface-gray-4",
+                  ],
+                })
+              )
+            );
+          }
+        }
+        children.push(
+          h(
+            "span",
+            { class: ["truncate flex-1", !isSeen && "font-semibold"] },
+            item
+          )
+        );
         return h(
-          "span",
-          {
-            class: ["truncate flex-1", !isSeen && "font-semibold"],
-          },
-          item
+          "div",
+          { class: "flex min-w-0 flex-1 items-center gap-2" },
+          children
         );
       },
     },
     status: {
-      custom: ({ item }) => {
+      custom: ({ row, item }) => {
         const status = getStatus(item);
         let label =
           (isCustomerPortal.value
@@ -584,24 +695,57 @@ const options = computed(() => ({
         // Normalize user-created lowercase status labels (e.g. "reopened")
         label = label.charAt(0).toUpperCase() + label.slice(1);
         const colorKey = (status?.color || "gray").toLowerCase();
-        return h(Badge, {
+        const badge = h(Badge, {
           label,
           theme: STATUS_THEME[colorKey] || "gray",
           variant: "subtle",
         });
+        if (isCustomerPortal.value) return badge;
+        const statusOptions = (ticketStatusStore.statuses.data || [])
+          .filter((s: any) => s.enabled !== 0 && s.name !== item)
+          .map((s: any) => ({
+            label: s.label_agent || s.name,
+            onClick: () => quickSetField(row.name, "status", s.name),
+          }));
+        if (!statusOptions.length) return badge;
+        return quickActionDropdown(statusOptions, badge);
       },
     },
     priority: {
-      custom: ({ item }) => {
-        if (!item) return h("span", { class: "text-ink-gray-4 text-sm" }, "—");
-        if (item === "Urgent") {
-          return h("span", { class: URGENT_PILL_CLASS }, item);
-        }
-        return h(Badge, {
-          label: item,
-          theme: PRIORITY_THEME[item] || "gray",
-          variant: "subtle",
-        });
+      custom: ({ row, item }) => {
+        const badge = !item
+          ? h("span", { class: "text-ink-gray-4 text-sm" }, "—")
+          : item === "Urgent"
+          ? h("span", { class: URGENT_PILL_CLASS }, item)
+          : h(Badge, {
+              label: item,
+              theme: PRIORITY_THEME[item] || "gray",
+              variant: "subtle",
+            });
+        if (isCustomerPortal.value) return badge;
+        const priorityOptions = (priorityListRes.data || [])
+          .filter((p: any) => p.name !== item)
+          .map((p: any) => ({
+            label: p.name,
+            onClick: () => quickSetField(row.name, "priority", p.name),
+          }));
+        if (!priorityOptions.length) return badge;
+        return quickActionDropdown(priorityOptions, badge);
+      },
+    },
+    contact: {
+      custom: ({ row, item }) => {
+        // Auto-created contacts from machine mail get names like
+        // "Noreply" / "Abuse" / "It" — show the requester's address then.
+        const generic =
+          /^(noreply|no-?reply|donotreply|do-?not-?reply|abuse|billing|it|admin|administrator|info|hello|sales|support|postmaster|notifications?|alerts?|mailer-?daemon|noc|root)$/i;
+        const useEmail = !item || generic.test(String(item).trim());
+        const label = useEmail ? row.raised_by || item || "—" : item;
+        return h(
+          Tooltip,
+          { text: row.raised_by || "" },
+          h("span", { class: "truncate text-base text-ink-gray-7" }, label)
+        );
       },
     },
     name: {
@@ -617,22 +761,38 @@ const options = computed(() => ({
       },
     },
     _assign: {
-      custom: ({ item }) => {
+      custom: ({ row, item }) => {
+        // Unassigned rows get a one-click "Assign to me" — with a mostly
+        // unassigned queue, opening each ticket to claim it is the
+        // bottleneck.
+        const assignToMeButton = () =>
+          isCustomerPortal.value
+            ? h("span", { class: "text-ink-gray-4 text-sm" }, __("Unassigned"))
+            : h(
+                "div",
+                {
+                  class: "flex",
+                  onClick: (e: Event) => e.stopPropagation(),
+                },
+                [
+                  h(
+                    "button",
+                    {
+                      class:
+                        "text-left text-sm text-ink-gray-5 hover:text-ink-gray-9 hover:underline",
+                      onClick: () => assignToMe(row.name),
+                    },
+                    __("Assign to me")
+                  ),
+                ]
+              );
         if (!item) {
-          return h(
-            "span",
-            { class: "text-ink-gray-4 text-sm" },
-            __("Unassigned")
-          );
+          return assignToMeButton();
         }
         try {
           const users = JSON.parse(item);
           if (!Array.isArray(users) || !users.length) {
-            return h(
-              "span",
-              { class: "text-ink-gray-4 text-sm" },
-              __("Unassigned")
-            );
+            return assignToMeButton();
           }
           return h(
             "div",
@@ -706,93 +866,71 @@ const options = computed(() => ({
   hideColumnSetting: false,
 }));
 
+// SLA cells show actionable time, not a binary verdict: "Due in 2 hours"
+// while there's still time, "3 days overdue" once breached (the overdue
+// amount is what you prioritize by), "Late by 2 hours" when it was met
+// but after the deadline. Tooltips carry the exact deadline.
+function slaBadge(label: string, theme: string, deadline?: string) {
+  const badge = h(Badge, { label, theme, variant: "subtle" });
+  return deadline
+    ? h(Tooltip, { text: dayjs(deadline).format("LLLL") }, badge)
+    : badge;
+}
+
 function handleResponseByField(row: any, item: string) {
-  if (!row.first_responded_on && dayjs(item).isBefore(new Date())) {
-    return h(Badge, {
-      label: __("Failed"),
-      theme: "red",
-      variant: "subtle",
-    });
+  if (!item) {
+    return h("span", { class: "text-ink-gray-4 text-sm" }, "—");
   }
-  if (row.first_responded_on && dayjs(row.first_responded_on).isBefore(item)) {
-    return h(Badge, {
-      label: __("Fulfilled"),
-      theme: "green",
-      variant: "subtle",
-    });
-  } else if (dayjs(row.first_responded_on).isAfter(item)) {
-    return h(Badge, {
-      label: __("Failed"),
-      theme: "red",
-      variant: "subtle",
-    });
-  } else {
-    return h(
-      Tooltip,
-      {
-        text: dayjs(item).format("LLLL"),
-      },
-      h(Badge, {
-        label: shortDuration(item),
-        variant: "subtle",
-        theme: "orange",
-      })
-    );
+  if (row.first_responded_on) {
+    if (dayjs(row.first_responded_on).isAfter(dayjs(item))) {
+      return slaBadge(
+        __("Late by {0}", [dayjs(row.first_responded_on).from(dayjs(item), true)]),
+        "red",
+        item
+      );
+    }
+    return slaBadge(__("Fulfilled"), "green", item);
   }
+  if (dayjs(item).isBefore(dayjs())) {
+    return slaBadge(__("{0} overdue", [shortDuration(item)]), "red", item);
+  }
+  return slaBadge(__("Due in {0}", [shortDuration(item)]), "orange", item);
 }
 
 function handleResolutionByField(row: any, item: string) {
   const status = getStatus(row.status) || {};
   if (status.category === "Paused") {
-    return h(Badge, {
-      label: __("Paused"),
-      theme: "blue",
-      variant: "subtle",
-    });
+    return slaBadge(__("Paused"), "blue", item);
   }
   // Trust the server-computed SLA status for terminal states.
   if (row.agreement_status === "Fulfilled") {
-    return h(Badge, {
-      label: __("Fulfilled"),
-      theme: "green",
-      variant: "subtle",
-    });
+    return slaBadge(__("Fulfilled"), "green", item);
   }
   if (row.agreement_status === "Failed") {
-    return h(Badge, {
-      label: __("Failed"),
-      theme: "red",
-      variant: "subtle",
-    });
+    // Resolved, but after the deadline — say by how much.
+    if (row.resolution_date && item) {
+      return slaBadge(
+        __("Late by {0}", [dayjs(row.resolution_date).from(dayjs(item), true)]),
+        "red",
+        item
+      );
+    }
+    // Still open past the deadline — the overdue amount is the priority.
+    if (item && dayjs(item).isBefore(dayjs())) {
+      return slaBadge(__("{0} overdue", [shortDuration(item)]), "red", item);
+    }
+    return slaBadge(__("Failed"), "red", item);
   }
   // In progress without a resolution deadline to track.
   if (!item) {
-    return h(Badge, {
-      label: __("—"),
-      theme: "gray",
-      variant: "subtle",
-    });
+    return h("span", { class: "text-ink-gray-4 text-sm" }, "—");
   }
   // In progress but the resolution deadline has already passed.
   if (dayjs(item).isBefore(dayjs())) {
-    return h(Badge, {
-      label: __("Failed"),
-      theme: "red",
-      variant: "subtle",
-    });
+    return slaBadge(__("{0} overdue", [shortDuration(item)]), "red", item);
   }
   // In progress with a future deadline: show the live countdown.
-  return h(
-    Tooltip,
-    {
-      text: dayjs(item).format("LLLL"),
-    },
-    h(Badge, {
-      label: shortDuration(item),
-      variant: "subtle",
-      theme: "orange",
-    })
-  );
+  return slaBadge(__("Due in {0}", [shortDuration(item)]), "orange", item);
 }
 
 async function exportRows(

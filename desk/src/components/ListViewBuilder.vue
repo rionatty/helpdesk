@@ -374,6 +374,15 @@ const list = createResource({
   url: "helpdesk.api.doc.get_list_data",
   params: defaultParams,
   transform: (data) => {
+    // Hide the Rating column when no row in the result has a rating —
+    // it's dead width on almost every queue view otherwise.
+    if (
+      Array.isArray(data.data) &&
+      data.columns?.some((c) => c.key === "feedback_rating") &&
+      !data.data.some((r) => r.feedback_rating)
+    ) {
+      data.columns = data.columns.filter((c) => c.key !== "feedback_rating");
+    }
     data.columns.forEach((column) => {
       handleFetchFromField(column);
       handleColumnConfig(column);

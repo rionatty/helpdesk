@@ -1749,6 +1749,12 @@ class HDTicket(Document):
             "creation",
             "_assign",
             "resolution_date",
+            # Needed by the agent list: awaiting-reply indicator, contact
+            # junk-name fallback, and the empty-Rating column hiding.
+            "raised_by",
+            "last_customer_response",
+            "last_agent_response",
+            "feedback_rating",
         ]
         return {
             "columns": (

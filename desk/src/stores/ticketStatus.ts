@@ -7,6 +7,7 @@ export const useTicketStatusStore = defineStore("ticketStatus", () => {
     doctype: "HD Ticket Status",
     cache: ["HD Ticket Status", "list"],
     fields: [
+      "name",
       "label_agent",
       "label_customer",
       "order",
