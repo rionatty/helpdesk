@@ -43,9 +43,16 @@ def new(doc: dict, attachments: list[dict] = []):
     if not is_agent():
         doc["raised_by"] = frappe.session.user
     elif not doc.get("raised_by"):
-        doc["raised_by"] = (
-            _customer_contact_email(doc.get("customer")) or frappe.session.user
-        )
+        # Best-effort only — a failed lookup must never block creating
+        # the ticket; it falls back to the old behavior and logs.
+        try:
+            requester = _customer_contact_email(doc.get("customer"))
+        except Exception:
+            requester = None
+            frappe.log_error(
+                title="Ticket creation: customer contact lookup failed"
+            )
+        doc["raised_by"] = requester or frappe.session.user
     d = frappe.get_doc(doc).insert()
     return d
 
