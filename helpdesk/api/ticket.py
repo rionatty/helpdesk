@@ -18,6 +18,60 @@ def get_helpdesk_email_addresses() -> list:
 
 
 @frappe.whitelist()
+def close_automated_backlog(dry_run: bool = True) -> dict:
+	"""One-time queue cleanup: close every not-yet-resolved email-channel
+	ticket whose requester matches the automated-sender patterns (HD
+	Settings). Run with dry_run=1 first — it only lists what WOULD close.
+	No emails are sent for these closures (the status-change email skips
+	automated requesters). Manager-only."""
+	frappe.only_for(["Agent Manager", "System Manager"])
+	from helpdesk.helpdesk.doctype.hd_ticket.hd_ticket import HDTicket
+
+	open_statuses = frappe.get_all(
+		"HD Ticket Status", filters={"category": ["!=", "Resolved"]}, pluck="name"
+	)
+	candidates = frappe.get_all(
+		"HD Ticket",
+		filters={
+			"status": ["in", open_statuses],
+			"via_customer_portal": 0,
+		},
+		fields=["name", "raised_by", "status", "subject"],
+	)
+	matched = [
+		t
+		for t in candidates
+		if HDTicket._sender_matches_automated_patterns(t.raised_by)
+	]
+	closed, failed = [], []
+	if not dry_run:
+		closed_status = frappe.db.get_single_value(
+			"HD Settings", "auto_close_status"
+		) or frappe.db.get_value("HD Ticket Status", {"category": "Resolved"}, "name")
+		for t in matched:
+			try:
+				doc = frappe.get_doc("HD Ticket", t.name)
+				doc.status = closed_status
+				doc.flags.ignore_validate = True
+				doc.save(ignore_permissions=True)
+				closed.append(t.name)
+			except Exception:
+				failed.append(t.name)
+				frappe.log_error(
+					title=f"Automated-backlog close failed for {t.name}"
+				)
+	return {
+		"dry_run": bool(dry_run),
+		"would_close" if dry_run else "closed": [
+			{"ticket": t.name, "from": t.raised_by, "subject": t.subject}
+			for t in matched
+		],
+		"count": len(matched),
+		"failed": failed,
+	}
+
+
+@frappe.whitelist()
 @agent_only
 def diagnose_ticket_email(ticket: str) -> dict:
 	"""One-shot answer to 'why didn't the reply email go out?' — the settings

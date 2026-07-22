@@ -251,6 +251,9 @@ class HDTicket(Document):
             return
         if not self.raised_by or self.raised_by.lower() in ticket_ingest_addresses():
             return
+        # Never announce a closure to a robot (noreply@, newsletters, …).
+        if self.is_automated_requester():
+            return
 
         from helpdesk.api.profile import wants_email_updates
 
