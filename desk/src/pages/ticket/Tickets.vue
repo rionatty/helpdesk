@@ -546,6 +546,32 @@ const priorityListRes = createListResource({
   auto: !isCustomerPortal.value,
 });
 
+// Docname → human title maps so Link columns show "EFRIS Integration"
+// instead of "HD-ADDON-00003" when agents add them via Columns.
+const projectTitlesRes = createListResource({
+  doctype: "HD Project",
+  fields: ["name", "project_name"],
+  cache: ["HD Project", "titles"],
+  pageLength: 1000,
+  auto: true,
+});
+const addonTitlesRes = createListResource({
+  doctype: "HD Addon",
+  fields: ["name", "addon_name"],
+  cache: ["HD Addon", "titles"],
+  pageLength: 1000,
+  auto: true,
+});
+function linkTitleCell(item: string, titles: any[], titleKey: string) {
+  if (!item) return h("span", { class: "text-ink-gray-4 text-sm" }, "—");
+  const match = (titles || []).find((t: any) => t.name === item);
+  return h(
+    "span",
+    { class: "truncate text-base text-ink-gray-7" },
+    match?.[titleKey] || item
+  );
+}
+
 function reloadQueueStats() {
   [
     _agentOpenRes,
@@ -776,6 +802,14 @@ const options = computed(() => ({
         if (!priorityOptions.length) return badge;
         return quickActionDropdown(priorityOptions, badge);
       },
+    },
+    project: {
+      custom: ({ item }) =>
+        linkTitleCell(item, projectTitlesRes.data, "project_name"),
+    },
+    addon: {
+      custom: ({ item }) =>
+        linkTitleCell(item, addonTitlesRes.data, "addon_name"),
     },
     contact: {
       custom: ({ row, item }) => {
