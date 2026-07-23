@@ -214,7 +214,8 @@ import { storeToRefs } from "pinia";
 import { computed, h, markRaw, onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import {
-  agentPortalSidebarOptions,
+  agentPortalPrimaryOptions,
+  agentPortalWorkspaceOptions,
   customerPortalSidebarOptions,
 } from "./layoutSettings";
 
@@ -292,7 +293,7 @@ const hasCompany = computed(() => (myCompanies.data || []).length > 0);
 const allViews = computed(() => {
   let items = isCustomerPortal.value
     ? [...customerPortalSidebarOptions]
-    : agentPortalSidebarOptions;
+    : [...agentPortalPrimaryOptions];
 
   // Show "Company" to customers who belong to an organization.
   if (isCustomerPortal.value && hasCompany.value) {
@@ -304,10 +305,6 @@ const allViews = computed(() => {
     items = [...items.slice(0, 2), companyLink, ...items.slice(2)];
   }
 
-  if (!isCallingEnabled.value) {
-    items = items.filter((item) => item.label !== __("Call Logs"));
-  }
-
   const options = [
     {
       label: __("All Views"),
@@ -316,6 +313,21 @@ const allViews = computed(() => {
       views: items,
     },
   ];
+
+  // Agents: everything that isn't the daily queue lives in a collapsible
+  // "Workspace" section, so Tickets and Dashboard keep the space.
+  if (!isCustomerPortal.value) {
+    let workspace = agentPortalWorkspaceOptions;
+    if (!isCallingEnabled.value) {
+      workspace = workspace.filter((item) => item.label !== __("Call Logs"));
+    }
+    options.push({
+      label: __("Workspace"),
+      opened: false,
+      hideLabel: false,
+      views: workspace,
+    });
+  }
   if (publicViews.value?.length && !isCustomerPortal.value) {
     options.push({
       label: __("Public Views"),

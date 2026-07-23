@@ -73,6 +73,44 @@ def close_automated_backlog(dry_run: bool = True) -> dict:
 
 @frappe.whitelist()
 @agent_only
+def resend_communication_email(communication: str) -> dict:
+	"""Requeue a helpdesk reply email that failed (or got stuck) at SMTP,
+	and try to push it out immediately; the email-flush worker is the
+	fallback. Used by the Resend button on the conversation's Error chip."""
+	ref_doctype = frappe.db.get_value(
+		"Communication", communication, "reference_doctype"
+	)
+	if ref_doctype != "HD Ticket":
+		frappe.throw(_("Not a helpdesk communication"))
+	rows = frappe.get_all(
+		"Email Queue",
+		filters={"communication": communication},
+		fields=["name"],
+		order_by="creation desc",
+		limit_page_length=1,
+	)
+	if not rows:
+		frappe.throw(
+			_("No email record exists for this message — use Reply instead.")
+		)
+	queue = frappe.get_doc("Email Queue", rows[0].name)
+	queue.db_set("status", "Not Sent")
+	queue.db_set("error", None)
+	try:
+		queue.reload()
+		queue.send()
+		return {"status": "sent"}
+	except Exception:
+		# Version differences / SMTP hiccup: leave it queued for the
+		# scheduler's email flush instead of failing the request.
+		frappe.log_error(
+			title=f"Immediate resend failed for {queue.name}; left queued"
+		)
+		return {"status": "queued"}
+
+
+@frappe.whitelist()
+@agent_only
 def diagnose_ticket_email(ticket: str) -> dict:
 	"""One-shot answer to 'why didn't the reply email go out?' — the settings
 	gates, the outgoing accounts, and the actual Email Queue rows for this

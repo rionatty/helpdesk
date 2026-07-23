@@ -161,6 +161,7 @@
         <div
           class="executive-card executive-card-hover hd-color-card flex flex-col gap-2 px-4 pt-5 pb-4 cursor-pointer"
           data-accent="blue"
+          :class="tileClass('open')"
           role="button"
           tabindex="0"
           :title="__('Filter list by Open tickets')"
@@ -181,7 +182,10 @@
         <!-- Unassigned -->
         <div
           class="executive-card executive-card-hover flex flex-col gap-2 px-4 pt-5 pb-4 cursor-pointer"
-          :class="agentUnassignedCount ? 'ring-1 ring-amber-200' : ''"
+          :class="[
+            agentUnassignedCount ? 'ring-1 ring-amber-200' : '',
+            tileClass('unassigned'),
+          ]"
           role="button"
           tabindex="0"
           :title="__('Filter list by Unassigned tickets')"
@@ -209,7 +213,10 @@
         <!-- Urgent -->
         <div
           class="executive-card executive-card-hover flex flex-col gap-2 px-4 pt-5 pb-4 cursor-pointer"
-          :class="agentUrgentCount ? 'ring-1 ring-red-200' : ''"
+          :class="[
+            agentUrgentCount ? 'ring-1 ring-red-200' : '',
+            tileClass('urgent'),
+          ]"
           role="button"
           tabindex="0"
           :title="__('Filter list by Urgent tickets')"
@@ -237,7 +244,10 @@
         <!-- SLA Failed -->
         <div
           class="executive-card executive-card-hover flex flex-col gap-2 px-4 pt-5 pb-4 cursor-pointer"
-          :class="agentSlaFailedCount ? 'ring-1 ring-red-300' : ''"
+          :class="[
+            agentSlaFailedCount ? 'ring-1 ring-red-300' : '',
+            tileClass('slaFailed'),
+          ]"
           role="button"
           tabindex="0"
           :title="__('Filter list by SLA Failed tickets')"
@@ -266,6 +276,7 @@
         <div
           class="executive-card executive-card-hover hd-color-card flex flex-col gap-2 px-4 pt-5 pb-4 cursor-pointer"
           data-accent="emerald"
+          :class="tileClass('resolvedToday')"
           role="button"
           tabindex="0"
           :title="__('Filter list by tickets resolved today')"
@@ -287,6 +298,7 @@
         <div
           class="executive-card executive-card-hover hd-color-card flex flex-col gap-2 px-4 pt-5 pb-4 cursor-pointer"
           data-accent="violet"
+          :class="tileClass('myOpen')"
           role="button"
           tabindex="0"
           :title="__('Filter list by tickets assigned to me')"
@@ -318,7 +330,7 @@
         :class="
           isCustomerPortal
             ? 'executive-card hd-colorful-rows flex-1 flex flex-col min-h-0 overflow-hidden bg-surface-white'
-            : 'contents hd-colorful-rows'
+            : 'contents'
         "
       >
         <ListViewBuilder
@@ -466,8 +478,22 @@ const showExportModal = ref(false);
 
 // Clicking a stat tile (agent Queue Overview or customer portal) filters
 // the ticket list below by that metric — the exact same filter its count
-// is computed from.
+// is computed from. The active tile stays visibly marked; clicking it
+// again clears the filter.
+const activeMetric = ref<string | null>(null);
+function tileClass(metric: string) {
+  return activeMetric.value === metric ? "hd-tile-active" : "";
+}
 function filterBy(metric: string) {
+  if (activeMetric.value === metric) {
+    activeMetric.value = null;
+    listViewRef.value?.setFilters?.({});
+    return;
+  }
+  activeMetric.value = metric;
+  _filterBy(metric);
+}
+function _filterBy(metric: string) {
   const d = new Date();
   d.setDate(d.getDate() - 30);
   const thirtyDaysAgo = d.toISOString().split("T")[0];
@@ -579,6 +605,24 @@ function quickActionDropdown(options: any[], content: any) {
       }
     ),
   ]);
+}
+
+// Semantic row tinting for the agent list: red wash = SLA breached and
+// still open, amber wash = customer waiting on a reply. Everything else
+// stays neutral, so color carries information instead of decoration.
+function ticketRowClass(row: any) {
+  if (isCustomerPortal.value) return "";
+  const category = getStatus(row.status)?.category;
+  if (!category || category === "Resolved" || category === "Paused") return "";
+  const overdue =
+    row.agreement_status === "Failed" ||
+    (row.resolution_by && dayjs(row.resolution_by).isBefore(dayjs()));
+  if (overdue) return "hd-row-overdue";
+  const awaitingAgent =
+    !row.last_agent_response ||
+    (row.last_customer_response &&
+      dayjs(row.last_customer_response).isAfter(dayjs(row.last_agent_response)));
+  return awaitingAgent ? "hd-row-awaiting" : "";
 }
 
 // Status renders as a calm subtle Badge in the status's configured color.
@@ -840,6 +884,7 @@ const options = computed(() => ({
     },
   },
   isCustomerPortal: isCustomerPortal.value,
+  rowClass: ticketRowClass,
   selectable: true,
   showSelectBanner: true,
   selectBannerActions,

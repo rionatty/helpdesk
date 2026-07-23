@@ -457,6 +457,32 @@ html:not([data-theme="dark"]) .hd-colorful-rows #list-rows > *:nth-child(5n + 5)
   background-color: rgba(139, 92, 246, 0.13);
   box-shadow: inset 4px 0 0 0 rgba(139, 92, 246, 1);
 }
+/* AGENT LIST: semantic row tinting — color carries information, not
+   decoration. Red wash = SLA breached and still open; amber wash = the
+   customer is waiting on an agent reply. Neutral otherwise. */
+#list-rows > .hd-row-overdue {
+  background-color: rgba(239, 68, 68, 0.05);
+  box-shadow: inset 3px 0 0 0 rgba(239, 68, 68, 0.65);
+}
+#list-rows > .hd-row-overdue:hover {
+  background-color: rgba(239, 68, 68, 0.1);
+  box-shadow: inset 4px 0 0 0 rgba(239, 68, 68, 0.9);
+}
+#list-rows > .hd-row-awaiting {
+  background-color: rgba(245, 158, 11, 0.06);
+  box-shadow: inset 3px 0 0 0 rgba(245, 158, 11, 0.7);
+}
+#list-rows > .hd-row-awaiting:hover {
+  background-color: rgba(245, 158, 11, 0.12);
+  box-shadow: inset 4px 0 0 0 rgba(245, 158, 11, 0.95);
+}
+
+/* Queue Overview: the tile whose filter is applied to the list below */
+.hd-tile-active {
+  outline: 2px solid rgba(59, 130, 246, 0.65);
+  outline-offset: 1px;
+}
+
 /* Refined list header — subtle tint + uppercase tracking reads executive */
 html:not([data-theme="dark"]) .list-header {
   background-color: rgba(15, 23, 42, 0.015);

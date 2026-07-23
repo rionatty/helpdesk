@@ -13,6 +13,80 @@ import PhoneIcon from "../icons/PhoneIcon.vue";
 import LucideHome from "~icons/lucide/home";
 import { __ } from "@/translation";
 
+// Desktop sidebar shows these in two sections: the daily-driver links up
+// top, everything else under a collapsible "Workspace" section so the
+// queue links keep the space. Mobile keeps the flat combined list.
+export const agentPortalPrimaryOptions = [
+  {
+    label: __("Home"),
+    icon: LucideHome,
+    to: "Home",
+  },
+  {
+    label: __("Dashboard"),
+    icon: LucideLayoutDashboard,
+    to: "Dashboard",
+  },
+  {
+    label: __("Tickets"),
+    icon: LucideTicket,
+    to: "TicketsAgent",
+  },
+];
+
+export const agentPortalWorkspaceOptions = [
+  {
+    label: __("Projects"),
+    icon: LucideFolderKanban,
+    to: "ProjectsAgent",
+  },
+  {
+    label: __("Portfolio"),
+    icon: LucideLayoutGrid,
+    to: "Portfolio",
+  },
+  {
+    label: __("Templates"),
+    icon: LucideLayoutTemplate,
+    to: "ProjectTemplates",
+  },
+  {
+    label: __("Add-ons"),
+    icon: LucidePackage,
+    to: "AddonsAgent",
+  },
+  {
+    label: __("Tasks"),
+    icon: LucideListChecks,
+    to: "TasksAgent",
+  },
+  {
+    label: __("Reminders"),
+    icon: LucideBell,
+    to: "RemindersAgent",
+  },
+  {
+    label: __("Knowledge Base"),
+    icon: LucideBookOpen,
+    to: "AgentKnowledgeBase",
+  },
+  {
+    label: "Customers",
+    icon: OrganizationsIcon,
+    to: "CustomerList",
+  },
+  {
+    label: __("Contacts"),
+    icon: LucideContact2,
+    to: "ContactList",
+  },
+  {
+    label: __("Call Logs"),
+    icon: PhoneIcon,
+    to: "CallLogs",
+  },
+];
+
 export const agentPortalSidebarOptions = [
   {
     label: __("Home"),

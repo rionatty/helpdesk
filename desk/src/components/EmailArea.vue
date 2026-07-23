@@ -39,12 +39,25 @@
 
       <div class="flex gap-2 items-center">
         <div class="gap-0.5 flex items-center">
+          <!-- Delivery verdict for outgoing mail (any ticket channel — the
+               old via_customer_portal check hid it exactly where it
+               mattered most). Failed sends get a one-click Resend. -->
           <Badge
-            v-if="status.label && !ticket?.doc?.via_customer_portal"
+            v-if="status.label && !fromCustomer"
             :label="__(status.label)"
             variant="subtle"
             :theme="status.color"
             class="me-1.5"
+          />
+          <Button
+            v-if="status.label === 'Error' && !fromCustomer"
+            :label="__('Resend')"
+            size="sm"
+            theme="red"
+            variant="subtle"
+            class="me-1.5"
+            :loading="resending"
+            @click.stop="resendEmail"
           />
           <Tooltip
             :text="dateFormat(creation, dateTooltipFormat)"
@@ -122,9 +135,10 @@
 import { AttachmentItem } from "@/components";
 import { useScreenSize } from "@/composables/screen";
 import { useAuthStore } from "@/stores/auth";
-import { TicketSymbol } from "@/types";
+import { __ } from "@/translation";
+import { ActivitiesSymbol, TicketSymbol } from "@/types";
 import { dateFormat, dateTooltipFormat, timeAgo } from "@/utils";
-import { Dropdown } from "frappe-ui";
+import { createResource, Dropdown, toast } from "frappe-ui";
 import { storeToRefs } from "pinia";
 import { computed, inject, ref } from "vue";
 import LucideSplit from "~icons/lucide/split";
@@ -169,6 +183,26 @@ const fromCustomer = computed(() => {
 });
 
 const showSplitModal = ref(false);
+
+// Requeue a failed outgoing email and refresh the feed's verdict.
+const activities = inject(ActivitiesSymbol, null);
+const resending = ref(false);
+const resendRes = createResource({
+  url: "helpdesk.api.ticket.resend_communication_email",
+});
+function resendEmail() {
+  resending.value = true;
+  resendRes
+    .submit({ communication: name })
+    .then(() => {
+      toast.success(__("Email queued for resending"));
+      activities?.value?.reload?.();
+    })
+    .catch((e: any) =>
+      toast.error(e?.messages?.[0] || __("Could not resend the email"))
+    )
+    .finally(() => (resending.value = false));
+}
 
 const status = computed(() => {
   let _status = deliveryStatus;

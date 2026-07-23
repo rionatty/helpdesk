@@ -37,6 +37,7 @@
           v-slot="{ idx, column, item }"
           :row="row"
           class="truncate text-base row"
+          :class="rowClass && rowClass(row)"
         >
           <slot v-bind="{ idx, column, item, row }" />
         </ListRow>
@@ -50,6 +51,7 @@
       v-slot="{ idx, column, item }"
       :row="row"
       class="truncate text-base"
+      :class="rowClass && rowClass(row)"
     >
       <slot v-bind="{ idx, column, item, row }" />
     </ListRow>
@@ -76,6 +78,11 @@ const props = defineProps({
   groupByActions: {
     type: Array,
     default: () => [],
+  },
+  // Optional (row) => class string for semantic row styling.
+  rowClass: {
+    type: Function,
+    default: null,
   },
 });
 
