@@ -337,7 +337,7 @@ class HDTicket(Document):
             except Exception:
                 pass
 
-        # Notify agents of the new ticket (realtime popup + manager emails).
+        # Notify agents of the new ticket (realtime popup + agent emails).
         # Wrapped so a notification failure can never roll back the insert.
         if not is_automated:
             try:
@@ -346,7 +346,14 @@ class HDTicket(Document):
                     "subject": self.subject or "",
                     "customer": self.contact or self.raised_by or "",
                 })
-                self.notify_managers_new_ticket()
+                # SMTP must NOT run inside the create request: a slow or
+                # unreachable mail server made the POST outlive the proxy
+                # timeout, so the browser got a 502/504 HTML body even though
+                # the ticket had committed. Hand it to a background worker
+                # instead — the send itself is still immediate (now=True)
+                # inside that worker, so this does not depend on the
+                # email-queue flush scheduler.
+                self._enqueue_after_commit("notify_managers_new_ticket")
             except Exception:
                 frappe.log_error(
                     title=f"New-ticket notification failed for {self.name}"
@@ -366,9 +373,29 @@ class HDTicket(Document):
             "HD Settings", "send_acknowledgement_email"
         )
         # Acknowledge every channel — portal-created tickets deserve the
-        # confirmation email just as much as email-created ones.
+        # confirmation email just as much as email-created ones. Also off the
+        # request thread, for the same reason as above.
         if not frappe.flags.initial_sync and send_ack_email and not is_automated:
-            self.send_acknowledgement_email()
+            self._enqueue_after_commit("send_acknowledgement_email")
+
+    def _enqueue_after_commit(self, method: str):
+        """Run a document method in a background worker once this transaction
+        commits. Falls back to running inline if the queue is unavailable, so a
+        broken Redis/worker never silently drops notifications."""
+        try:
+            frappe.enqueue_doc(
+                self.doctype,
+                self.name,
+                method,
+                queue="short",
+                enqueue_after_commit=True,
+            )
+        except Exception:
+            frappe.log_error(title=f"Could not enqueue {method} for {self.name}")
+            try:
+                getattr(self, method)()
+            except Exception:
+                frappe.log_error(title=f"{method} failed for {self.name}")
 
     def capture_ticket_created_telemetry_events(self):
         if self.subject == "Welcome to Helpdesk":
@@ -658,18 +685,26 @@ class HDTicket(Document):
         if not candidates:
             return
 
-        best, best_load = None, None
-        for agent in candidates:
-            load = frappe.db.count(
-                "HD Ticket",
-                {
-                    "_assign": ["like", f'%"{agent}"%'],
-                    "status_category": ["!=", "Resolved"],
-                },
-            )
-            if best is None or load < best_load:
-                best, best_load = agent, load
+        # One pass over open tickets instead of an unindexed LIKE count per
+        # agent — this runs inside the create request, so it must stay cheap.
+        loads = {agent: 0 for agent in candidates}
+        open_assigns = frappe.get_all(
+            "HD Ticket",
+            filters={
+                "status_category": ["!=", "Resolved"],
+                "_assign": ["is", "set"],
+            },
+            pluck="_assign",
+        )
+        for raw in open_assigns:
+            try:
+                for agent in frappe.parse_json(raw) or []:
+                    if agent in loads:
+                        loads[agent] += 1
+            except Exception:
+                continue
 
+        best = min(candidates, key=lambda a: loads.get(a, 0))
         assign({"assign_to": [best], "doctype": "HD Ticket", "name": self.name})
         self.notify_agent(best, "Assignment")
 
