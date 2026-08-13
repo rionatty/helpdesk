@@ -438,9 +438,18 @@ const ticket = createResource({
   },
   onSuccess: (data) => {
     if (isManager) {
-      updateOnboardingStep("create_first_ticket", true, false, () =>
-        localStorage.setItem("firstTicket", data.name)
-      );
+      // Onboarding bookkeeping must never block the redirect: frappe-ui's
+      // updateOnboardingStep is synchronous and maps over onboardings[app]
+      // unguarded, so an unset entry throws here and the router.push below
+      // would never run — leaving the agent on a form for a ticket that was
+      // already created.
+      try {
+        updateOnboardingStep("create_first_ticket", true, false, () =>
+          localStorage.setItem("firstTicket", data.name)
+        );
+      } catch (e) {
+        console.warn("[helpdesk] onboarding step update skipped:", e);
+      }
     }
     if (isCustomerPortal.value) {
       $dialog({
