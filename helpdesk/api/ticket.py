@@ -72,6 +72,55 @@ def close_automated_backlog(dry_run: bool = True) -> dict:
 
 
 @frappe.whitelist()
+def cancel_queued_emails_to(pattern: str) -> dict:
+	"""Stop still-unsent Email Queue rows addressed only to `pattern` (e.g.
+	'mailer-daemon') — drains the outbound side of a mail loop so the flush
+	worker stops retrying them. A row is cancelled only when EVERY recipient
+	matches, so mail that also goes to a real person is never touched. It is
+	marked Error, which the flush never retries, with a note saying why.
+	Manager-only."""
+	frappe.only_for(["Agent Manager", "System Manager"])
+	pattern = (pattern or "").strip().lower()
+	if len(pattern) < 4:
+		frappe.throw(_("Give a specific recipient pattern, e.g. mailer-daemon"))
+	parents = set(
+		frappe.get_all(
+			"Email Queue Recipient",
+			filters=[["recipient", "like", f"%{pattern}%"]],
+			pluck="parent",
+			parent_doctype="Email Queue",
+		)
+	)
+	cancelled = skipped = 0
+	for name in parents:
+		if frappe.db.get_value("Email Queue", name, "status") not in (
+			"Not Sent",
+			"Partially Sent",
+		):
+			continue
+		recipients = frappe.get_all(
+			"Email Queue Recipient",
+			filters={"parent": name},
+			pluck="recipient",
+			parent_doctype="Email Queue",
+		)
+		if recipients and all(pattern in (r or "").lower() for r in recipients):
+			frappe.db.set_value(
+				"Email Queue",
+				name,
+				{
+					"status": "Error",
+					"error": f"Cancelled by helpdesk mail-loop cleanup (recipient matches '{pattern}')",
+				},
+				update_modified=False,
+			)
+			cancelled += 1
+		else:
+			skipped += 1
+	return {"cancelled": cancelled, "skipped_with_other_recipients": skipped}
+
+
+@frappe.whitelist()
 @agent_only
 def resend_communication_email(communication: str) -> dict:
 	"""Requeue a helpdesk reply email that failed (or got stuck) at SMTP,
@@ -162,13 +211,39 @@ def diagnose_ticket_email(ticket: str) -> dict:
 		if requester
 		else []
 	)
+	from helpdesk.helpdesk.utils.email import is_bounce_address
+
+	try:
+		incoming_accounts = frappe.get_all(
+			"Email Account",
+			filters={"enable_incoming": 1},
+			fields=["name", "email_id", "enable_auto_reply"],
+		)
+	except Exception:
+		incoming_accounts = None
+	try:
+		ticket_email_notifications = frappe.get_all(
+			"Notification",
+			filters={"document_type": "HD Ticket", "enabled": 1, "channel": "Email"},
+			fields=["name", "event"],
+		)
+	except Exception:
+		ticket_email_notifications = None
 	return {
+		"loop_protection": {
+			"requester_is_bounce_address": is_bounce_address(requester),
+			"filter_automated_emails": settings.get("filter_automated_emails"),
+			"automated_email_patterns": settings.get("automated_email_patterns"),
+			"incoming_accounts_auto_reply": incoming_accounts,
+			"hd_ticket_email_notifications": ticket_email_notifications,
+		},
 		"gates": {
 			"skip_email_workflow": settings.get("skip_email_workflow"),
 			"enable_reply_email_via_agent": settings.get(
 				"enable_reply_email_via_agent"
 			),
 			"send_acknowledgement_email": settings.get("send_acknowledgement_email"),
+			"filter_automated_emails": settings.get("filter_automated_emails"),
 			"mute_emails_site_config": bool(
 				frappe.conf.get("mute_emails") or frappe.flags.mute_emails
 			),

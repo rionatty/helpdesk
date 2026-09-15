@@ -1,4 +1,6 @@
 import json
+import re
+import time
 import uuid
 from datetime import timedelta
 from email.utils import formataddr, parseaddr
@@ -28,6 +30,7 @@ from helpdesk.helpdesk.doctype.hd_ticket_activity.hd_ticket_activity import (
 from helpdesk.helpdesk.utils.email import (
     default_outgoing_email_account,
     default_ticket_outgoing_email_account,
+    is_bounce_address,
     ticket_ingest_addresses,
 )
 from helpdesk.utils import (
@@ -112,14 +115,31 @@ class HDTicket(Document):
         "sendgrid",
     ]
 
+    # Bounce senders are ALWAYS silenced — this is mail-loop protection,
+    # not a preference, so it deliberately ignores the configurable
+    # filter_automated_emails toggle. Acknowledging a bounce bounces
+    # again: every round trip mints a new ticket and another outbound
+    # email, without end (#0420 → #0421 → … was exactly this).
+    @classmethod
+    def _is_bounce_sender(cls, email: str | None) -> bool:
+        """Unconditional: does this address belong to a mail system's
+        bounce machinery (MAILER-DAEMON, postmaster, Exchange NDRs)?
+        Matched on the exact local part — see is_bounce_address."""
+        return is_bounce_address(email)
+
     @classmethod
     def _sender_matches_automated_patterns(cls, email: str | None) -> bool:
-        """Whether `email` looks like an automated sender, per HD Settings
-        (unset filter_automated_emails means ON — the field defaults to 1)."""
+        """Whether `email` looks like an automated sender: bounce machinery
+        (always), or the configurable pattern list in HD Settings. The list
+        only applies once "Silence tickets from automated senders" is saved
+        as enabled — Frappe does not write a new field's default into an
+        existing Single, so an unsaved filter_automated_emails reads 0."""
         if not email:
             return False
+        if cls._is_bounce_sender(email):
+            return True
         enabled = frappe.db.get_single_value("HD Settings", "filter_automated_emails")
-        if enabled is not None and not int(enabled):
+        if not int(enabled or 0):
             return False
         custom = frappe.db.get_single_value("HD Settings", "automated_email_patterns")
         patterns = [
@@ -127,15 +147,72 @@ class HDTicket(Document):
         ] or cls.AUTOMATED_SENDER_PATTERNS
         return any(p in email.lower() for p in patterns)
 
+    # Automated-email circuit breaker: (window seconds, max emails) in fixed
+    # windows. Far above any human pace, so only a runaway loop reaches them.
+    AUTO_EMAIL_LIMITS = ((3600, 6), (86400, 24))
+
+    def _auto_email_rate_limited(self, kind: str) -> bool:
+        """Mail-loop circuit breaker for automated emails. Acknowledgements
+        count per recipient address, because a loop mints a new ticket every
+        round trip; status-change and feedback emails count per ticket,
+        because a normal resolve → close → reopen → resolve cycle
+        legitimately sends one customer several. Once tripped, a loop
+        starves — it needs our email to continue. Callers check this last,
+        so a window only advances when an email would actually go out; a
+        cache failure never blocks mail."""
+        per_ticket = kind != "acknowledgement"
+        target = self.name if per_ticket else (self.raised_by or "").strip().lower()
+        if not target:
+            return False
+        now = time.time()
+        scope = "ticket" if per_ticket else "to"
+        try:
+            cache = frappe.cache()
+            windows = []
+            for seconds, limit in self.AUTO_EMAIL_LIMITS:
+                key = f"hd-auto-email:{kind}:{scope}:{target}:{seconds}"
+                state = cache.get_value(key, expires=True)
+                if (
+                    not isinstance(state, dict)
+                    or now - float(state.get("start") or 0) >= seconds
+                ):
+                    state = {"start": now, "count": 0}
+                if int(state.get("count") or 0) >= limit:
+                    frappe.log_error(
+                        title=f"HD Ticket {self.name}: {kind} email suppressed (loop guard)",
+                        message=(
+                            f"{limit} automated '{kind}' emails already went to "
+                            f"{self.raised_by} within {seconds // 3600} hour(s) — "
+                            "suppressing to break a potential mail loop."
+                        ),
+                    )
+                    return True
+                windows.append((key, seconds, state))
+            for key, seconds, state in windows:
+                state["count"] = int(state.get("count") or 0) + 1
+                cache.set_value(key, state, expires_in_sec=seconds)
+        except Exception:
+            return False
+        return False
+
     def is_automated_requester(self) -> bool:
         """Whether this ticket's requester is an automated sender.
         Computed once per doc instance; True only for email-channel
-        tickets (portal/agent tickets always have a human behind them)."""
+        tickets (portal/agent tickets always have a human behind them).
+        A new ticket created from a delivery-failure report counts too,
+        whatever address the report claims to come from (flag set by
+        CustomInboundMail.process)."""
         cached = getattr(self, "_automated_email", None)
         if cached is None:
             cached = self._automated_email = bool(
                 not self.via_customer_portal
-                and self._sender_matches_automated_patterns(self.raised_by)
+                and (
+                    self._sender_matches_automated_patterns(self.raised_by)
+                    or (
+                        self.is_new()
+                        and frappe.flags.get("hd_inbound_delivery_report")
+                    )
+                )
             )
         return cached
 
@@ -197,6 +274,14 @@ class HDTicket(Document):
         ):
             return
 
+        # Feedback requests are automated outbound mail too: never send
+        # them to bounce machinery / automated senders (closing a bounce
+        # ticket must not restart the loop this guard exists to break).
+        if self.is_automated_requester():
+            return
+        if self.raised_by and self.raised_by.lower() in ticket_ingest_addresses():
+            return
+
         [is_email_feedback_enabled, email_feedback_status] = frappe.get_cached_value(
             "HD Settings",
             "HD Settings",
@@ -210,6 +295,11 @@ class HDTicket(Document):
         )
 
         if not send_feedback_email:
+            return
+
+        # Loop circuit breaker — last, so the hourly budget is only
+        # consumed when a feedback email would actually go out.
+        if self._auto_email_rate_limited("feedback"):
             return
 
         last_communication = self.get_last_communication()
@@ -264,6 +354,11 @@ class HDTicket(Document):
         if not sender_account:
             return
 
+        # Loop circuit breaker — last, so the hourly budget is only
+        # consumed when a status email would actually go out.
+        if self._auto_email_rate_limited("status-change"):
+            return
+
         status_label = (self.status or "").strip()
         if status_label.lower() == "resolved":
             headline = _("Your ticket has been resolved")
@@ -309,7 +404,12 @@ class HDTicket(Document):
                     if last_communication and last_communication.get("message_id")
                     else None
                 ),
-                email_headers={"X-Auto-Generated": "hd-status-change"},
+                email_headers={
+                    "X-Auto-Generated": "hd-status-change",
+                    "Auto-Submitted": "auto-replied",
+                    "X-Auto-Response-Suppress": "All",
+                    "Precedence": "bulk",
+                },
             )
         except Exception:
             # A failed notification must never block resolving the ticket.
@@ -1334,11 +1434,53 @@ class HDTicket(Document):
         except Exception as e:
             frappe.throw(_(e))
 
+    def _is_echo_of_own_acknowledgement(self) -> bool:
+        """A new ticket whose subject quotes our own acknowledgement subject
+        ("Ticket #0420: We've received your request") is another system
+        echoing our automation back — a bounce that keeps the subject, or
+        another helpdesk's auto-acknowledgement. Acknowledging it starts a
+        ping-pong; the ticket itself is still created and handled normally."""
+        subject = (self.subject or "").replace("’", "'").lower()
+        if not subject:
+            return False
+        templates = {
+            "Ticket #{0}: We've received your request",
+            _("Ticket #{0}: We've received your request"),
+        }
+        for template in templates:
+            head, _sep, tail = (
+                template.replace("’", "'").lower().partition("{0}")
+            )
+            head, tail = head.strip(), tail.strip()
+            if head and tail and re.search(
+                re.escape(head) + r"\s*\S+?\s*" + re.escape(tail), subject
+            ):
+                return True
+        return False
+
     def send_acknowledgement_email(self):
         from helpdesk.api.profile import wants_email_updates
 
+        # Defense in depth — the after_insert caller gates on the automated
+        # flag, but this method must be safe on its own no matter who calls
+        # it: never acknowledge bounce machinery, automated senders or an
+        # echo of our own acknowledgement, never acknowledge our own
+        # ticket-ingesting inboxes, and stop at the mail-loop circuit
+        # breaker for any other loop shape.
+        if self.is_automated_requester():
+            return
+        if self._is_echo_of_own_acknowledgement():
+            return
+        if self.raised_by and self.raised_by.lower() in ticket_ingest_addresses():
+            return
+
         # Respect the requester's notification preference (default: opted in).
         if not wants_email_updates(self.raised_by):
+            return
+
+        # Loop circuit breaker — last, so the hourly budget is only
+        # consumed when an acknowledgement would actually go out.
+        if self._auto_email_rate_limited("acknowledgement"):
             return
 
         acknowledgement_email_content = frappe.db.get_single_value(
@@ -1362,7 +1504,14 @@ class HDTicket(Document):
                 reference_name=self.name,
                 now=True,
                 expose_recipients="header",
-                email_headers={"X-Auto-Generated": "hd-acknowledgement"},
+                # RFC 3834 / Exchange markers: tell receiving systems this
+                # is automated so their auto-responders stay quiet.
+                email_headers={
+                    "X-Auto-Generated": "hd-acknowledgement",
+                    "Auto-Submitted": "auto-replied",
+                    "X-Auto-Response-Suppress": "All",
+                    "Precedence": "bulk",
+                },
             )
         except Exception:
             # Never let a failed acknowledgement email break ticket creation —
@@ -1588,7 +1737,11 @@ class HDTicket(Document):
             # would undo the automated-ticket auto-close, and again for
             # every follow-up robot mail on the same thread. A human
             # replying from a real address still reopens as usual.
-            if self._sender_matches_automated_patterns(c.sender):
+            # A delivery-failure report threading onto a ticket isn't the
+            # customer writing back either, whatever address it comes from.
+            if self._sender_matches_automated_patterns(c.sender) or frappe.flags.get(
+                "hd_inbound_delivery_report"
+            ):
                 self.last_customer_response = frappe.utils.now_datetime()
             else:
                 # check if agent has replied

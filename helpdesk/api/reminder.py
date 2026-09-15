@@ -320,6 +320,18 @@ def send_due_reminders() -> None:
 		ignore_permissions=True,
 	)
 	for r in overdue:
+		# An SLA reminder for a ticket that has since been resolved or closed
+		# has nothing left to warn about — retire it without popup or email.
+		if (
+			r.reference_doctype == "HD Ticket"
+			and (r.message or "").startswith((SLA_RESPONSE_TAG, SLA_RESOLUTION_TAG))
+			and frappe.db.get_value("HD Ticket", r.reference_name, "status_category")
+			== "Resolved"
+		):
+			frappe.db.set_value(
+				"HD Reminder", r.name, "status", "Notified", update_modified=False
+			)
+			continue
 		# Realtime popup in the browser (owner only)
 		frappe.publish_realtime(
 			"helpdesk:reminder_due",
@@ -481,6 +493,8 @@ def create_sla_reminders() -> None:
 				],
 				"first_responded_on": ["is", "not set"],
 				"agreement_status": "First Response Due",
+				# A resolved/closed ticket has no deadline left to warn about.
+				"status_category": ["!=", "Resolved"],
 			},
 			fields=["name", "subject", "response_by", "_assign"],
 			ignore_permissions=True,
@@ -500,6 +514,7 @@ def create_sla_reminders() -> None:
 					"between", [now_dt, add_to_date(now_dt, minutes=reso_lead)],
 				],
 				"resolution_date": ["is", "not set"],
+				"status_category": ["!=", "Resolved"],
 			},
 			fields=["name", "subject", "resolution_by", "_assign"],
 			ignore_permissions=True,

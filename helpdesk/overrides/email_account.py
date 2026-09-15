@@ -55,8 +55,35 @@ class CustomInboundMail(InboundMail):
         self._parent_communication = ""
         return self._parent_communication
 
+    def process(self):
+        # While this message becomes a Communication (and possibly a new
+        # ticket), tell HD Ticket whether it is a delivery-failure report.
+        # A bounce wraps our original message inside its body, so our own
+        # X-Auto-Generated header is invisible at this level.
+        from helpdesk.helpdesk.utils.email import is_delivery_failure_report
+
+        frappe.flags.hd_inbound_delivery_report = is_delivery_failure_report(
+            getattr(self, "mail", None)
+        )
+        try:
+            return super().process()
+        finally:
+            frappe.flags.hd_inbound_delivery_report = False
+
 
 class CustomEmailAccount(EmailAccount):
+    def send_auto_reply(self, communication, email):
+        """Frappe's "Enable Auto Reply", without the mail-loop trap: per
+        RFC 3834 §2, never auto-respond to bounces, Auto-Submitted or our
+        own auto-generated mail, or bulk/list/junk precedence."""
+        from helpdesk.helpdesk.utils.email import is_automated_inbound_mail
+
+        if is_automated_inbound_mail(
+            getattr(email, "mail", None), getattr(email, "from_email", None)
+        ):
+            return
+        return super().send_auto_reply(communication, email)
+
     def get_inbound_mails(self) -> list[InboundMail]:
         """retrive and return inbound mails."""
         mails = []
