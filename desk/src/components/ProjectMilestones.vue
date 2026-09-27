@@ -112,23 +112,13 @@
             class="mt-2 flex flex-col gap-0.5"
           >
             <div
-              v-for="t in m.tasks"
-              :key="t.subject"
+              v-for="(t, ti) in m.tasks"
+              :key="t.name || `${ti}-${t.subject}`"
               class="flex items-center gap-2 text-xs py-0.5"
             >
               <span
                 class="size-3.5 rounded-full border-2 flex items-center justify-center shrink-0"
-                :class="
-                  t.status === 'Done'
-                    ? 'border-green-500 bg-green-500'
-                    : t.status === 'In Progress'
-                    ? 'border-blue-400 bg-blue-50'
-                    : t.status === 'Pending'
-                    ? 'border-amber-400 bg-amber-50'
-                    : t.status === 'Postponed'
-                    ? 'border-violet-400 bg-violet-50'
-                    : 'border-outline-gray-3 bg-surface-white'
-                "
+                :class="taskDotClass(t.status)"
               >
                 <LucideCheck
                   v-if="t.status === 'Done'"
@@ -286,47 +276,142 @@
                 @click="viewOnBoard"
               />
             </div>
+            <!-- Local rollup: moves the moment a row is edited. -->
+            <div v-if="editingTasks.length" class="flex items-center gap-2">
+              <div class="h-1 flex-1 rounded-full bg-surface-gray-3 overflow-hidden">
+                <div
+                  class="h-full rounded-full transition-all duration-500"
+                  :style="{
+                    width: (editingDone / editingTasks.length) * 100 + '%',
+                    backgroundColor: mColor(editing).dot,
+                  }"
+                />
+              </div>
+              <span class="text-[11px] text-ink-gray-5 shrink-0">
+                {{ __("{0} of {1} tasks done", [editingDone, editingTasks.length]) }}
+              </span>
+            </div>
+            <p v-if="editingTasks.length" class="text-[11px] text-ink-gray-4">
+              {{ __("Task changes save as you make them.") }}
+            </p>
             <div
               v-if="editingTasks.length"
-              class="flex flex-col gap-0.5 max-h-48 overflow-y-auto pr-1"
+              class="flex flex-col gap-1.5 max-h-72 overflow-y-auto pr-1"
             >
               <div
-                v-for="t in editingTasks"
-                :key="t.subject"
-                class="flex items-center gap-2 text-sm py-1"
+                v-for="(t, ti) in editingTasks"
+                :key="t.name || `${ti}-${t.subject}`"
+                class="rounded-lg border border-outline-gray-1 bg-surface-gray-1 px-2.5 py-2 flex flex-col gap-1.5 transition-opacity"
+                :class="t.name && savingTasks[t.name] ? 'opacity-60' : ''"
               >
-                <span
-                  class="size-3.5 rounded-full border-2 flex items-center justify-center shrink-0"
-                  :class="
-                    t.status === 'Done'
-                      ? 'border-green-500 bg-green-500'
-                      : t.status === 'In Progress'
-                      ? 'border-blue-400 bg-blue-50'
-                      : t.status === 'Pending'
-                      ? 'border-amber-400 bg-amber-50'
-                      : t.status === 'Postponed'
-                      ? 'border-violet-400 bg-violet-50'
-                      : 'border-outline-gray-3 bg-surface-white'
-                  "
+                <div class="flex items-center gap-2">
+                  <span
+                    class="size-3.5 rounded-full border-2 flex items-center justify-center shrink-0"
+                    :class="taskDotClass(t.status)"
+                  >
+                    <LucideCheck v-if="t.status === 'Done'" class="size-2 text-white" />
+                  </span>
+                  <input
+                    v-if="canEditTask(t)"
+                    type="text"
+                    :value="t.subject"
+                    maxlength="200"
+                    :aria-label="__('Task subject')"
+                    class="flex-1 min-w-0 text-sm bg-transparent rounded-md border border-transparent px-1.5 py-0.5 hover:border-outline-gray-2 focus:border-blue-400 focus:bg-surface-white focus:outline-none"
+                    :class="
+                      t.status === 'Done'
+                        ? 'line-through text-ink-gray-5'
+                        : 'text-ink-gray-8'
+                    "
+                    @change="(e) => renameTask(t, e.target)"
+                    @keyup.enter="(e) => e.target.blur()"
+                  />
+                  <span
+                    v-else
+                    class="flex-1 min-w-0 truncate text-sm"
+                    :class="
+                      t.status === 'Done'
+                        ? 'line-through text-ink-gray-4'
+                        : 'text-ink-gray-8'
+                    "
+                  >
+                    {{ t.subject }}
+                  </span>
+                  <span
+                    v-if="t.is_internal"
+                    class="shrink-0 text-[10px] rounded-full px-1.5 py-0.5 bg-surface-gray-2 text-ink-gray-6 inline-flex items-center gap-0.5"
+                    :title="__('Hidden from the customer portal')"
+                  >
+                    <LucideEyeOff class="size-3" /> {{ __("Internal") }}
+                  </span>
+                  <!-- Rows without an id (customer payload) stay read-only. -->
+                  <span
+                    v-if="!canEditTask(t)"
+                    class="shrink-0 text-[10px] rounded px-1.5 py-0.5"
+                    :class="taskStatusClass(t.status)"
+                  >
+                    {{ t.status }}
+                  </span>
+                </div>
+
+                <div
+                  v-if="canEditTask(t)"
+                  class="flex flex-wrap items-center gap-1.5 ps-[22px]"
                 >
-                  <LucideCheck v-if="t.status === 'Done'" class="size-2 text-white" />
-                </span>
-                <span
-                  class="flex-1 min-w-0 truncate"
-                  :class="
-                    t.status === 'Done'
-                      ? 'line-through text-ink-gray-4'
-                      : 'text-ink-gray-8'
-                  "
-                >
-                  {{ t.subject }}
-                </span>
-                <span
-                  class="shrink-0 text-[10px] rounded px-1.5 py-0.5"
-                  :class="taskStatusClass(t.status)"
-                >
-                  {{ t.status }}
-                </span>
+                  <select
+                    :value="t.status"
+                    class="text-xs rounded-md border border-outline-gray-2 bg-surface-white px-2 py-1 text-ink-gray-7 focus:outline-none focus:border-blue-400"
+                    :aria-label="__('Status')"
+                    @change="(e) => patchTask(t, { status: e.target.value })"
+                  >
+                    <option v-for="s in TASK_STATUSES" :key="s" :value="s">
+                      {{ __(s) }}
+                    </option>
+                  </select>
+                  <select
+                    :value="t.assigned_to || ''"
+                    class="text-xs rounded-md border border-outline-gray-2 bg-surface-white px-2 py-1 text-ink-gray-7 focus:outline-none focus:border-blue-400 max-w-[140px]"
+                    :aria-label="__('Assignee')"
+                    @change="(e) => patchTask(t, { assigned_to: e.target.value })"
+                  >
+                    <option value="">{{ __("Unassigned") }}</option>
+                    <option v-for="a in agentChoices(t)" :key="a.value" :value="a.value">
+                      {{ a.label }}
+                    </option>
+                  </select>
+                  <select
+                    :value="t.priority || ''"
+                    class="text-xs rounded-md border bg-surface-white px-2 py-1 focus:outline-none focus:border-blue-400"
+                    :class="priorityClass(t.priority)"
+                    :aria-label="__('Priority')"
+                    @change="(e) => patchTask(t, { priority: e.target.value })"
+                  >
+                    <option v-if="!t.priority" value="" disabled>
+                      {{ __("Priority") }}
+                    </option>
+                    <option v-for="p in TASK_PRIORITIES" :key="p" :value="p">
+                      {{ __(p) }}
+                    </option>
+                  </select>
+                  <div class="flex items-center gap-1">
+                    <LucideCalendar
+                      class="size-3.5"
+                      :class="taskOverdue(t) ? 'text-red-600' : 'text-ink-gray-5'"
+                    />
+                    <input
+                      type="date"
+                      :value="t.end_date || ''"
+                      class="text-xs rounded-md border bg-surface-white px-2 py-1 focus:outline-none focus:border-blue-400"
+                      :class="
+                        taskOverdue(t)
+                          ? 'border-red-300 text-red-600'
+                          : 'border-outline-gray-2 text-ink-gray-7'
+                      "
+                      :aria-label="__('Due date')"
+                      @change="(e) => patchTask(t, { end_date: e.target.value })"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
             <p v-else class="text-xs text-ink-gray-4">
@@ -365,6 +450,7 @@ import {
   Button,
   Dialog,
   FormControl,
+  createListResource,
   createResource,
   dayjs,
   toast,
@@ -403,7 +489,7 @@ defineExpose({ reload: () => milestones.reload(), data: milestones });
 const milestoneColors = computed(() =>
   buildMilestoneColors((milestones.data || []).map((m: any) => m.name))
 );
-function mColor(name: string) {
+function mColor(name: string | null | undefined) {
   return milestoneColorOf(name, milestoneColors.value);
 }
 
@@ -442,6 +528,28 @@ function taskStatusClass(status: string) {
     }[status] || "bg-surface-gray-2 text-ink-gray-6"
   );
 }
+function taskDotClass(status: string) {
+  return (
+    {
+      "In Progress": "border-blue-400 bg-blue-50",
+      Done: "border-green-500 bg-green-500",
+      Pending: "border-amber-400 bg-amber-50",
+      Postponed: "border-violet-400 bg-violet-50",
+    }[status] || "border-outline-gray-3 bg-surface-white"
+  );
+}
+function priorityClass(priority: string) {
+  return (
+    {
+      Urgent: "border-red-300 text-red-700",
+      High: "border-orange-300 text-orange-700",
+    }[priority] || "border-outline-gray-2 text-ink-gray-7"
+  );
+}
+function taskOverdue(t: any) {
+  if (!t?.end_date || t.status === "Done") return false;
+  return dayjs(t.end_date).isBefore(dayjs().startOf("day"));
+}
 
 // --- create / edit ---
 const showDialog = ref(false);
@@ -472,7 +580,9 @@ function openCreate() {
 }
 function openEdit(m: any) {
   editing.value = m.name;
-  editingTasks.value = m.tasks || [];
+  // Detached copies: inline edits below are saved straight away, so the rows
+  // must not be clobbered when the milestones resource reloads underneath us.
+  editingTasks.value = (m.tasks || []).map((t: any) => ({ ...t }));
   Object.assign(form, {
     title: m.title || "",
     status: m.status || "Upcoming",
@@ -487,6 +597,108 @@ function openEdit(m: any) {
 function reload() {
   milestones.reload();
   emit("changed");
+}
+
+// --- inline task editing inside the edit dialog (agents only) ---
+const TASK_STATUSES = ["To Do", "In Progress", "Pending", "Postponed", "Done"];
+const TASK_PRIORITIES = ["Low", "Medium", "High", "Urgent"];
+
+const agents = createListResource({
+  doctype: "HD Agent",
+  fields: ["name", "agent_name"],
+  filters: { is_active: 1 },
+  pageLength: 500,
+  auto: props.editable,
+});
+const agentOptions = computed(() =>
+  (agents.data || []).map((a: any) => ({
+    value: a.name,
+    label: a.agent_name || a.name,
+  }))
+);
+// Keep a task's current assignee selectable even if that agent is inactive.
+function agentChoices(t: any) {
+  const options = agentOptions.value;
+  if (t?.assigned_to && !options.some((a: any) => a.value === t.assigned_to)) {
+    return [
+      { value: t.assigned_to, label: t.assigned_to_name || t.assigned_to },
+      ...options,
+    ];
+  }
+  return options;
+}
+function agentLabel(id: string) {
+  return agentOptions.value.find((a: any) => a.value === id)?.label || "";
+}
+
+// Customers get { subject, status } only — no id, so those rows are read-only.
+function canEditTask(t: any) {
+  return !!(props.editable && t && t.name);
+}
+
+const editingDone = computed(
+  () => editingTasks.value.filter((t: any) => t.status === "Done").length
+);
+
+const savingTasks = reactive<Record<string, boolean>>({});
+// One save at a time per task, so two quick edits to the same row can't race
+// each other into a "document has been modified" error.
+const taskSaveChain: Record<string, Promise<any>> = {};
+const taskUpdateRes = createResource({
+  url: "helpdesk.api.addon.update_task",
+  // Failures are handled per row in patchTask() — it reverts the row and
+  // toasts. Without an onError here frappe-ui treats the error as unhandled
+  // and runs the app-wide fallback handler too, so the user gets two toasts.
+  onError: () => {},
+});
+
+/** Save one task field straight away; revert the row if the server says no. */
+function patchTask(t: any, fields: Record<string, any>) {
+  if (!canEditTask(t)) return;
+  const previous: Record<string, any> = {};
+  const changed: Record<string, any> = {};
+  for (const [key, value] of Object.entries(fields)) {
+    if ((t[key] ?? "") === (value ?? "")) continue;
+    previous[key] = t[key];
+    changed[key] = value;
+  }
+  if (!Object.keys(changed).length) return;
+  const name = t.name;
+  const prevAssigneeName = t.assigned_to_name;
+  // Optimistic: the row shows the edit while the save is in flight.
+  Object.assign(t, changed);
+  if ("assigned_to" in changed) {
+    t.assigned_to_name = agentLabel(changed.assigned_to);
+  }
+  savingTasks[name] = true;
+  const run: Promise<any> = (taskSaveChain[name] || Promise.resolve())
+    .catch(() => {})
+    .then(() => taskUpdateRes.submit({ name, ...changed }))
+    .then(() => {
+      // Roll the milestone's "X of Y tasks done" bar forward.
+      reload();
+    })
+    .catch((e: any) => {
+      Object.assign(t, previous);
+      if ("assigned_to" in changed) t.assigned_to_name = prevAssigneeName;
+      toast.error(e?.messages?.[0] || __("Could not update task"));
+    })
+    .finally(() => {
+      if (taskSaveChain[name] === run) {
+        delete taskSaveChain[name];
+        delete savingTasks[name];
+      }
+    });
+  taskSaveChain[name] = run;
+}
+function renameTask(t: any, el: HTMLInputElement) {
+  const subject = (el.value || "").trim();
+  if (!subject || subject === t.subject) {
+    // Blank or unchanged: put the stored subject back in the box.
+    el.value = t.subject || "";
+    return;
+  }
+  patchTask(t, { subject });
 }
 
 const createRes = createResource({
@@ -574,6 +786,8 @@ function fmtDate(d: string) {
   return dayjs(d).format("MMM D, YYYY");
 }
 
+// Saves the milestone only. Task rows save themselves as they are edited, so
+// nothing here re-sends (or overwrites) them.
 function submit() {
   if (!form.title.trim()) {
     toast.error(__("Milestone title is required"));

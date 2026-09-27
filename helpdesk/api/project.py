@@ -166,6 +166,122 @@ def _project_budget(project: str, budget_hours, budget_amount) -> dict:
 	}
 
 
+# ---------------------------------------------------------------------------
+# Progress rollup
+# ---------------------------------------------------------------------------
+
+# What a started-but-unfinished task is worth when it has no subtasks to
+# measure. Half credit for "In Progress" follows ERPNext's own task-progress
+# convention and keeps a project that is visibly underway off a flat 0%.
+# "Pending" and "Postponed" mean nothing is moving, so they earn nothing.
+IN_PROGRESS_CREDIT = 0.5
+
+
+def _task_completion(status: str, done_subtasks: int, total_subtasks: int) -> float:
+	"""How far along one task is, as a fraction of 1."""
+	if status == "Done":
+		# Done is done, even if somebody left a subtask open behind them.
+		return 1.0
+	if total_subtasks:
+		# Subtasks are the finer signal, so they decide — no status bonus on
+		# top, or a task could report progress its subtasks don't show.
+		return done_subtasks / total_subtasks
+	return IN_PROGRESS_CREDIT if status == "In Progress" else 0.0
+
+
+def _progress_map(project_names: list) -> dict:
+	"""Computed progress (0-100) per project, rolled up from its tasks and
+	their subtasks. Bulk only — three queries no matter how many projects come
+	in, so the list endpoints stay flat. Projects with no tasks are left out:
+	callers keep the stored `progress` for those, so the manual field still
+	works for anything that isn't task-tracked. Customers never roll up
+	internal tasks."""
+	if not project_names:
+		return {}
+	agent = is_agent()
+	try:
+		milestones = frappe.get_all(
+			"HD Milestone",
+			filters={"project": ["in", project_names]},
+			fields=["name", "project"],
+			ignore_permissions=True,
+		)
+	except Exception:
+		# Table may not exist yet (pre-migrate); fail soft.
+		milestones = []
+	milestone_project = {m.name: m.project for m in milestones}
+	# A task may name only `project`, only `milestone`, or both, so match on
+	# either. An add-on task counts exactly when it does that too: HD Addon has
+	# no link to HD Project, so a task's add-on says nothing about which
+	# project it belongs to and can't be rolled up on its own.
+	or_filters = [["project", "in", project_names]]
+	if milestone_project:
+		or_filters.append(["milestone", "in", list(milestone_project)])
+	filters: dict = {}
+	if not agent:
+		filters["is_internal"] = 0
+	try:
+		tasks = frappe.get_all(
+			"HD Addon Task",
+			filters=filters,
+			or_filters=or_filters,
+			fields=["name", "project", "milestone", "status"],
+			ignore_permissions=True,
+		)
+	except Exception:
+		return {}
+	if not tasks:
+		return {}
+	subtotals: dict = {}
+	subtask_filters: dict = {"task": ["in", [t.name for t in tasks]]}
+	if not agent:
+		# Same scoping as task_subtask.get_summary: the portal only ever counts
+		# the subtasks it is allowed to show.
+		subtask_filters["customer_visible"] = 1
+	try:
+		for s in frappe.get_all(
+			"HD Task Subtask",
+			filters=subtask_filters,
+			fields=["task", "status"],
+			ignore_permissions=True,
+		):
+			bucket = subtotals.setdefault(s.task, {"total": 0, "done": 0})
+			bucket["total"] += 1
+			if s.status == "Done":
+				bucket["done"] += 1
+	except Exception:
+		subtotals = {}
+	wanted = set(project_names)
+	rollup: dict = {}
+	for t in tasks:
+		# One row, one project — its own if we asked for that one, otherwise
+		# the project its milestone belongs to. Nothing is counted twice.
+		project = (
+			t.project if t.project in wanted else milestone_project.get(t.milestone)
+		)
+		if project not in wanted:
+			continue
+		subs = subtotals.get(t.name, {"total": 0, "done": 0})
+		bucket = rollup.setdefault(project, {"tasks": 0, "done": 0.0})
+		bucket["tasks"] += 1
+		bucket["done"] += _task_completion(t.status, subs["done"], subs["total"])
+	return {
+		p: round(v["done"] / v["tasks"] * 100)
+		for p, v in rollup.items()
+		if v["tasks"]
+	}
+
+
+def _apply_progress(rows: list) -> list:
+	"""Replace the stored `progress` on each project row with the rollup over
+	its tasks. Rows whose project has no tasks keep the stored value."""
+	computed = _progress_map([r.get("name") for r in rows if r.get("name")])
+	for r in rows:
+		if r.get("name") in computed:
+			r["progress"] = computed[r["name"]]
+	return rows
+
+
 def _project_features(project: str) -> list:
 	"""Add-on features tagged to this project (its upcoming features)."""
 	return frappe.get_all(
@@ -251,7 +367,7 @@ def get_projects(
 		rows = [r for r in rows if not _is_internal(r)]
 		for r in rows:
 			r["lead"] = None
-	return rows
+	return _apply_progress(rows)
 
 
 @frappe.whitelist()
@@ -273,6 +389,7 @@ def get_portfolio() -> dict:
 		order_by="modified desc",
 		ignore_permissions=True,
 	)
+	_apply_progress(projects)
 	today = frappe.utils.getdate()
 	out = []
 	for p in projects:
@@ -335,6 +452,7 @@ def get_project(name: str) -> dict:
 	from helpdesk.api.addon import _get_tasks
 
 	data = doc.as_dict()
+	_apply_progress([data])
 	data["tickets"] = _linked_tickets(name)
 	data["comments"] = _get_comments(name)
 	data["features"] = _project_features(name)
@@ -407,6 +525,13 @@ def update_project(name: str, **fields) -> bool:
 	"""Update writable project fields. Assigned agents and managers only."""
 	_assert_agent_project(name)
 	doc = frappe.get_doc("HD Project", name)
+	if "progress" in fields and name in _progress_map([name]):
+		# Reads hand back the computed rollup in `progress`, so a client that
+		# round-trips the whole project form would write that derived number
+		# back over the stored one. While a project is task-tracked its
+		# progress is derived, not stored; the manual field still applies to
+		# projects with no tasks, which _progress_map leaves out.
+		fields.pop("progress")
 	for key, value in fields.items():
 		if key in WRITABLE:
 			doc.set(key, value)
@@ -562,10 +687,15 @@ def add_project_comment(project: str, content: str) -> str:
 
 def _get_milestones(project: str) -> list:
 	"""Milestones for a project, with task rollups. Customers only see
-	customer-visible ones; their rollups also exclude internal tasks."""
+	customer-visible ones; their rollups also exclude internal tasks.
+	Agents get each task's id and editable fields so the milestone dialog can
+	edit them in place (through helpdesk.api.addon.update_task); the portal
+	keeps the scrubbed subject/status shape — no ids, no assignee, no internal
+	fields."""
+	agent = is_agent()
 	try:
 		filters: dict = {"project": project}
-		if not is_agent():
+		if not agent:
 			filters["customer_visible"] = 1
 		rows = frappe.get_all(
 			"HD Milestone",
@@ -580,15 +710,38 @@ def _get_milestones(project: str) -> list:
 	if not rows:
 		return []
 	task_filters: dict = {"milestone": ["in", [r.name for r in rows]]}
-	if not is_agent():
+	task_fields = ["milestone", "subject", "status"]
+	if agent:
+		task_fields += [
+			"name",
+			"priority",
+			"assigned_to",
+			"end_date",
+			"is_internal",
+		]
+	else:
 		task_filters["is_internal"] = 0
 	tasks = frappe.get_all(
 		"HD Addon Task",
 		filters=task_filters,
-		fields=["milestone", "subject", "status"],
+		fields=task_fields,
 		order_by="creation asc",
 		ignore_permissions=True,
 	)
+	agent_names: dict = {}
+	if agent:
+		# Resolve assignee display names in one go, not once per task.
+		people = list({t.assigned_to for t in tasks if t.assigned_to})
+		if people:
+			agent_names = {
+				a.name: a.agent_name
+				for a in frappe.get_all(
+					"HD Agent",
+					filters={"name": ["in", people]},
+					fields=["name", "agent_name"],
+					ignore_permissions=True,
+				)
+			}
 	totals: dict = {}
 	task_lists: dict = {}
 	for t in tasks:
@@ -596,9 +749,20 @@ def _get_milestones(project: str) -> list:
 		bucket["total"] += 1
 		if t.status == "Done":
 			bucket["done"] += 1
-		task_lists.setdefault(t.milestone, []).append(
-			{"subject": t.subject, "status": t.status}
-		)
+		if agent:
+			entry = {
+				"name": t.name,
+				"subject": t.subject,
+				"status": t.status,
+				"priority": t.priority,
+				"assigned_to": t.assigned_to,
+				"assigned_to_name": agent_names.get(t.assigned_to) or t.assigned_to,
+				"end_date": t.end_date,
+				"is_internal": t.is_internal,
+			}
+		else:
+			entry = {"subject": t.subject, "status": t.status}
+		task_lists.setdefault(t.milestone, []).append(entry)
 	for r in rows:
 		bucket = totals.get(r.name, {"total": 0, "done": 0})
 		r["tasks_total"] = bucket["total"]
