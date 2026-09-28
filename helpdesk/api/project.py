@@ -189,6 +189,26 @@ def _task_completion(status: str, done_subtasks: int, total_subtasks: int) -> fl
 	return IN_PROGRESS_CREDIT if status == "In Progress" else 0.0
 
 
+# Bumped whenever the rollup changes. diagnose_project_progress reports it, so
+# "is the new code even live on this server?" is one call, not a guess: an old
+# deploy has no such endpoint at all.
+ROLLUP_VERSION = "progress-rollup/2026-09-28"
+
+
+def _log_rollup_error(step: str) -> None:
+	"""Record a rollup failure. The queries below fail soft so a half-migrated
+	site still renders, but "the query blew up" and "this project has no tasks"
+	both end as 0% on the card — identical in the UI. Logging is what tells
+	them apart afterwards. It must never break the fail-soft path itself."""
+	try:
+		frappe.log_error(
+			title=f"Project progress rollup failed: {step}",
+			message=frappe.get_traceback(),
+		)
+	except Exception:
+		pass
+
+
 def _progress_map(project_names: list) -> dict:
 	"""Computed progress (0-100) per project, rolled up from its tasks and
 	their subtasks. Bulk only — three queries no matter how many projects come
@@ -208,6 +228,7 @@ def _progress_map(project_names: list) -> dict:
 		)
 	except Exception:
 		# Table may not exist yet (pre-migrate); fail soft.
+		_log_rollup_error("HD Milestone query")
 		milestones = []
 	milestone_project = {m.name: m.project for m in milestones}
 	# A task may name only `project`, only `milestone`, or both, so match on
@@ -229,6 +250,7 @@ def _progress_map(project_names: list) -> dict:
 			ignore_permissions=True,
 		)
 	except Exception:
+		_log_rollup_error("HD Addon Task query")
 		return {}
 	if not tasks:
 		return {}
@@ -250,6 +272,7 @@ def _progress_map(project_names: list) -> dict:
 			if s.status == "Done":
 				bucket["done"] += 1
 	except Exception:
+		_log_rollup_error("HD Task Subtask query")
 		subtotals = {}
 	wanted = set(project_names)
 	rollup: dict = {}
@@ -280,6 +303,174 @@ def _apply_progress(rows: list) -> list:
 		if r.get("name") in computed:
 			r["progress"] = computed[r["name"]]
 	return rows
+
+
+@frappe.whitelist()
+def diagnose_project_progress(project: str) -> dict:
+	"""Why is this project's progress bar showing what it shows? Managers only.
+
+	Answers in one call what the cards can't: whether this server runs the
+	rollup at all — an old deploy has no such method, so the call 404s, and
+	`rollup_version` says which one is live — and, if it does, exactly what the
+	rollup saw. Never raises: explaining a failure is the whole job, so each
+	step reports its own error as a string instead of aborting the payload."""
+	out: dict = {
+		"rollup_version": ROLLUP_VERSION,
+		"project": project,
+		"user": frappe.session.user,
+		"errors": [],
+	}
+
+	def failed(step: str, exc: Exception) -> None:
+		out["errors"].append(f"{step}: {type(exc).__name__}: {exc}")
+
+	try:
+		out["is_agent"] = is_agent()
+		out["is_agent_manager"] = is_agent_manager()
+		out["has_hd_agent_record"] = bool(
+			frappe.db.exists("HD Agent", {"name": frappe.session.user})
+		)
+	except Exception as e:
+		failed("caller", e)
+	if not out.get("is_agent_manager"):
+		# Report, don't throw: a thrown PermissionError is indistinguishable
+		# from the method not existing, which is the thing being diagnosed.
+		out["error"] = "Only Agent Managers can run this diagnostic"
+		return out
+
+	# What the project stores, against what the rollup computes right now. The
+	# card shows the stored value whenever the rollup returns nothing for it.
+	try:
+		out["project_exists"] = bool(frappe.db.exists("HD Project", project))
+		out["stored_progress"] = (
+			frappe.db.get_value("HD Project", project, "progress")
+			if out["project_exists"]
+			else None
+		)
+	except Exception as e:
+		failed("stored progress", e)
+	try:
+		computed = _progress_map([project])
+		out["computed_progress"] = computed.get(project)
+		out["rolled_up"] = project in computed
+	except Exception as e:
+		failed("_progress_map", e)
+		out["computed_progress"] = None
+		out["rolled_up"] = False
+
+	# The rollup's own queries, one at a time, so a zero points at the step
+	# that lost the tasks rather than at the rollup as a whole.
+	milestones = []
+	try:
+		milestones = frappe.get_all(
+			"HD Milestone",
+			filters={"project": project},
+			fields=["name"],
+			ignore_permissions=True,
+		)
+	except Exception as e:
+		failed("HD Milestone query", e)
+	out["milestones_found"] = len(milestones)
+
+	by_project = []
+	try:
+		by_project = frappe.get_all(
+			"HD Addon Task",
+			filters={"project": project},
+			fields=["name", "project", "milestone", "status"],
+			ignore_permissions=True,
+		)
+	except Exception as e:
+		failed("tasks by project link", e)
+	out["tasks_by_project_link"] = len(by_project)
+
+	by_milestone = []
+	if milestones:
+		try:
+			by_milestone = frappe.get_all(
+				"HD Addon Task",
+				filters={"milestone": ["in", [m.name for m in milestones]]},
+				fields=["name", "project", "milestone", "status"],
+				ignore_permissions=True,
+			)
+		except Exception as e:
+			failed("tasks by milestone link", e)
+	out["tasks_by_milestone_link"] = len(by_milestone)
+
+	# _progress_map matches on either link in ONE query, through or_filters. If
+	# this count disagrees with the two plain queries above, the OR is the
+	# culprit and not the data.
+	try:
+		or_filters = [["project", "in", [project]]]
+		if milestones:
+			or_filters.append(["milestone", "in", [m.name for m in milestones]])
+		out["tasks_by_or_filters"] = len(
+			frappe.get_all(
+				"HD Addon Task",
+				filters={},
+				or_filters=or_filters,
+				fields=["name"],
+				ignore_permissions=True,
+			)
+		)
+	except Exception as e:
+		failed("or_filters query", e)
+		out["tasks_by_or_filters"] = None
+
+	matched: dict = {t.name: t for t in by_project}
+	for t in by_milestone:
+		matched.setdefault(t.name, t)
+	out["tasks_matched"] = len(matched)
+	out["tasks_done"] = len([t for t in matched.values() if t.status == "Done"])
+	by_status: dict = {}
+	for t in matched.values():
+		key = t.status or "(empty)"
+		by_status[key] = by_status.get(key, 0) + 1
+	out["tasks_by_status"] = by_status
+
+	out["tasks_with_subtasks"] = 0
+	if matched:
+		try:
+			out["tasks_with_subtasks"] = len(
+				{
+					s.task
+					for s in frappe.get_all(
+						"HD Task Subtask",
+						filters={"task": ["in", list(matched)]},
+						fields=["task"],
+						ignore_permissions=True,
+					)
+				}
+			)
+		except Exception as e:
+			failed("HD Task Subtask query", e)
+	else:
+		# Nothing matched: hand back the rows themselves. A blank `project`, a
+		# milestone pointing at another project and an empty table all render
+		# as the same 0% card.
+		try:
+			sample = frappe.get_all(
+				"HD Addon Task",
+				filters={"project": project},
+				fields=["name", "project", "milestone", "status"],
+				order_by="modified desc",
+				limit=5,
+				ignore_permissions=True,
+			)
+			out["sample_tasks"] = sample
+			if not sample:
+				# Not one row even names the project — widen to the newest
+				# rows in the table to see what its links hold at all.
+				out["sample_any_tasks"] = frappe.get_all(
+					"HD Addon Task",
+					fields=["name", "project", "milestone", "status"],
+					order_by="modified desc",
+					limit=5,
+					ignore_permissions=True,
+				)
+		except Exception as e:
+			failed("sample tasks", e)
+	return out
 
 
 def _project_features(project: str) -> list:
