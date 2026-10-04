@@ -8,6 +8,7 @@ on:
 jobs:
   regenerate-pot-file:
     name: Regenerate POT file
+    if: github.repository == 'frappe/helpdesk'  # upstream's release pipeline; needs Frappe's secrets
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false

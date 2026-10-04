@@ -10,6 +10,7 @@ on:
 jobs:
   build:
     name: Build
+    if: github.repository == 'frappe/helpdesk'  # upstream's release pipeline; needs Frappe's secrets
 
     runs-on: ubuntu-latest
 

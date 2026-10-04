@@ -143,6 +143,7 @@
         :label="isExpanded ? __('Collapse') : __('Expand')"
         :on-click="() => (isExpanded = !isExpanded)"
       />
+      <BuildStamp v-if="!isCustomerPortal" :is-expanded="isExpanded" />
     </div>
     <TrialBanner
       v-if="isFCSite && !isCustomerPortal"
@@ -175,6 +176,7 @@
 import HDLogo from "@/assets/logos/HDLogo.vue";
 import { Section, SidebarLink } from "@/components";
 import Apps from "@/components/Apps.vue";
+import BuildStamp from "@/components/BuildStamp.vue";
 import CP from "@/components/command-palette/CP.vue";
 import { useConfigStore } from "@/stores/config";
 

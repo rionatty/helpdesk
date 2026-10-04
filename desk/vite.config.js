@@ -1,12 +1,25 @@
 import vue from "@vitejs/plugin-vue";
 import vueJsx from "@vitejs/plugin-vue-jsx";
 import path from "path";
+import { execSync } from "child_process";
 import { defineConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
 import {
   getLocalFrappeUIDevConfig,
   importFrappeUIPlugin,
 } from "./vite-helpers";
+
+// The commit this bundle is built from, compared at runtime with the commit
+// the server process is running (see helpdesk/api/version.py).
+function buildCommit() {
+  try {
+    return execSync("git rev-parse --short HEAD", { cwd: __dirname })
+      .toString()
+      .trim();
+  } catch {
+    return "unknown";
+  }
+}
 
 export default defineConfig(async ({ mode }) => {
   const { useLocalFrappeUI, localFrappeUIAliases } = getLocalFrappeUIDevConfig({
@@ -16,6 +29,9 @@ export default defineConfig(async ({ mode }) => {
 
   const frappeui = await importFrappeUIPlugin({ useLocalFrappeUI });
   const config = {
+    define: {
+      __BUILD_COMMIT__: JSON.stringify(buildCommit()),
+    },
     plugins: [
       frappeui({
         frappeProxy: true,

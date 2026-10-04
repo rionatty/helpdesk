@@ -1,0 +1,54 @@
+name: CI
+
+# Fast checks on every push: does the desk app still build, does the Python
+# still compile, do the offline tests pass. The point is to fail loudly here,
+# before a deploy, instead of during one on the server.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    name: Build desk app
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: yarn
+          cache-dependency-path: desk/yarn.lock
+
+      # Same steps `bench build --app helpdesk` runs on the server.
+      - name: Install
+        working-directory: desk
+        run: yarn install --frozen-lockfile
+
+      - name: Build
+        working-directory: desk
+        run: yarn build
+
+  python:
+    name: Python checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Every module compiles
+        run: python -m compileall -q helpdesk
+
+      - name: Offline tests (no Frappe needed)
+        run: python -m unittest discover -s tests_offline -v
