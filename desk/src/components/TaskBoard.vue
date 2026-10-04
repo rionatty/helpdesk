@@ -399,7 +399,7 @@
           v-for="t in grouped[col.key]"
           :key="t.name"
           type="button"
-          class="group relative overflow-hidden text-start rounded-xl border bg-surface-white ps-4 pe-3 py-2.5 flex flex-col gap-2 hover:shadow-md hover:-translate-y-0.5 transition-all duration-150"
+          class="group relative shrink-0 overflow-hidden text-start rounded-xl border bg-surface-white ps-4 pe-3 py-2.5 flex flex-col gap-1.5 hover:shadow-md hover:-translate-y-0.5 transition-all duration-150"
           :class="
             selectedTasks.has(t.name)
               ? 'border-blue-400 ring-2 ring-blue-200'
@@ -433,15 +433,18 @@
             {{ t.subject }}
           </div>
           <div class="flex flex-wrap items-center gap-1.5">
+            <!-- Medium is the default; only the exceptions earn a chip. -->
             <span
+              v-if="t.priority && t.priority !== 'Medium'"
               class="text-[10px] font-medium rounded-full px-1.5 py-0.5"
               :class="priorityClass(t.priority)"
             >
               {{ t.priority }}
             </span>
-            <!-- Who does the work — internal, so agents only. -->
+            <!-- Who does the work: internal, so agents only. "Us" is the
+                 default, so only Client / Joint get a chip and stand out. -->
             <span
-              v-if="editable"
+              v-if="editable && respOf(t) !== 'Us'"
               class="text-[10px] font-medium rounded-full px-1.5 py-0.5"
               :class="responsibilityClass(respOf(t))"
               :title="__('Who does the work')"
@@ -486,13 +489,15 @@
             </span>
             <span
               v-if="t.milestone && milestoneTitle(t.milestone)"
-              class="text-[10px] rounded-full px-1.5 py-0.5 inline-flex items-center gap-0.5"
+              class="text-[10px] rounded-full px-1.5 py-0.5 inline-flex items-center gap-0.5 min-w-0 max-w-[11rem]"
               :style="{
                 backgroundColor: mColor(t.milestone).bg,
                 color: mColor(t.milestone).text,
               }"
+              :title="milestoneTitle(t.milestone)"
             >
-              <LucideFlag class="size-3" /> {{ milestoneTitle(t.milestone) }}
+              <LucideFlag class="size-3 shrink-0" />
+              <span class="truncate">{{ milestoneTitle(t.milestone) }}</span>
             </span>
             <!-- Hub: status pill + parent (project / add-on / Personal) -->
             <span
@@ -527,10 +532,11 @@
             <!-- The whole card opens the editor; this makes that visible. -->
             <span
               v-if="editable"
-              class="ms-auto inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-ink-gray-5 group-hover:text-ink-gray-8 group-hover:bg-surface-gray-2"
+              class="ms-auto inline-flex items-center rounded-md p-1 text-ink-gray-4 group-hover:text-ink-gray-8 group-hover:bg-surface-gray-2"
+              :title="__('Edit task')"
               aria-hidden="true"
             >
-              <LucidePencil class="size-3" /> {{ __("Edit") }}
+              <LucidePencil class="size-3.5" />
             </span>
           </div>
         </button>
