@@ -86,5 +86,12 @@ const notifications: AtLeastOneNotifcation = [
       "Sent to all of the recipients associated with the ticket whenever an agent has replied."
     ),
   },
+  {
+    name: "weekly_client_update",
+    label: __("Weekly client update"),
+    description: __(
+      "Sent to each active project's client every Monday: what's waiting on them, what got done, and what's next."
+    ),
+  },
 ];
 </script>

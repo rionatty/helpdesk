@@ -20,7 +20,11 @@
   "budget_hours",
   "budget_amount",
   "section_break_desc",
-  "description"
+  "description",
+  "section_break_weekly_update",
+  "weekly_update",
+  "weekly_update_recipients",
+  "last_weekly_update_on"
  ],
  "fields": [
   {
@@ -127,6 +131,32 @@
    "fieldname": "description",
    "fieldtype": "Small Text",
    "label": "Description"
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "section_break_weekly_update",
+   "fieldtype": "Section Break",
+   "label": "Weekly Client Update"
+  },
+  {
+   "default": "1",
+   "description": "Include this project in the weekly client update.",
+   "fieldname": "weekly_update",
+   "fieldtype": "Check",
+   "label": "Send Weekly Update"
+  },
+  {
+   "description": "Comma-separated emails. Leave empty to use the client's primary contact.",
+   "fieldname": "weekly_update_recipients",
+   "fieldtype": "Small Text",
+   "label": "Weekly Update Recipients"
+  },
+  {
+   "fieldname": "last_weekly_update_on",
+   "fieldtype": "Datetime",
+   "label": "Last Weekly Update",
+   "no_copy": 1,
+   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 0,

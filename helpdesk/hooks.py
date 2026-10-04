@@ -49,6 +49,10 @@ scheduler_events = {
             # Announces missed SLA deadlines in Pumble, once each.
             "helpdesk.integrations.pumble.sla_breach_sweep",
         ],
+        # The weekly client update goes out Monday mornings (site time).
+        "0 7 * * 1": [
+            "helpdesk.api.client_update.send_weekly_updates",
+        ],
     },
     "daily": [
         "helpdesk.helpdesk.doctype.hd_ticket.hd_ticket.close_tickets_after_n_days",

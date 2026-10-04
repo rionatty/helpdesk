@@ -93,6 +93,16 @@ def get_reply_via_agent_data():
     }
 
 
+def get_weekly_client_update_data():
+    return {
+        "enabled": bool(
+            frappe.utils.cint(
+                frappe.db.get_single_value("HD Settings", "send_weekly_client_update")
+            )
+        )
+    }
+
+
 @frappe.whitelist(methods=["GET"])
 def get_data(notification: str):
     only_for_managers()
@@ -108,6 +118,9 @@ def get_data(notification: str):
 
     if notification == "reply_via_agent":
         return get_reply_via_agent_data()
+
+    if notification == "weekly_client_update":
+        return get_weekly_client_update_data()
 
     frappe.throw(_("Invalid notification"))
 
@@ -188,3 +201,12 @@ def update_reply_via_agent(enabled: bool, content: str):
         "reply_via_agent_email_content",
         content,
     )
+
+
+@frappe.whitelist(methods=["PUT"])
+def update_weekly_client_update(enabled: bool):
+    only_for_managers()
+    frappe.db.set_single_value(
+        "HD Settings", "send_weekly_client_update", 1 if frappe.utils.sbool(enabled) else 0
+    )
+    return get_weekly_client_update_data()

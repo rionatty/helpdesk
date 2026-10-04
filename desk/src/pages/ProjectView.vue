@@ -24,6 +24,7 @@
             <template #prefix><LucideTicket class="size-4" /></template>
           </Button>
           <template v-if="editable && resource.data">
+            <ClientUpdateButton v-if="!isInternal" :project-id="projectId" />
             <Dropdown
               :options="[
                 {
@@ -950,6 +951,7 @@ import DocAttachments from "@/components/DocAttachments.vue";
 import ProjectComments from "@/components/ProjectComments.vue";
 import ProjectMilestones from "@/components/ProjectMilestones.vue";
 import ReminderButton from "@/components/ReminderButton.vue";
+import ClientUpdateButton from "@/components/ClientUpdateButton.vue";
 import TaskBoard from "@/components/TaskBoard.vue";
 import LucideTags from "~icons/lucide/tags";
 import LucideEye from "~icons/lucide/eye";
