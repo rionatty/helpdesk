@@ -186,6 +186,14 @@
         :to-date="parsedFilters.to_date"
         :team="filters.team"
       />
+      <ClientHealthTable
+        v-if="isManager && !viewMyStats"
+        class="mt-4"
+        :from-date="parsedFilters.from_date"
+        :to-date="parsedFilters.to_date"
+        :team="filters.team"
+        :agent="filters.agent"
+      />
 
       <!-- Skeleton Loading State -->
       <div class="flex flex-col gap-4 print:hidden">
@@ -248,6 +256,7 @@ import { useStorage } from "@vueuse/core";
 import { downloadCsv } from "@/utils";
 import BacklogReport from "./BacklogReport.vue";
 import AgentPerformanceTable from "./AgentPerformanceTable.vue";
+import ClientHealthTable from "./ClientHealthTable.vue";
 
 interface NumberCardData {
   title: string;

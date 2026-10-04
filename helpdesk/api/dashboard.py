@@ -77,6 +77,13 @@ def get_dashboard_data(
                 frappe.PermissionError,
             )
         return dashboard.get_agent_performance()
+    elif dashboard_type == "client_health":
+        if not is_manager:
+            frappe.throw(
+                _("Only Agent Managers can view client health."),
+                frappe.PermissionError,
+            )
+        return dashboard.get_client_health()
 
 
 class HelpdeskDashboard:
@@ -618,6 +625,78 @@ class HelpdeskDashboard:
             "avg_feedback": round((res.avg_feedback or 0) * 5, 1),
         }
 
+    def get_client_health(self):
+        """Per-client view for the selected period: volume, what's still open,
+        SLA hit rate, response times and rating - which clients are
+        struggling. One grouped query (unlike agents, the client is a plain
+        column), with the same SLA / response / rating definitions as the
+        agent table so the two compare. Caller enforces manager-only access."""
+        t = self.ticket
+        where = (
+            (t.creation >= self.from_date)
+            & (t.creation < self.to_date_next)
+            & t.customer.isnotnull()
+            & (t.customer != "")
+        )
+        if self.team:
+            where = where & (t.agent_group == self.team)
+        if self.agent:
+            where = where & Function("JSON_SEARCH", t._assign, "one", self.agent).isnotnull()
+        resolved_cond = (
+            t.status.isin(self.resolved_statuses)
+            if self.resolved_statuses
+            # No "Resolved" statuses configured: an always-false (valid SQL)
+            # branch, so the resolved aggregates come out 0/NULL.
+            else t.name.isnull()
+        )
+        rows = (
+            frappe.qb.from_(t)
+            .select(
+                t.customer.as_("customer"),
+                Count(t.name).as_("tickets"),
+                Count(Case().when(t.status_category != "Resolved", t.name).else_(None)).as_(
+                    "open"
+                ),
+                Count(Case().when(resolved_cond, t.name).else_(None)).as_("resolved"),
+                Count(
+                    Case().when(t.agreement_status == "Fulfilled", t.name).else_(None)
+                ).as_("sla_fulfilled"),
+                Avg(
+                    Case()
+                    .when(t.first_responded_on.isnotnull(), t.first_response_time / 3600)
+                    .else_(None)
+                ).as_("avg_first_response"),
+                Avg(
+                    Case().when(resolved_cond, t.resolution_time / 86400).else_(None)
+                ).as_("avg_resolution"),
+                Avg(
+                    Case().when(t.feedback_rating > 0, t.feedback_rating).else_(None)
+                ).as_("avg_feedback"),
+            )
+            .where(where)
+            .groupby(t.customer)
+            .run(as_dict=True)
+        )
+        out = []
+        for r in rows:
+            resolved_n = r.resolved or 0
+            out.append(
+                {
+                    "customer": r.customer,
+                    "tickets": r.tickets or 0,
+                    "open": r.open or 0,
+                    "resolved": resolved_n,
+                    "sla_pct": round((r.sla_fulfilled or 0) / resolved_n * 100, 1)
+                    if resolved_n
+                    else 0,
+                    "avg_first_response": round(r.avg_first_response or 0, 1),
+                    "avg_resolution": round(r.avg_resolution or 0, 1),
+                    "avg_feedback": round((r.avg_feedback or 0) * 5, 1),
+                }
+            )
+        out.sort(key=lambda r: r["tickets"], reverse=True)
+        return out[:50]
+
 
 def get_master_dashboard_data(
     from_date: str, to_date: str, team: str = None, agent: str = None
@@ -633,8 +712,49 @@ def get_master_dashboard_data(
     ticket_type_data = get_ticket_type_chart_data(from_date, to_date, filters)
     ticket_priority_data = get_ticket_priority_chart_data(from_date, to_date, filters)
     ticket_channel_data = get_ticket_channel_chart_data(from_date, to_date, filters)
+    client_data = get_client_chart_data(from_date, to_date, filters)
 
-    return [team_data, ticket_type_data, ticket_priority_data, ticket_channel_data]
+    return [
+        team_data,
+        ticket_type_data,
+        ticket_priority_data,
+        ticket_channel_data,
+        client_data,
+    ]
+
+
+def get_client_chart_data(
+    from_date: str, to_date: str, filters: dict[str, any] = None
+) -> dict[str, any]:
+    """The clients raising the most tickets in the period (top 10)."""
+    result = frappe.get_all(
+        HD_TICKET,
+        fields=["customer", COUNT_NAME],
+        filters=filters,
+        group_by="customer",
+        order_by=COUNT_DESC,
+        limit_page_length=10,
+    )
+    for r in result:
+        if not r.customer:
+            r.customer = _("No client")
+
+    if len(result) < 7:
+        return get_pie_chart_config(
+            result,
+            _("Tickets by Client"),
+            _("Share of tickets from the top clients"),
+            "customer",
+            "count",
+        )
+    return get_bar_chart_config(
+        result,
+        _("Tickets by Client"),
+        _("Tickets from the top 10 clients"),
+        {"key": "customer", "type": "category", "title": "Client", "timeGrain": "day"},
+        "Tickets",
+        [{"name": "count", "type": "bar"}],
+    )
 
 
 def get_team_chart_data(
