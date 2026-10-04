@@ -130,7 +130,7 @@ def get_one(name: str, is_customer_portal: bool = False):
     else:
         contact = {
             "email_id": ticket.raised_by,
-            "name": ticket.raised_by.split("@")[0],
+            "name": (ticket.raised_by or "").split("@")[0],
         }
     template = ticket.template or DEFAULT_TICKET_TEMPLATE
 
@@ -285,6 +285,9 @@ def get_communications(ticket: str):
             QBCommunication.delivery_status,
             QBCommunication.sent_or_received,
             QBCommunication.user,
+            QBCommunication.communication_medium,
+            QBCommunication.phone_no,
+            QBCommunication.sender_full_name,
         )
         .where(QBCommunication.reference_doctype == "HD Ticket")
         .where(QBCommunication.reference_name == ticket)
@@ -293,6 +296,18 @@ def get_communications(ticket: str):
     )
     for c in communications:
         c.attachments = get_attachments("Communication", c.name)
+        if (
+            c.sent_or_received == "Received"
+            and c.communication_medium == "Chat"
+            and c.phone_no
+        ):
+            # A WhatsApp customer is a phone number, not a user.
+            c.user = {
+                "email": c.phone_no,
+                "image": "",
+                "name": c.sender_full_name or c.phone_no,
+            }
+            continue
         user_id = c.user if c.sent_or_received == "Sent" and c.user else c.sender
         c.user = get_user_info_for_avatar(user_id)
     return communications
@@ -769,7 +784,7 @@ def get_ticket_contact(ticket: str):
         raised_by = frappe.db.get_value("HD Ticket", ticket, "raised_by")
         return {
             "email_id": raised_by,
-            "name": raised_by.split("@")[0],
+            "name": (raised_by or "").split("@")[0],
             "phone": "",
             "mobile_no": "",
             "image": "",

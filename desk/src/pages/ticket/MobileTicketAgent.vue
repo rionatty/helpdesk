@@ -111,7 +111,8 @@
             ref="communicationAreaRef"
             v-model="ticket.doc"
             :ticketId="ticket.doc?.name"
-            :to-emails="[ticket.doc.raised_by]"
+            :to-emails="ticket.doc.raised_by ? [ticket.doc.raised_by] : []"
+            :whatsapp-number="ticket.doc?.whatsapp_number"
             :cc-emails="[]"
             :bcc-emails="[]"
             :key="ticket.doc?.name"
@@ -492,6 +493,8 @@ const _activities = computed(() => {
         attachments: email.attachments,
         name: email.name,
         deliveryStatus: email.delivery_status,
+        whatsapp: email.communication_medium === "Chat" && !!email.phone_no,
+        received: email.sent_or_received === "Received",
         isFirstEmail: idx === 0,
       };
     }

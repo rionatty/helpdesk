@@ -51,6 +51,7 @@
             :to-emails="toEmails"
             :cc-emails="ccEmails"
             :bcc-emails="bccEmails"
+            :whatsapp-number="whatsappNumber"
             @submit="
               () => {
                 showEmailBox = false;
@@ -186,7 +187,11 @@ function replyToEmail(data: object) {
     ...(splitIfString(data.cc) || []),
   ]
     .map((e: string) => (e || "").trim())
-    .filter((e: string) => e && !primary.includes(e) && !isOwnAddress(e));
+    // A WhatsApp message's sender is a phone number, not an address.
+    .filter(
+      (e: string) =>
+        e && e.includes("@") && !primary.includes(e) && !isOwnAddress(e)
+    );
 
   emailEditorRef.value.addToReply(
     data.content,
@@ -216,6 +221,11 @@ const props = defineProps({
   bccEmails: {
     type: Array,
     default: () => [],
+  },
+  // Set on WhatsApp tickets: the reply goes there.
+  whatsappNumber: {
+    type: String,
+    default: null,
   },
 });
 

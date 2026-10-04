@@ -17,6 +17,24 @@
   >
     <template #top>
       <div
+        v-if="whatsappNumber"
+        class="mx-6 md:mx-5 flex items-center gap-2 border-t py-2 text-p-xs text-ink-gray-6"
+      >
+        <span
+          class="shrink-0 rounded bg-green-100 px-1.5 py-0.5 font-medium text-green-800"
+        >
+          WhatsApp
+        </span>
+        <span>
+          {{
+            __(
+              "This reply goes to +{0} on WhatsApp. Add email addresses only if they should get it by email too.",
+              [whatsappNumber]
+            )
+          }}
+        </span>
+      </div>
+      <div
         v-if="hasMultipleSenders"
         class="mx-6 md:mx-5 flex items-center gap-2 border-t py-2.5 h-12.5"
       >
@@ -279,6 +297,11 @@ const props = defineProps({
     type: Array,
     default: () => [],
   },
+  // Set on WhatsApp tickets: the reply goes there, email is optional.
+  whatsappNumber: {
+    type: String,
+    default: null,
+  },
 });
 
 const emit = defineEmits(["submit", "discard"]);
@@ -494,7 +517,23 @@ function notifyEmailOutcome(outcome: {
   email?: string;
   reason?: string;
   recipients?: string;
+  whatsapp?: string;
+  whatsapp_to?: string;
+  whatsapp_reason?: string;
+  whatsapp_note?: string;
 }) {
+  if (outcome?.whatsapp === "sent") {
+    toast.success(
+      outcome.whatsapp_note
+        ? `Reply sent on WhatsApp to ${outcome.whatsapp_to}. ${outcome.whatsapp_note}`
+        : `Reply sent on WhatsApp to ${outcome.whatsapp_to}`
+    );
+  } else if (outcome?.whatsapp === "failed") {
+    toast.error(
+      `Reply saved, but NOT delivered on WhatsApp to ${outcome.whatsapp_to}: ${outcome.whatsapp_reason}`,
+      { duration: 15000 }
+    );
+  }
   if (!outcome || typeof outcome !== "object" || !outcome.email) return;
   const to = outcome.recipients ? ` to ${outcome.recipients}` : "";
   switch (outcome.email) {
@@ -530,6 +569,7 @@ function submitMail() {
     return false;
   }
   if (
+    !props.whatsappNumber &&
     !toEmailsClone.value.length &&
     !ccEmailsClone.value.length &&
     !bccEmailsClone.value.length

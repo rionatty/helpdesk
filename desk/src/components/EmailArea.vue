@@ -30,6 +30,13 @@
       <!-- email design for desktop -->
       <div v-else class="flex items-center gap-1">
         <span>{{ sender.full_name || "Guest" }}</span>
+        <Badge
+          v-if="activity.whatsapp"
+          label="WhatsApp"
+          theme="green"
+          variant="subtle"
+          class="ms-1"
+        />
         <span
           class="sm:flex hidden text-sm text-ink-gray-5"
           v-if="sender.name"
@@ -50,7 +57,7 @@
             class="me-1.5"
           />
           <Button
-            v-if="status.label === 'Error' && !fromCustomer"
+            v-if="status.label === 'Error' && !fromCustomer && !activity.whatsapp"
             :label="__('Resend')"
             size="sm"
             theme="red"
@@ -178,6 +185,8 @@ const { isMobileView } = useScreenSize();
 
 // Customer emails (sender = ticket's raised_by) render blue; agent emails violet.
 const fromCustomer = computed(() => {
+  // A WhatsApp message has no address to compare: its direction says it.
+  if (props.activity.whatsapp) return !!props.activity.received;
   const raisedBy = ticket?.value?.doc?.raised_by;
   return raisedBy ? sender.name === raisedBy : false;
 });

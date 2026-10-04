@@ -282,7 +282,8 @@ class HDTicket(Document):
         # ticket must not restart the loop this guard exists to break).
         if self.is_automated_requester():
             return
-        if self.raised_by and self.raised_by.lower() in ticket_ingest_addresses():
+        # No address (a WhatsApp customer), or one of our own inboxes.
+        if not self.raised_by or self.raised_by.lower() in ticket_ingest_addresses():
             return
 
         [is_email_feedback_enabled, email_feedback_status] = frappe.get_cached_value(
@@ -571,6 +572,11 @@ class HDTicket(Document):
 
     def set_raised_by(self):
         if self.raised_by:
+            return
+        # A WhatsApp customer may have no email address at all: leave it
+        # empty rather than defaulting to whoever is signed in. Every email
+        # path skips a ticket without one.
+        if self.get("whatsapp_number"):
             return
         self.raised_by = frappe.session.user
 
@@ -865,6 +871,9 @@ class HDTicket(Document):
         if frappe.db.table_exists("HD Time Log"):
             frappe.db.delete("HD Time Log", {"ticket": self.name})
 
+        if frappe.db.table_exists("HD WhatsApp Message"):
+            frappe.db.delete("HD WhatsApp Message", {"ticket": self.name})
+
         for feedback in frappe.db.get_all(
             "HD Email Feedback", {"ticket": self.name}
         ):
@@ -1130,6 +1139,18 @@ class HDTicket(Document):
         except Exception:
             pass
 
+        # A WhatsApp ticket's reply goes back on WhatsApp, whatever the email
+        # settings. Email goes out as well only when the agent addressed
+        # someone by email; the outcome joins the email verdict below.
+        if self.get("whatsapp_number"):
+            from helpdesk.integrations import whatsapp
+
+            self._whatsapp_outcome = whatsapp.send_agent_reply(
+                self, communication, message, attachments, email_too=bool(recipients)
+            )
+            if not recipients:
+                return self._whatsapp_outcome
+
         # Name the exact gate when no email goes out. msgprint alone is NOT
         # enough: the agent desk is a frappe-ui SPA where server msgprints
         # never render — so every blocked/sent/failed path also RETURNS a
@@ -1231,6 +1252,17 @@ class HDTicket(Document):
                 ),
             )
         except Exception as e:
+            whatsapp_outcome = getattr(self, "_whatsapp_outcome", None) or {}
+            if whatsapp_outcome.get("whatsapp") == "sent":
+                # Already delivered on WhatsApp: rolling back would lose a
+                # reply the customer has. Keep it and report the email.
+                frappe.log_error(title=f"HD Ticket {self.name}: reply email failed")
+                return {
+                    "email": "failed",
+                    "reason": str(e),
+                    "recipients": recipients,
+                    **whatsapp_outcome,
+                }
             # Let the whole transaction roll back: the composer keeps the
             # text, and EmailEditor's onError shows this message.
             frappe.throw(
@@ -1239,7 +1271,10 @@ class HDTicket(Document):
 
         # Report SMTP's actual verdict, not just "we tried": read back the
         # Email Queue row this send created and surface its real status.
-        return self._report_reply_email_outcome(communication.name, recipients)
+        return {
+            **self._report_reply_email_outcome(communication.name, recipients),
+            **(getattr(self, "_whatsapp_outcome", None) or {}),
+        }
 
     def _reply_email_blocked(self, reason: str) -> dict:
         """The reply was saved but no email will go out; say exactly why.
@@ -1254,7 +1289,11 @@ class HDTicket(Document):
             title=f"HD Ticket {self.name}: reply email blocked",
             message=reason,
         )
-        return {"email": "blocked", "reason": reason}
+        return {
+            "email": "blocked",
+            "reason": reason,
+            **(getattr(self, "_whatsapp_outcome", None) or {}),
+        }
 
     def _clear_unsubscribes(self, emails: list):
         """Remove Email Unsubscribe rows that would silently drop these
@@ -1481,6 +1520,10 @@ class HDTicket(Document):
         # echo of our own acknowledgement, never acknowledge our own
         # ticket-ingesting inboxes, and stop at the mail-loop circuit
         # breaker for any other loop shape.
+        # WhatsApp tickets are acknowledged on WhatsApp, with that channel's
+        # own loop guard (helpdesk/integrations/whatsapp.py).
+        if self.get("whatsapp_number"):
+            return
         if self.is_automated_requester():
             return
         if self._is_echo_of_own_acknowledgement():

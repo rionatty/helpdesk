@@ -23,7 +23,9 @@ import {
 import ERPNextIntegrationSettings from "@/components/erpnext-integration/ERPNextIntegrationSettings.vue";
 import TelephonyPage from "./Telephony/TelephonyPage.vue";
 import PumbleSettings from "./Pumble/PumbleSettings.vue";
+import WhatsAppSettings from "./WhatsApp/WhatsAppSettings.vue";
 import LucideMessagesSquare from "~icons/lucide/messages-square";
+import LucideMessageCircle from "~icons/lucide/message-circle";
 import { EmailNotifications } from "./EmailNotifications";
 import { __ } from "@/translation";
 import SavedReplies from "./SavedReplies/SavedReplies.vue";
@@ -148,6 +150,12 @@ export const tabs = computed(() => {
           label: __("Pumble"),
           icon: markRaw(LucideMessagesSquare),
           component: markRaw(PumbleSettings),
+          condition: () => auth.isAdmin || auth.isManager,
+        },
+        {
+          label: __("WhatsApp"),
+          icon: markRaw(LucideMessageCircle),
+          component: markRaw(WhatsAppSettings),
           condition: () => auth.isAdmin || auth.isManager,
         },
       ],

@@ -62,6 +62,7 @@
   "email_account",
   "column_break_16",
   "via_customer_portal",
+  "whatsapp_number",
   "attachment",
   "content_type",
   "split_and_merge_section",
@@ -376,6 +377,14 @@
    "label": "Via Customer Portal"
   },
   {
+   "description": "Set on tickets that came in on WhatsApp: agent replies go back there.",
+   "fieldname": "whatsapp_number",
+   "fieldtype": "Data",
+   "label": "WhatsApp Number",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
    "fieldname": "attachment",
    "fieldtype": "Attach",
    "hidden": 1,
@@ -513,7 +522,7 @@
  "icon": "fa fa-issue",
  "idx": 61,
  "links": [],
- "modified": "2026-05-11 18:25:54.352721",
+ "modified": "2026-10-05 00:00:00.000000",
  "modified_by": "Administrator",
  "module": "Helpdesk",
  "name": "HD Ticket",
