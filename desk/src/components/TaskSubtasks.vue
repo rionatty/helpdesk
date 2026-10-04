@@ -132,7 +132,8 @@
       <div
         v-for="t in visibleSubtasks"
         :key="t.name"
-        class="rounded-lg border border-outline-gray-1 bg-surface-gray-1 px-3 py-2.5 flex flex-col gap-2"
+        class="rounded-lg border border-l-4 px-3 py-2.5 flex flex-col gap-2 transition-colors"
+        :class="rowTone(t.status)"
       >
         <div class="flex items-start gap-2">
           <component
@@ -178,6 +179,16 @@
           <button
             v-if="editable"
             type="button"
+            class="text-ink-gray-4 hover:text-ink-gray-8 shrink-0"
+            :aria-label="__('Edit subtask: {0}', [t.subject])"
+            :title="__('Edit subtask')"
+            @click="openEditor(t)"
+          >
+            <LucidePencil class="size-3.5" />
+          </button>
+          <button
+            v-if="editable"
+            type="button"
             class="text-ink-gray-4 hover:text-ink-red-3 shrink-0"
             :aria-label="__('Delete subtask')"
             @click="removeSubtask(t.name)"
@@ -185,6 +196,13 @@
             <LucideTrash2 class="size-3.5" />
           </button>
         </div>
+
+        <p
+          v-if="t.description"
+          class="ps-6 text-xs text-ink-gray-6 whitespace-pre-line leading-relaxed"
+        >
+          {{ t.description }}
+        </p>
 
         <!-- Read-only assignee + due (customer view) -->
         <div
@@ -360,6 +378,97 @@
         @click="createSubtask"
       />
     </form>
+    <!-- Full editor. The row keeps its quick controls for triage; the long
+         fields live here: a 500-character subject reads badly in a one-line
+         input, and the description has no inline home at all. -->
+    <Dialog
+      v-if="editable"
+      v-model="showEditor"
+      :options="{ title: __('Edit subtask'), size: 'lg' }"
+    >
+      <template #body-content>
+        <div class="flex flex-col gap-3.5">
+          <div class="flex flex-col gap-1">
+            <FormControl
+              v-model="editForm.subject"
+              type="textarea"
+              :label="__('Subject')"
+              :rows="2"
+              maxlength="500"
+            />
+            <span
+              class="self-end text-[11px]"
+              :class="subjectTooLong ? 'text-ink-red-3' : 'text-ink-gray-4'"
+            >
+              {{ subjectLength }}/500
+            </span>
+          </div>
+          <FormControl
+            v-model="editForm.description"
+            type="textarea"
+            :label="__('Description')"
+            :rows="4"
+            :placeholder="__('Details, acceptance criteria, notes')"
+          />
+          <div class="grid grid-cols-2 gap-3">
+            <FormControl
+              v-model="editForm.status"
+              type="select"
+              :label="__('Status')"
+              :options="statusSelectOptions"
+            />
+            <FormControl
+              v-model="editForm.responsibility"
+              type="select"
+              :label="__('Responsibility')"
+              :options="respSelectOptions"
+            />
+            <FormControl
+              v-model="editForm.assigned_to"
+              type="select"
+              :label="__('Assignee')"
+              :options="assigneeSelectOptions"
+            />
+            <FormControl
+              v-model="editForm.reviewer"
+              type="select"
+              :label="__('Reviewer')"
+              :options="reviewerSelectOptions"
+            />
+            <FormControl
+              v-model="editForm.hours_spent"
+              type="number"
+              :label="__('Hours spent')"
+            />
+            <FormControl
+              v-model="editForm.due_date"
+              type="date"
+              :label="__('Due date')"
+            />
+          </div>
+          <label class="flex items-center gap-2 text-sm text-ink-gray-7">
+            <input
+              v-model="editForm.customer_visible"
+              type="checkbox"
+              class="size-4 accent-blue-600"
+            />
+            {{ __("Visible to the customer") }}
+          </label>
+        </div>
+      </template>
+      <template #actions>
+        <div class="flex items-center gap-2 w-full">
+          <Button :label="__('Cancel')" @click="showEditor = false" />
+          <Button
+            class="flex-1"
+            variant="solid"
+            :label="__('Save')"
+            :disabled="subjectTooLong"
+            @click="saveEditor"
+          />
+        </div>
+      </template>
+    </Dialog>
   </div>
 </template>
 
@@ -376,6 +485,7 @@ import {
 import { __ } from "@/translation";
 import { useAuthStore } from "@/stores/auth";
 import LucideTrash2 from "~icons/lucide/trash-2";
+import LucidePencil from "~icons/lucide/pencil";
 import LucideClock from "~icons/lucide/clock";
 import LucideListTodo from "~icons/lucide/list-todo";
 import LucideCircle from "~icons/lucide/circle";
@@ -664,5 +774,84 @@ function statusColor(status: string) {
   if (status === "Done") return "text-green-600";
   if (status === "In Progress") return "text-blue-600";
   return "text-ink-gray-4";
+}
+
+// Whole-row status colour, same palette as the task board.
+function rowTone(status: string) {
+  return (
+    {
+      "In Progress": "bg-blue-50 border-blue-100 border-l-blue-400",
+      Done: "bg-green-50 border-green-100 border-l-green-500",
+    }[status] || "bg-surface-gray-1 border-outline-gray-1 border-l-outline-gray-3"
+  );
+}
+
+// --- Full edit dialog -------------------------------------------------------
+const editingSubtask = ref<any>(null);
+const editForm = ref<Record<string, any>>({});
+const showEditor = computed({
+  get: () => !!editingSubtask.value,
+  set: (open: boolean) => {
+    if (!open) editingSubtask.value = null;
+  },
+});
+const subjectLength = computed(() => (editForm.value.subject || "").length);
+const subjectTooLong = computed(() => subjectLength.value > 500);
+const statusSelectOptions = ["To Do", "In Progress", "Done"].map((s) => ({
+  label: __(s),
+  value: s,
+}));
+const respSelectOptions = RESPONSIBILITIES.map((r) => ({ label: __(r), value: r }));
+const assigneeSelectOptions = computed(() => [
+  { label: __("Unassigned"), value: "" },
+  ...agentOptions.value,
+]);
+const reviewerSelectOptions = computed(() => [
+  { label: __("No reviewer"), value: "" },
+  ...agentOptions.value,
+]);
+
+function openEditor(t: SubtaskRow) {
+  editForm.value = {
+    subject: t.subject || "",
+    description: t.description || "",
+    status: t.status || "To Do",
+    responsibility: t.responsibility || "Us",
+    assigned_to: t.assigned_to || "",
+    reviewer: t.reviewer || "",
+    hours_spent: Number(t.hours_spent) || 0,
+    due_date: t.due_date || "",
+    customer_visible: !!Number(t.customer_visible),
+  };
+  editingSubtask.value = t;
+}
+
+function saveEditor() {
+  const t = editingSubtask.value as SubtaskRow | null;
+  if (!t) return;
+  const f = editForm.value;
+  const subject = (f.subject || "").trim();
+  if (!subject) {
+    toast.error(__("Subject is required"));
+    return;
+  }
+  if (subject.length > 500) {
+    toast.error(__("A subject can be at most {0} characters", [500]));
+    return;
+  }
+  // patchSubtask diffs against the row, so only what changed reaches the
+  // server: optimistic, with revert + toast, exactly like the inline controls.
+  patchSubtask(t, {
+    subject,
+    description: f.description || "",
+    status: f.status,
+    responsibility: f.responsibility,
+    assigned_to: f.assigned_to || "",
+    reviewer: f.reviewer || "",
+    hours_spent: Math.max(0, parseFloat(f.hours_spent) || 0),
+    due_date: f.due_date || "",
+    customer_visible: f.customer_visible ? 1 : 0,
+  });
+  editingSubtask.value = null;
 }
 </script>

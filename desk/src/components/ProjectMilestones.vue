@@ -136,12 +136,13 @@
                agent-only below is guarded on `editable`. -->
           <div
             v-if="visibleTasks(m).length"
-            class="mt-2 flex flex-col gap-0.5"
+            class="mt-2 flex flex-col gap-1"
           >
             <div
               v-for="(t, ti) in visibleTasks(m)"
               :key="t.name || `${ti}-${t.subject}`"
-              class="flex items-center gap-2 text-xs py-0.5"
+              class="flex items-center gap-2 text-xs py-1 px-2 rounded-md border-l-2"
+              :class="taskRowTone(t.status)"
             >
               <span
                 class="size-3.5 rounded-full border-2 flex items-center justify-center shrink-0"
@@ -177,6 +178,16 @@
               >
                 {{ t.status }}
               </span>
+              <button
+                v-if="editable && t.name"
+                type="button"
+                class="shrink-0 rounded p-0.5 text-ink-gray-4 hover:text-ink-gray-8 hover:bg-surface-gray-2"
+                :aria-label="__('Edit task: {0}', [t.subject])"
+                :title="__('Edit task')"
+                @click="editTask(m, t)"
+              >
+                <LucidePencil class="size-3" />
+              </button>
             </div>
           </div>
           <p
@@ -364,8 +375,15 @@
               <div
                 v-for="(t, ti) in visibleEditingTasks"
                 :key="t.name || `${ti}-${t.subject}`"
-                class="rounded-lg border border-outline-gray-1 bg-surface-gray-1 px-2.5 py-2 flex flex-col gap-1.5 transition-opacity"
-                :class="t.name && savingTasks[t.name] ? 'opacity-60' : ''"
+                class="rounded-lg border border-l-4 px-2.5 py-2 flex flex-col gap-1.5 transition-all duration-300"
+                :class="[
+                  t.name && savingTasks[t.name] ? 'opacity-60' : '',
+                  t.name && t.name === focusTaskName
+                    ? 'border-blue-400 ring-2 ring-blue-200 bg-surface-white'
+                    : 'border-outline-gray-1 bg-surface-gray-1',
+                  taskAccent(t.status),
+                ]"
+                :data-task="t.name"
               >
                 <div class="flex items-center gap-2">
                   <span
@@ -532,7 +550,8 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, watch, computed } from "vue";
+import { reactive, ref, watch, computed, nextTick } from "vue";
+import LucidePencil from "~icons/lucide/pencil";
 import {
   Badge,
   Button,
@@ -614,6 +633,28 @@ function taskStatusClass(status: string) {
       Pending: "bg-amber-50 text-amber-700",
       Postponed: "bg-violet-50 text-violet-700",
     }[status] || "bg-surface-gray-2 text-ink-gray-6"
+  );
+}
+// Whole-row status colour on the timeline — same palette as the status chips.
+function taskRowTone(status: string) {
+  return (
+    {
+      "In Progress": "bg-blue-50 border-l-blue-400",
+      Done: "bg-green-50 border-l-green-500",
+      Pending: "bg-amber-50 border-l-amber-400",
+      Postponed: "bg-violet-50 border-l-violet-400",
+    }[status] || "border-l-outline-gray-3"
+  );
+}
+// Left-edge accent for the dialog rows, which keep their neutral fill.
+function taskAccent(status: string) {
+  return (
+    {
+      "In Progress": "border-l-blue-400",
+      Done: "border-l-green-500",
+      Pending: "border-l-amber-400",
+      Postponed: "border-l-violet-400",
+    }[status] || "border-l-outline-gray-3"
   );
 }
 function taskDotClass(status: string) {
@@ -719,6 +760,27 @@ function openCreate() {
     customer_visible: true,
   });
   showDialog.value = true;
+}
+// Pencil on a timeline row: open this milestone's editor with that task
+// scrolled into view, highlighted, and its subject ready to type into.
+const focusTaskName = ref<string | null>(null);
+let focusTimer: ReturnType<typeof setTimeout> | undefined;
+function editTask(m: any, t: any) {
+  openEdit(m);
+  focusTaskName.value = t.name;
+  clearTimeout(focusTimer);
+  focusTimer = setTimeout(() => (focusTaskName.value = null), 2500);
+  // The dialog renders through a teleport and animates in, so give the row
+  // a beat to exist before reaching for it.
+  nextTick(() =>
+    setTimeout(() => {
+      const row = document.querySelector<HTMLElement>(
+        `[data-task="${CSS.escape(t.name)}"]`
+      );
+      row?.scrollIntoView({ block: "center", behavior: "smooth" });
+      row?.querySelector<HTMLInputElement>('input[type="text"]')?.focus();
+    }, 150)
+  );
 }
 function openEdit(m: any) {
   editing.value = m.name;

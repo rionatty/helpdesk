@@ -399,14 +399,24 @@
           v-for="t in grouped[col.key]"
           :key="t.name"
           type="button"
-          class="relative text-start rounded-xl border bg-surface-white px-3 py-2.5 flex flex-col gap-2 hover:shadow-md hover:-translate-y-0.5 transition-all duration-150"
+          class="group relative overflow-hidden text-start rounded-xl border bg-surface-white ps-4 pe-3 py-2.5 flex flex-col gap-2 hover:shadow-md hover:-translate-y-0.5 transition-all duration-150"
           :class="
             selectedTasks.has(t.name)
               ? 'border-blue-400 ring-2 ring-blue-200'
               : 'border-outline-gray-2 hover:border-outline-gray-3'
           "
+          :aria-label="editable ? __('Edit task: {0}', [t.subject]) : undefined"
           @click="open(t)"
         >
+          <!-- Status stripe. Its own element rather than a coloured left
+               border: the card's hover/selected border classes would repaint a
+               border, and status must read the same in every board grouping
+               (by project or assignee the column says nothing about it). -->
+          <span
+            class="absolute inset-y-0 left-0 w-1"
+            :class="colTheme(t.status).bar"
+            aria-hidden="true"
+          />
           <input
             v-if="editable"
             type="checkbox"
@@ -507,11 +517,21 @@
             </span>
           </div>
           <div
-            v-if="t.assigned_to_name"
+            v-if="t.assigned_to_name || editable"
             class="flex items-center gap-1.5 text-[11px] text-ink-gray-5"
           >
-            <Avatar size="xs" :label="t.assigned_to_name" />
-            {{ t.assigned_to_name }}
+            <template v-if="t.assigned_to_name">
+              <Avatar size="xs" :label="t.assigned_to_name" />
+              {{ t.assigned_to_name }}
+            </template>
+            <!-- The whole card opens the editor; this makes that visible. -->
+            <span
+              v-if="editable"
+              class="ms-auto inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-ink-gray-5 group-hover:text-ink-gray-8 group-hover:bg-surface-gray-2"
+              aria-hidden="true"
+            >
+              <LucidePencil class="size-3" /> {{ __("Edit") }}
+            </span>
           </div>
         </button>
 
@@ -1137,6 +1157,7 @@ import LucideTrash2 from "~icons/lucide/trash-2";
 import LucideCalendar from "~icons/lucide/calendar";
 import LucideMessageCircle from "~icons/lucide/message-circle";
 import LucideListTodo from "~icons/lucide/list-todo";
+import LucidePencil from "~icons/lucide/pencil";
 import LucideTrendingUp from "~icons/lucide/trending-up";
 import LucideHistory from "~icons/lucide/history";
 import LucidePieChart from "~icons/lucide/pie-chart";
