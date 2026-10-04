@@ -643,8 +643,19 @@
           ref="milestonesRef"
           :project-id="projectId"
           :editable="editable"
-          @changed="taskBoardRef?.refreshMilestones()"
+          @changed="taskBoardRef?.refreshMilestones(); timelineRef?.reload()"
           @view-tasks="viewMilestoneTasks"
+        />
+      </div>
+
+      <!-- Timeline: the plan on a calendar -->
+      <div class="executive-card p-5">
+        <ProjectTimeline
+          ref="timelineRef"
+          :project-id="projectId"
+          :editable="editable"
+          :project-start="resource.data?.start_date"
+          :project-end="resource.data?.end_date"
         />
       </div>
 
@@ -654,7 +665,7 @@
           ref="taskBoardRef"
           :project-id="projectId"
           :editable="editable"
-          @changed="milestonesRef?.reload()"
+          @changed="milestonesRef?.reload(); timelineRef?.reload()"
         />
       </div>
 
@@ -950,6 +961,7 @@ import { LayoutHeader, Link } from "@/components";
 import DocAttachments from "@/components/DocAttachments.vue";
 import ProjectComments from "@/components/ProjectComments.vue";
 import ProjectMilestones from "@/components/ProjectMilestones.vue";
+import ProjectTimeline from "@/components/ProjectTimeline.vue";
 import ReminderButton from "@/components/ReminderButton.vue";
 import ClientUpdateButton from "@/components/ClientUpdateButton.vue";
 import TaskBoard from "@/components/TaskBoard.vue";
@@ -1124,6 +1136,7 @@ function ticketTheme(status: string) {
 }
 
 const milestonesRef = ref<any>(null);
+const timelineRef = ref<any>(null);
 
 // Dashboard tiles scroll to the section they summarise.
 const milestonesSection = ref<HTMLElement | null>(null);
