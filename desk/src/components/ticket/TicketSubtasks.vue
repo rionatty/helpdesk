@@ -320,6 +320,46 @@
                 @change="(e) => patchSubtask(t.name, { due_date: e.target.value })"
               />
             </div>
+            <!-- Review: who checks this, and where it stands -->
+            <div class="flex items-center gap-1.5">
+              <Badge
+                v-if="t.review_status"
+                :label="
+                  t.review_status === 'Reviewed'
+                    ? __('Reviewed')
+                    : __('Pending review')
+                "
+                :theme="t.review_status === 'Reviewed' ? 'green' : 'orange'"
+                variant="subtle"
+              />
+              <button
+                v-if="canMarkReviewed(t)"
+                type="button"
+                class="text-xs font-medium text-green-700 hover:underline"
+                @click="markReviewed(t)"
+              >
+                {{ __("Mark reviewed") }}
+              </button>
+              <button
+                v-if="t.review_status !== 'Reviewed'"
+                type="button"
+                class="text-xs font-medium text-ink-gray-6 hover:text-ink-gray-9 hover:underline"
+                @click="openReview(t)"
+              >
+                {{
+                  t.review_status === "Pending Review"
+                    ? __("Remind reviewer")
+                    : __("Request review")
+                }}
+              </button>
+              <span
+                v-if="t.reviewer_name"
+                class="text-[11px] text-ink-gray-5 truncate max-w-[110px]"
+                :title="__('Reviewer: {0}', [t.reviewer_name])"
+              >
+                {{ t.reviewer_name }}
+              </span>
+            </div>
           </div>
         </div>
       </div>
@@ -459,6 +499,12 @@
               :options="assigneeSelectOptions"
             />
             <FormControl
+              v-model="editForm.reviewer"
+              type="select"
+              :label="__('Reviewer')"
+              :options="reviewerSelectOptions"
+            />
+            <FormControl
               v-model="editForm.hours_spent"
               type="number"
               :label="__('Hours spent')"
@@ -484,6 +530,48 @@
         </div>
       </template>
     </Dialog>
+    <!-- Ask a colleague to check a subtask. The reviewer is picked here, so
+         the button works even on a subtask that has none set yet. -->
+    <Dialog
+      v-if="editable"
+      v-model="showReviewDialog"
+      :options="{ title: __('Request review'), size: 'sm' }"
+    >
+      <template #body-content>
+        <div class="flex flex-col gap-3">
+          <p class="text-sm font-medium text-ink-gray-8">
+            {{ reviewingSubtask?.subject }}
+          </p>
+          <FormControl
+            v-model="reviewPick"
+            type="select"
+            :label="__('Reviewer')"
+            :options="reviewerPickOptions"
+          />
+          <p class="text-xs text-ink-gray-5">
+            {{
+              __(
+                "They get a notification and an email with a link to this ticket."
+              )
+            }}
+          </p>
+        </div>
+      </template>
+      <template #actions>
+        <div class="flex items-center gap-2 w-full">
+          <Button :label="__('Cancel')" @click="showReviewDialog = false" />
+          <Button
+            class="flex-1"
+            variant="solid"
+            theme="blue"
+            :label="__('Send request')"
+            :loading="requestReviewRes.loading"
+            :disabled="!reviewPick"
+            @click="sendReviewRequest"
+          />
+        </div>
+      </template>
+    </Dialog>
   </div>
 </template>
 
@@ -498,6 +586,7 @@ import {
   dayjs,
   toast,
 } from "frappe-ui";
+import { useAuthStore } from "@/stores/auth";
 import { __ } from "@/translation";
 import LucideTrash2 from "~icons/lucide/trash-2";
 import LucidePencil from "~icons/lucide/pencil";
@@ -518,6 +607,9 @@ interface P {
 const props = withDefaults(defineProps<P>(), { editable: false });
 // Hours changed: the support-hours panel next to this one refreshes.
 const emit = defineEmits<{ (e: "changed"): void }>();
+
+// Signing off a review is restricted to the agent who was asked (or a manager).
+const { userId, isManager } = useAuthStore();
 
 const newSubject = ref("");
 
@@ -808,6 +900,68 @@ const assigneeSelectOptions = computed(() => [
   { label: __("Unassigned"), value: "" },
   ...agentOptions.value,
 ]);
+const reviewerSelectOptions = computed(() => [
+  { label: __("No reviewer"), value: "" },
+  ...agentOptions.value,
+]);
+
+// --- Review ----------------------------------------------------------------
+// An agent asks a colleague to check a subtask; the colleague signs it off.
+// Internal to the team — the customer view never renders any of it.
+const reviewerPickOptions = computed(() => [
+  { label: __("Choose an agent"), value: "" },
+  ...agentOptions.value,
+]);
+const reviewingSubtask = ref<any>(null);
+const reviewPick = ref("");
+const showReviewDialog = computed({
+  get: () => !!reviewingSubtask.value,
+  set: (open: boolean) => {
+    if (!open) reviewingSubtask.value = null;
+  },
+});
+
+function openReview(t: any) {
+  // Default to whoever already reviews it, so "Remind reviewer" is one click.
+  reviewPick.value = t.reviewer || "";
+  reviewingSubtask.value = t;
+}
+
+const requestReviewRes = createResource({
+  url: "helpdesk.api.subtask.request_review",
+  onSuccess: () => {
+    reviewingSubtask.value = null;
+    toast.success(__("Reviewer notified"));
+    reload();
+  },
+  onError: (e: any) =>
+    toast.error(e?.messages?.[0] || __("Could not request review")),
+});
+function sendReviewRequest() {
+  const t = reviewingSubtask.value;
+  if (!t || !reviewPick.value) return;
+  requestReviewRes.submit({ name: t.name, reviewer: reviewPick.value });
+}
+
+const markReviewedRes = createResource({
+  url: "helpdesk.api.subtask.mark_reviewed",
+  onSuccess: () => {
+    toast.success(__("Marked as reviewed"));
+    reload();
+  },
+  onError: (e: any) =>
+    toast.error(e?.messages?.[0] || __("Could not mark this reviewed")),
+});
+/** Only the agent who was asked (or a manager) signs a review off. */
+function canMarkReviewed(t: any) {
+  return (
+    t.review_status === "Pending Review" &&
+    (!!isManager || (!!t.reviewer && t.reviewer === userId))
+  );
+}
+function markReviewed(t: any) {
+  markReviewedRes.submit({ name: t.name });
+}
 
 function openEditor(t: any) {
   editForm.value = {
@@ -816,6 +970,7 @@ function openEditor(t: any) {
     status: t.status || "To Do",
     responsibility: responsibilityOf(t) || "Us",
     assigned_to: t.assigned_to || "",
+    reviewer: t.reviewer || "",
     hours_spent: Number(t.hours_spent) || 0,
     due_date: t.due_date || "",
   };
@@ -841,6 +996,7 @@ function saveEditor() {
     status: f.status,
     responsibility: f.responsibility,
     assigned_to: f.assigned_to || "",
+    reviewer: f.reviewer || "",
     hours_spent: Math.max(0, parseFloat(f.hours_spent) || 0),
     due_date: f.due_date || "",
   };

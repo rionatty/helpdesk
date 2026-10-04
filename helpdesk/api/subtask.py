@@ -11,7 +11,7 @@
 import frappe
 from frappe import _
 
-from helpdesk.utils import is_agent
+from helpdesk.utils import is_agent, is_agent_manager
 
 # Agents type subjects into a plain Data column, capped server-side so an
 # over-long title fails with a message instead of hitting the database limit.
@@ -30,6 +30,8 @@ SUBTASK_FIELDS = [
 	"assigned_to",
 	"description",
 	"due_date",
+	"reviewer",
+	"review_status",
 ]
 
 
@@ -87,6 +89,7 @@ def get_subtasks(ticket: str) -> list:
 	)
 	if rows:
 		names = {r.get("assigned_to") for r in rows if r.get("assigned_to")}
+		names |= {r.get("reviewer") for r in rows if r.get("reviewer")}
 		name_map = {}
 		if names:
 			name_map = {
@@ -104,10 +107,17 @@ def get_subtasks(ticket: str) -> list:
 			r["assigned_to_name"] = name_map.get(assignee) or (
 				assignee if agent else (_("Support agent") if assignee else None)
 			)
+			reviewer = r.get("reviewer")
+			r["reviewer_name"] = (
+				(name_map.get(reviewer) or reviewer) if agent and reviewer else None
+			)
 			if not agent:
-				# Responsibility (us/client/joint) is an internal split.
+				# Responsibility (us/client/joint) is an internal split, and so
+				# is who reviews our work — neither belongs on the portal.
 				r["assigned_to"] = None
 				r["responsibility"] = None
+				r["reviewer"] = None
+				r["review_status"] = None
 	return rows
 
 
@@ -134,7 +144,7 @@ def get_summary(ticket: str) -> dict:
 	rows = frappe.get_all(
 		"HD Ticket Subtask",
 		filters={"ticket": ticket},
-		fields=["status", "hours_spent", "due_date"],
+		fields=["status", "hours_spent", "due_date", "review_status"],
 	)
 	total = len(rows)
 	done = len([r for r in rows if r.status == "Done"])
@@ -159,6 +169,11 @@ def get_summary(ticket: str) -> dict:
 		"hours_spent": hours_spent,
 		"estimated_hours": estimated_hours,
 		"progress": round((done / total) * 100) if total else 0,
+		"pending_review": len(
+			[r for r in rows if r.get("review_status") == "Pending Review"]
+		)
+		if is_agent()
+		else 0,
 	}
 
 
@@ -191,11 +206,13 @@ def update_subtask(
 	assigned_to: str | None = None,
 	description: str | None = None,
 	due_date: str | None = None,
+	reviewer: str | None = None,
 ) -> bool:
 	"""Update fields on a subtask. Agents only."""
 	_assert_agent()
 	doc = frappe.get_doc("HD Ticket Subtask", name)
 	_assert_ticket_read(doc.ticket)
+	old_status = doc.status
 	if subject is not None:
 		doc.subject = _clean_subject(subject)
 	if status is not None:
@@ -212,7 +229,24 @@ def update_subtask(
 		doc.description = description
 	if due_date is not None:
 		doc.due_date = due_date or None
+	if reviewer is not None:
+		doc.reviewer = _clean_reviewer(reviewer)
+		if not doc.reviewer:
+			# No reviewer, nothing to review.
+			doc.review_status = None
+	# Finishing a subtask that has a reviewer queues it for their review, the
+	# same way an add-on task does when it is marked Done.
+	queue_review = bool(
+		doc.status == "Done"
+		and old_status != "Done"
+		and doc.reviewer
+		and doc.review_status != "Reviewed"
+	)
+	if queue_review:
+		doc.review_status = "Pending Review"
 	doc.save(ignore_permissions=True)
+	if queue_review:
+		_notify_subtask_reviewer(doc)
 	return True
 
 
@@ -232,4 +266,141 @@ def set_estimate(ticket: str, hours: float) -> bool:
 	_assert_agent()
 	_assert_ticket_read(ticket)
 	frappe.db.set_value("HD Ticket", ticket, "estimated_hours", max(0, hours))
+	return True
+
+
+# ---------------------------------------------------------------------------
+# Review: an agent asks a colleague to check a subtask before it ships
+# ---------------------------------------------------------------------------
+
+
+def _clean_reviewer(reviewer: str | None) -> str | None:
+	"""An empty value clears the reviewer; anything else must be an agent."""
+	reviewer = (reviewer or "").strip()
+	if not reviewer:
+		return None
+	if not frappe.db.exists("HD Agent", reviewer):
+		frappe.throw(_("{0} is not an agent").format(reviewer))
+	return reviewer
+
+
+def _outgoing_sender() -> str | None:
+	"""Best available outgoing sender — frappe.sendmail needs one and it isn't
+	always flagged Default Outgoing."""
+	return frappe.db.get_value(
+		"Email Account", {"enable_outgoing": 1, "default_outgoing": 1}, "email_id"
+	) or frappe.db.get_value("Email Account", {"enable_outgoing": 1}, "email_id")
+
+
+def _notify_subtask_reviewer(doc) -> None:
+	"""Tell the reviewer a subtask is waiting on them (in-app + email).
+	Best-effort: a notification failure never fails the request, and nobody
+	is asked to review their own work."""
+	reviewer = doc.get("reviewer")
+	if not reviewer or reviewer == frappe.session.user or reviewer == "Guest":
+		return
+	link = frappe.utils.get_url(f"/helpdesk/tickets/{doc.ticket}")
+	try:
+		frappe.publish_realtime(
+			"helpdesk:subtask_review_requested",
+			{
+				"subtask": doc.name,
+				"subject": doc.subject,
+				"ticket": doc.ticket,
+				"link": link,
+			},
+			user=reviewer,
+		)
+	except Exception:
+		pass
+
+	sender = _outgoing_sender()
+	if not sender:
+		return
+	try:
+		first_name = (
+			frappe.db.get_value("HD Agent", reviewer, "agent_name") or reviewer
+		).split(" ")[0]
+		requester = frappe.utils.get_fullname(frappe.session.user)
+		frappe.sendmail(
+			recipients=[reviewer],
+			sender=sender,
+			subject=_("Review requested: {0}").format(doc.subject),
+			message=f"""
+				<p>{_('Hi')} {frappe.utils.escape_html(first_name)},</p>
+				<p>{frappe.utils.escape_html(requester)}
+					{_('asked you to review a subtask')}:</p>
+				<p style="font-size:15px;font-weight:600;margin:12px 0;">
+					{frappe.utils.escape_html(doc.subject)}</p>
+				<p style="color:#6b7280;margin:0 0 12px;">
+					{_('On ticket')} #{frappe.utils.escape_html(doc.ticket)}</p>
+				<p style="margin-top:16px;">
+					<a href="{link}" style="background:#2563eb;color:#fff;padding:8px 16px;
+					border-radius:6px;text-decoration:none;">{_('Open ticket')}</a>
+				</p>
+			""",
+			reference_doctype="HD Ticket Subtask",
+			reference_name=doc.name,
+			now=True,
+		)
+	except Exception:
+		frappe.log_error(
+			title="Subtask review email failed", message=frappe.get_traceback()
+		)
+
+
+def _notify_review_done(doc) -> None:
+	"""Tell whoever did the work that the review came back. In-app only —
+	they are already working in the ticket; an email would be noise."""
+	target = doc.get("assigned_to") or doc.get("owner")
+	if not target or target == frappe.session.user or target == "Guest":
+		return
+	try:
+		frappe.publish_realtime(
+			"helpdesk:subtask_reviewed",
+			{
+				"subtask": doc.name,
+				"subject": doc.subject,
+				"ticket": doc.ticket,
+				"reviewer": frappe.utils.get_fullname(frappe.session.user),
+			},
+			user=target,
+		)
+	except Exception:
+		pass
+
+
+@frappe.whitelist()
+def request_review(name: str, reviewer: str | None = None) -> bool:
+	"""Ask an agent to review a subtask: record the reviewer, flag it Pending
+	Review and notify them. Agents only. Calling it again re-sends the
+	request, which is what the "Remind reviewer" button does."""
+	_assert_agent()
+	doc = frappe.get_doc("HD Ticket Subtask", name)
+	_assert_ticket_read(doc.ticket)
+	if reviewer is not None:
+		doc.reviewer = _clean_reviewer(reviewer)
+	if not doc.reviewer:
+		frappe.throw(_("Choose a reviewer first"))
+	doc.review_status = "Pending Review"
+	doc.save(ignore_permissions=True)
+	_notify_subtask_reviewer(doc)
+	return True
+
+
+@frappe.whitelist()
+def mark_reviewed(name: str) -> bool:
+	"""Mark a subtask reviewed. Only the agent who was asked to review it,
+	or a manager, can sign it off."""
+	_assert_agent()
+	doc = frappe.get_doc("HD Ticket Subtask", name)
+	_assert_ticket_read(doc.ticket)
+	if not (is_agent_manager() or frappe.session.user == doc.reviewer):
+		frappe.throw(
+			_("Only the reviewer or a manager can mark this reviewed"),
+			frappe.PermissionError,
+		)
+	doc.review_status = "Reviewed"
+	doc.save(ignore_permissions=True)
+	_notify_review_done(doc)
 	return True

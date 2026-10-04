@@ -12,6 +12,8 @@
   "responsibility",
   "column_break_main",
   "assigned_to",
+  "reviewer",
+  "review_status",
   "hours_spent",
   "due_date",
   "section_break_desc",
@@ -66,6 +68,21 @@
    "options": "HD Agent"
   },
   {
+   "description": "The agent asked to check this work before it ships",
+   "fieldname": "reviewer",
+   "fieldtype": "Link",
+   "label": "Reviewer",
+   "options": "HD Agent"
+  },
+  {
+   "depends_on": "reviewer",
+   "fieldname": "review_status",
+   "fieldtype": "Select",
+   "in_standard_filter": 1,
+   "label": "Review Status",
+   "options": "\nPending Review\nReviewed"
+  },
+  {
    "default": "0",
    "description": "Hours spent on this subtask (manual entry)",
    "fieldname": "hours_spent",
@@ -93,7 +110,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-06-07 00:00:00.000000",
+ "modified": "2026-10-05 10:00:00.000000",
  "modified_by": "Administrator",
  "module": "Helpdesk",
  "name": "HD Ticket Subtask",
