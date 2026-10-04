@@ -20,21 +20,31 @@ jobs:
     name: Build desk app
     runs-on: ubuntu-latest
     steps:
+      # Lay the repo out like a bench - apps/helpdesk beside sites/ - because
+      # the desk imports ../../../../sites/common_site_config.json at build
+      # time (src/socket.ts reads socketio_port from it).
       - uses: actions/checkout@v4
+        with:
+          path: apps/helpdesk
+
+      - name: Stand-in bench site config
+        run: |
+          mkdir -p sites
+          echo '{"socketio_port": 9000}' > sites/common_site_config.json
 
       - uses: actions/setup-node@v4
         with:
           node-version: 24
           cache: yarn
-          cache-dependency-path: desk/yarn.lock
+          cache-dependency-path: apps/helpdesk/desk/yarn.lock
 
       # Same steps `bench build --app helpdesk` runs on the server.
       - name: Install
-        working-directory: desk
+        working-directory: apps/helpdesk/desk
         run: yarn install --frozen-lockfile
 
       - name: Build
-        working-directory: desk
+        working-directory: apps/helpdesk/desk
         run: yarn build
 
   python:
