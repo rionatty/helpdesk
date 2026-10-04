@@ -74,20 +74,27 @@ def search(query: str) -> list:
     if not query:
         return []
     try:
-        return _search(query)
+        results = _search(query)
     except Exception:
         # KB article suggestions are best-effort. If the search backend is
         # unavailable (e.g. the RediSearch module isn't installed or the
         # index hasn't been built) never bubble a 500 up to the customer's
-        # ticket form — just return no suggestions. Log once per hour so the
-        # root cause stays diagnosable without flooding the Error Log on every
-        # keystroke.
+        # ticket form - fall through to the database search below. Log once
+        # per hour so the root cause stays diagnosable without flooding the
+        # Error Log on every keystroke.
         if not frappe.cache().get_value("hd_article_search_error_logged"):
             frappe.log_error(title="Helpdesk article search failed")
             frappe.cache().set_value(
                 "hd_article_search_error_logged", True, expires_in_sec=3600
             )
-        return []
+        results = []
+    if not results:
+        # No RediSearch (plain Redis has none) or no hits: search the database,
+        # so customers still get suggestions.
+        from helpdesk.api.article_fallback import db_search
+
+        results = db_search(query, NUM_RESULTS)
+    return results
 
 
 def _search(query: str) -> list:
