@@ -299,6 +299,33 @@ def _get_features(addon: str) -> list:
 		return []
 
 
+def _subtask_rollup(task_names: list, agent: bool) -> dict:
+	"""Subtask totals per task for list views, in ONE query however many tasks
+	come in — a get_summary call per card would be N+1 on the board. The portal
+	counts only the subtasks it may see, same scoping as get_summary."""
+	if not task_names:
+		return {}
+	filters: dict = {"task": ["in", task_names]}
+	if not agent:
+		filters["customer_visible"] = 1
+	rollup: dict = {}
+	try:
+		for s in frappe.get_all(
+			"HD Task Subtask",
+			filters=filters,
+			fields=["task", "status"],
+			ignore_permissions=True,
+		):
+			bucket = rollup.setdefault(s.task, {"total": 0, "done": 0})
+			bucket["total"] += 1
+			if s.status == "Done":
+				bucket["done"] += 1
+	except Exception:
+		# Table may not exist yet (pre-migrate); fail soft like comment counts.
+		return {}
+	return rollup
+
+
 def _get_tasks(
 	addon: str | None = None,
 	project: str | None = None,
@@ -367,6 +394,7 @@ def _get_tasks(
 				counts[task_name] = counts.get(task_name, 0) + 1
 		except Exception:
 			counts = {}
+	subtasks = _subtask_rollup([r.name for r in rows], agent)
 	for r in rows:
 		# Assignees are agents; never fall back to their email on the portal.
 		r["assigned_to_name"] = names.get(r.assigned_to) or (
@@ -376,6 +404,9 @@ def _get_tasks(
 			(names.get(r.reviewer) or r.reviewer) if agent and r.reviewer else None
 		)
 		r["comment_count"] = counts.get(r.name, 0)
+		sub = subtasks.get(r.name, {})
+		r["subtask_total"] = sub.get("total", 0)
+		r["subtask_done"] = sub.get("done", 0)
 		if not agent:
 			# assigned_to/owner are emails; the portal gets display names only.
 			# Reviewer, score and review status are internal QA — never shown.

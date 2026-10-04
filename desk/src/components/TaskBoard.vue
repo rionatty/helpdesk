@@ -165,6 +165,18 @@
           <option value="">{{ __("All responsibilities") }}</option>
           <option v-for="r in RESPONSIBILITIES" :key="r" :value="r">{{ r }}</option>
         </select>
+        <!-- Subtask state (agent only) -->
+        <select
+          v-if="editable"
+          v-model="subtaskFilter"
+          class="text-xs rounded-md border border-outline-gray-2 bg-surface-white px-2 py-1.5 text-ink-gray-7 focus:outline-none focus:border-blue-400"
+          :title="__('Filter tasks by their subtasks')"
+        >
+          <option value="">{{ __("All subtask states") }}</option>
+          <option value="open">{{ __("Has open subtasks") }}</option>
+          <option value="done">{{ __("All subtasks done") }}</option>
+          <option value="none">{{ __("No subtasks") }}</option>
+        </select>
         <!-- Assignee -->
         <select
           v-if="assigneeOptions.length || hasUnassigned"
@@ -442,6 +454,18 @@
               class="text-[10px] rounded-full px-1.5 py-0.5 bg-surface-gray-2 text-ink-gray-6 inline-flex items-center gap-0.5"
             >
               <LucideMessageCircle class="size-3" /> {{ t.comment_count }}
+            </span>
+            <span
+              v-if="t.subtask_total"
+              class="text-[10px] rounded-full px-1.5 py-0.5 inline-flex items-center gap-0.5"
+              :class="
+                t.subtask_done === t.subtask_total
+                  ? 'bg-green-100 text-green-700'
+                  : 'bg-surface-gray-2 text-ink-gray-6'
+              "
+              :title="__('Subtasks done')"
+            >
+              <LucideListTodo class="size-3" /> {{ t.subtask_done }}/{{ t.subtask_total }}
             </span>
             <span
               v-if="Number(t.score)"
@@ -1112,6 +1136,7 @@ import LucidePlus from "~icons/lucide/plus";
 import LucideTrash2 from "~icons/lucide/trash-2";
 import LucideCalendar from "~icons/lucide/calendar";
 import LucideMessageCircle from "~icons/lucide/message-circle";
+import LucideListTodo from "~icons/lucide/list-todo";
 import LucideTrendingUp from "~icons/lucide/trending-up";
 import LucideHistory from "~icons/lucide/history";
 import LucidePieChart from "~icons/lucide/pie-chart";
@@ -1234,6 +1259,7 @@ watch(
 const search = ref("");
 const priorityFilter = ref("");
 const responsibilityFilter = ref(""); // "" all · Us · Client · Joint
+const subtaskFilter = ref(""); // "" all · open · done · none
 const assigneeFilter = ref(""); // "" all · "__unassigned__" · else assigned_to value
 const milestoneFilter = ref("");
 const projectFilter = ref(""); // hub only: "" all · "__standalone__" · parent_name
@@ -1547,6 +1573,13 @@ const filteredTasks = computed(() => {
     if (priorityFilter.value && t.priority !== priorityFilter.value) return false;
     if (responsibilityFilter.value && respOf(t) !== responsibilityFilter.value)
       return false;
+    if (subtaskFilter.value) {
+      const total = Number(t.subtask_total) || 0;
+      const done = Number(t.subtask_done) || 0;
+      if (subtaskFilter.value === "none" && total) return false;
+      if (subtaskFilter.value === "open" && !(total && done < total)) return false;
+      if (subtaskFilter.value === "done" && !(total && done === total)) return false;
+    }
     if (assigneeFilter.value === "__unassigned__" && t.assigned_to) return false;
     if (
       assigneeFilter.value &&
@@ -1574,6 +1607,7 @@ const anyFilterActive = computed(
     !!search.value ||
     !!priorityFilter.value ||
     !!responsibilityFilter.value ||
+    !!subtaskFilter.value ||
     !!assigneeFilter.value ||
     !!milestoneFilter.value ||
     !!projectFilter.value ||
@@ -1587,6 +1621,7 @@ function clearFilters() {
   search.value = "";
   priorityFilter.value = "";
   responsibilityFilter.value = "";
+  subtaskFilter.value = "";
   assigneeFilter.value = "";
   milestoneFilter.value = "";
   projectFilter.value = "";

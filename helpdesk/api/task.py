@@ -8,7 +8,7 @@
 import frappe
 from frappe import _
 
-from helpdesk.api.addon import TASK_FIELDS
+from helpdesk.api.addon import TASK_FIELDS, _subtask_rollup
 from helpdesk.utils import is_agent, is_agent_manager
 
 HUB_FIELDS = TASK_FIELDS + ["addon", "project"]
@@ -91,6 +91,7 @@ def get_my_tasks(responsibility: str | None = None) -> list:
 	):
 		counts[task_name] = counts.get(task_name, 0) + 1
 
+	subtasks = _subtask_rollup([r.name for r in rows], agent=True)
 	for r in rows:
 		r["assigned_to_name"] = name_map.get(r.assigned_to) or r.assigned_to
 		r["reviewer_name"] = name_map.get(r.reviewer) or r.reviewer
@@ -107,4 +108,7 @@ def get_my_tasks(responsibility: str | None = None) -> list:
 			r["parent_name"] = None
 			r["parent_label"] = _("Personal")
 		r["comment_count"] = counts.get(r.name, 0)
+		sub = subtasks.get(r.name, {})
+		r["subtask_total"] = sub.get("total", 0)
+		r["subtask_done"] = sub.get("done", 0)
 	return rows
