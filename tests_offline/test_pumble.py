@@ -196,6 +196,39 @@ class TestRouting(unittest.TestCase):
 			self.assertEqual(kw["text"], "hello")
 
 
+class TestHoursAlert(unittest.TestCase):
+	def setUp(self):
+		base = {"enabled": 1, "on_support_hours": 1, "project": None, "customer": None, "email_account": None}
+		CHANNELS[:] = [
+			{**base, "name": "all"},
+			{**base, "name": "client-x", "customer": "Client X"},
+			{**base, "name": "client-y", "customer": "Client Y"},
+			{**base, "name": "luuka", "project": "P-LUUKA"},
+			{**base, "name": "opted-out", "on_support_hours": 0},
+		]
+		ENQUEUED.clear()
+		self.contract = Row(name="C1", customer="Client X", contract_name="@channel *Gold*")
+
+	def usage(self, pct):
+		return {
+			"pct": pct, "used": pct / 10, "included": 10,
+			"period_label": "October 2026", "period_from": "2026-10-01",
+		}
+
+	def test_reaches_the_clients_channels_once_per_level(self):
+		pumble.hours_alert(self.contract, self.usage(85), 80)
+		self.assertEqual(sorted(kw["channel"] for _, kw in ENQUEUED), ["all", "client-x"])
+		for _, kw in ENQUEUED:
+			self.assertEqual(kw["event_key"], "hours:C1:2026-10-01:80")
+			self.assertIn("85% of its support hours", kw["text"])
+			self.assertNotIn("@channel", kw["text"])  # the contract name is defused
+
+	def test_over_the_limit(self):
+		pumble.hours_alert(self.contract, self.usage(110), 100)
+		self.assertIn("has used all its support hours", ENQUEUED[0][1]["text"])
+		self.assertEqual(ENQUEUED[0][1]["event_key"], "hours:C1:2026-10-01:100")
+
+
 class TestPost(unittest.TestCase):
 	URL = "https://api.pumble.com/workspaces/a/incomingWebhooks/postMessage/b"
 

@@ -18,6 +18,7 @@ CHECKS = (
 	"on_sla_breach",
 	"on_ticket_resolved",
 	"on_project_activity",
+	"on_support_hours",
 )
 EDITABLE = ("channel_name", *CHECKS, "project", "customer", "email_account")
 

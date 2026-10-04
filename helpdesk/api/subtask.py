@@ -111,6 +111,22 @@ def get_subtasks(ticket: str) -> list:
 	return rows
 
 
+def _ticket_level_hours(ticket: str) -> float:
+	"""Time logged on the ticket itself rather than on one of its subtasks
+	(helpdesk/api/contracts.py). Subtask time is already in hours_spent."""
+	try:
+		return sum(
+			frappe.utils.flt(h)
+			for h in frappe.get_all(
+				"HD Time Log",
+				filters={"ticket": ticket, "subtask": ["is", "not set"]},
+				pluck="hours",
+			)
+		)
+	except Exception:
+		return 0  # table may not exist yet (pre-migrate)
+
+
 @frappe.whitelist()
 def get_summary(ticket: str) -> dict:
 	"""Aggregate progress + time for a ticket's subtasks."""
@@ -122,7 +138,7 @@ def get_summary(ticket: str) -> dict:
 	)
 	total = len(rows)
 	done = len([r for r in rows if r.status == "Done"])
-	hours_spent = sum([(r.hours_spent or 0) for r in rows])
+	hours_spent = sum([(r.hours_spent or 0) for r in rows]) + _ticket_level_hours(ticket)
 	estimated_hours = frappe.db.get_value("HD Ticket", ticket, "estimated_hours") or 0
 	today = frappe.utils.getdate()
 	overdue = len(

@@ -219,6 +219,13 @@ const EVENTS = [
       "A client comments on or reviews a task, or signs off a milestone."
     ),
   },
+  {
+    field: "on_support_hours",
+    label: __("Support hours alerts"),
+    description: __(
+      "A client reaches its contract's alert level, or uses all its hours. Posted once per level per period."
+    ),
+  },
 ];
 
 const channels = createResource({ url: "helpdesk.api.pumble.get_channels", auto: true });
@@ -240,6 +247,7 @@ function blank() {
     on_sla_breach: true,
     on_ticket_resolved: false,
     on_project_activity: true,
+    on_support_hours: true,
     project: "",
     customer: "",
     email_account: "",

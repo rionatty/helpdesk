@@ -152,6 +152,14 @@ const routes = [
     component: () => import("@/pages/TasksView.vue"),
   },
   {
+    path: "/contracts",
+    name: "ContractsAgent",
+    component: () => import("@/pages/ContractsView.vue"),
+    meta: {
+      agent: true,
+    },
+  },
+  {
     path: "/reminders",
     name: "RemindersAgent",
     component: () => import("@/pages/RemindersPage.vue"),

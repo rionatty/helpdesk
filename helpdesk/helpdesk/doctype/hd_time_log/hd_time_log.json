@@ -1,0 +1,131 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "hash",
+ "creation": "2026-10-05 00:00:00.000000",
+ "description": "Time spent for a client: on a ticket, a ticket's subtask, or work outside tickets.",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "date",
+  "hours",
+  "billable",
+  "customer",
+  "column_break_main",
+  "ticket",
+  "subtask",
+  "logged_by",
+  "section_break_description",
+  "description"
+ ],
+ "fields": [
+  {
+   "default": "Today",
+   "fieldname": "date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Date",
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "hours",
+   "fieldtype": "Float",
+   "in_list_view": 1,
+   "label": "Hours",
+   "reqd": 1
+  },
+  {
+   "default": "1",
+   "description": "Counts against the client's support contract.",
+   "fieldname": "billable",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Billable"
+  },
+  {
+   "fieldname": "customer",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Client",
+   "options": "HD Customer",
+   "search_index": 1
+  },
+  {
+   "fieldname": "column_break_main",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "ticket",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Ticket",
+   "options": "HD Ticket",
+   "search_index": 1
+  },
+  {
+   "description": "Set when the time was typed on the subtask; it follows the subtask's hours.",
+   "fieldname": "subtask",
+   "fieldtype": "Link",
+   "label": "Subtask",
+   "options": "HD Ticket Subtask",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "logged_by",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Logged By",
+   "options": "User"
+  },
+  {
+   "fieldname": "section_break_description",
+   "fieldtype": "Section Break"
+  },
+  {
+   "description": "Shown to the client on their support plan.",
+   "fieldname": "description",
+   "fieldtype": "Small Text",
+   "label": "Description"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-10-05 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Helpdesk",
+ "name": "HD Time Log",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "export": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "export": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Agent Manager",
+   "write": 1
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Agent"
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 0
+}

@@ -17,6 +17,7 @@
   "column_break_events",
   "on_ticket_resolved",
   "on_project_activity",
+  "on_support_hours",
   "section_break_scope",
   "project",
   "customer",
@@ -84,6 +85,12 @@
    "label": "Client activity on projects"
   },
   {
+   "default": "1",
+   "fieldname": "on_support_hours",
+   "fieldtype": "Check",
+   "label": "Support hours alerts"
+  },
+  {
    "description": "Optional. Leave empty to post from everywhere.",
    "fieldname": "section_break_scope",
    "fieldtype": "Section Break",
@@ -110,7 +117,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-10-04 00:00:00.000000",
+ "modified": "2026-10-05 00:00:00.000000",
  "modified_by": "Administrator",
  "module": "Helpdesk",
  "name": "HD Pumble Channel",

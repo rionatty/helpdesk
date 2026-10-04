@@ -516,6 +516,8 @@ interface P {
   editable?: boolean;
 }
 const props = withDefaults(defineProps<P>(), { editable: false });
+// Hours changed: the support-hours panel next to this one refreshes.
+const emit = defineEmits<{ (e: "changed"): void }>();
 
 const newSubject = ref("");
 
@@ -672,6 +674,7 @@ function reload() {
   subtasks.reload();
   summaryRes.reload();
 }
+defineExpose({ reload });
 
 watch(
   () => props.ticketId,
@@ -702,7 +705,10 @@ function createSubtask() {
 
 const updateRes = createResource({
   url: "helpdesk.api.subtask.update_subtask",
-  onSuccess: () => reload(),
+  onSuccess: () => {
+    reload();
+    emit("changed");
+  },
   onError: (e: any) =>
     toast.error(e?.messages?.[0] || __("Could not update subtask")),
 });
@@ -739,7 +745,10 @@ function renameSubtask(t: any, el: HTMLInputElement) {
 
 const deleteRes = createResource({
   url: "helpdesk.api.subtask.delete_subtask",
-  onSuccess: () => reload(),
+  onSuccess: () => {
+    reload();
+    emit("changed");
+  },
 });
 function removeSubtask(name: string) {
   deleteRes.submit({ name });

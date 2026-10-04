@@ -28,6 +28,7 @@ EVENT_FIELDS = {
 	"sla_breach": "on_sla_breach",
 	"ticket_resolved": "on_ticket_resolved",
 	"project_activity": "on_project_activity",
+	"support_hours": "on_support_hours",
 }
 
 # Where an email reply's quoted history begins.
@@ -446,3 +447,27 @@ def milestone_signed_off(milestone, approved, note=None) -> None:
 		)
 	except Exception:
 		frappe.log_error(title=f"Pumble: sign-off message failed for {milestone.name}")
+
+
+def hours_alert(contract, usage, level) -> None:
+	"""A client crossed its support contract's alert level, or 100%."""
+	try:
+		if usage["pct"] >= 100:
+			head = ":rotating_light:"
+			what = "has used all its support hours"
+		else:
+			head = ":hourglass_flowing_sand:"
+			what = f"has used {usage['pct']}% of its support hours"
+		text = (
+			f"{head} **{safe(contract.customer, 80)} {what}**: {usage['used']} of "
+			f"{usage['included']} h in {safe(usage['period_label'], 60)} "
+			f"({safe(contract.contract_name or contract.name, 80)})\n"
+			+ link("Open contracts", "/helpdesk/contracts")
+		)
+		notify(
+			"support_hours", text, customer=contract.customer,
+			reference=["HD Support Contract", contract.name],
+			event_key=f"hours:{contract.name}:{usage['period_from']}:{level}",
+		)
+	except Exception:
+		frappe.log_error(title=f"Pumble: hours alert failed for {contract.name}")

@@ -45,3 +45,4 @@ helpdesk.patches.backfill_task_member_access
 helpdesk.patches.rename_task_status_blocked_to_pending
 helpdesk.patches.backfill_task_completed_on
 helpdesk.patches.backfill_task_responsibility
+helpdesk.patches.backfill_ticket_time_logs

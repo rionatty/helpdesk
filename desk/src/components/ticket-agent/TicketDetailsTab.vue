@@ -55,7 +55,20 @@
     <div class="border-t flex-1 min-h-0 overflow-y-auto divide-y-[1px]">
       <!-- Subtasks + time tracking (agent-editable) -->
       <div class="px-4 py-4">
-        <TicketSubtasks :ticket-id="ticketName" :editable="true" />
+        <TicketSubtasks
+          ref="subtasksRef"
+          :ticket-id="ticketName"
+          :editable="true"
+          @changed="supportHoursRef?.reload()"
+        />
+      </div>
+      <!-- Support hours: this ticket's time and the client's contract balance -->
+      <div class="px-4 py-4">
+        <TicketSupportHours
+          ref="supportHoursRef"
+          :ticket-id="ticketName"
+          @changed="subtasksRef?.reload()"
+        />
       </div>
       <!-- Ticket Info (custom fields) -->
       <div v-if="Boolean(customFields.length)">
@@ -176,11 +189,16 @@ import LucideChevronRight from "~icons/lucide/chevron-right";
 import Section from "../Section.vue";
 import TicketField from "../TicketField.vue";
 import TicketSubtasks from "@/components/ticket/TicketSubtasks.vue";
+import TicketSupportHours from "@/components/ticket/TicketSupportHours.vue";
 import AssignTo from "./AssignTo.vue";
 import TicketContact from "./TicketContact.vue";
 
 const ticket = inject(TicketSymbol)!;
 const ticketName = computed(() => ticket.value?.doc?.name);
+// Subtask hours and hand-logged time show in both panels: each refreshes
+// the other after a change.
+const subtasksRef = ref<any>(null);
+const supportHoursRef = ref<any>(null);
 const assignees = inject(AssigneeSymbol)!;
 const customizations = inject(CustomizationSymbol)!;
 const activities = inject(ActivitiesSymbol)!;

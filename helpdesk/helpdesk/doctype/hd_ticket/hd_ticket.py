@@ -34,6 +34,7 @@ from helpdesk.helpdesk.utils.email import (
     ticket_ingest_addresses,
 )
 from helpdesk.helpdesk.utils.ticket_routing import SCOPED, route_new_ticket
+from helpdesk.api import contracts as support_contracts
 from helpdesk.integrations import pumble
 from helpdesk.utils import (
     agent_only,
@@ -536,6 +537,8 @@ class HDTicket(Document):
         self.capture_update_telemetry_events()
         if self.has_value_changed("status_category") and self.status_category == "Resolved":
             pumble.ticket_resolved(self)
+        if self.get_doc_before_save() and self.has_value_changed("customer"):
+            support_contracts.retag_ticket(self.name, self.customer)
 
     def notify_agent(self, agent, notification_type="Assignment"):
         frappe.get_doc(
@@ -858,6 +861,9 @@ class HDTicket(Document):
 
         for subtask in frappe.db.get_all("HD Ticket Subtask", {"ticket": self.name}):
             frappe.db.delete("HD Ticket Subtask", subtask)
+
+        if frappe.db.table_exists("HD Time Log"):
+            frappe.db.delete("HD Time Log", {"ticket": self.name})
 
         for feedback in frappe.db.get_all(
             "HD Email Feedback", {"ticket": self.name}

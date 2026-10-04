@@ -196,6 +196,9 @@
         </div>
       </section>
 
+      <!-- Support plan: hours used and left this period -->
+      <SupportPlanCard />
+
       <!-- Customer analytics charts -->
       <CustomerAnalytics />
 
@@ -502,6 +505,7 @@ import {
 import { RouterLink, useRouter } from "vue-router";
 import { LayoutHeader } from "@/components";
 import CustomerAnalytics from "@/components/CustomerAnalytics.vue";
+import SupportPlanCard from "@/components/SupportPlanCard.vue";
 import { useConfigStore } from "@/stores/config";
 import { useAuthStore } from "@/stores/auth";
 import { useTicketStatusStore } from "@/stores/ticketStatus";
