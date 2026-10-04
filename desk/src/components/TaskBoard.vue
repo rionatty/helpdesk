@@ -1037,6 +1037,40 @@
           </div>
 
           <!-- Comments -->
+          <!-- Watchers (agents only): who hears about this task. -->
+          <div
+            v-if="editable && selected.name"
+            class="border-t border-outline-gray-1 pt-3 flex items-center gap-2"
+          >
+            <LucideEye class="size-4 text-ink-gray-6" />
+            <span class="text-sm font-semibold text-ink-gray-8">{{ __("Watchers") }}</span>
+            <div class="flex items-center -space-x-1.5">
+              <Avatar
+                v-for="w in (watchers.data?.watchers || []).slice(0, 8)"
+                :key="w.agent"
+                size="sm"
+                :label="w.name"
+                :title="w.role ? w.name + ' (' + w.role + ')' : w.name"
+                class="ring-2 ring-surface-white"
+              />
+            </div>
+            <span
+              v-if="(watchers.data?.watchers || []).length > 8"
+              class="text-xs text-ink-gray-5"
+            >
+              +{{ watchers.data.watchers.length - 8 }}
+            </span>
+            <span class="flex-1" />
+            <Button
+              size="sm"
+              :label="watchLabel"
+              :title="watchTitle"
+              :disabled="!!watchers.data?.watching && !watchers.data?.can_unwatch"
+              :loading="watchRes.loading"
+              @click="toggleWatch"
+            />
+          </div>
+
           <div class="border-t border-outline-gray-1 pt-3 flex flex-col gap-3">
             <div class="text-sm font-semibold text-ink-gray-8">
               {{ __("Comments") }}
@@ -1057,7 +1091,12 @@
                     </span>
                   </div>
                   <p class="text-sm text-ink-gray-7 whitespace-pre-line">
-                    {{ c.content }}
+                    <template v-for="(part, pi) in commentParts(c.content)" :key="pi">
+                      <span v-if="part.mention" class="font-medium text-blue-700">{{
+                        part.text
+                      }}</span>
+                      <template v-else>{{ part.text }}</template>
+                    </template>
                   </p>
                 </div>
               </div>
@@ -1065,13 +1104,38 @@
             <p v-else-if="!comments.loading" class="text-sm text-ink-gray-5">
               {{ __("No comments yet.") }}
             </p>
-            <form class="flex items-center gap-2" @submit.prevent="addComment">
+            <form class="relative flex items-center gap-2" @submit.prevent="addComment">
               <input
+                ref="commentInput"
                 v-model="newComment"
                 type="text"
-                :placeholder="__('Write a comment…')"
+                :placeholder="
+                  editable
+                    ? __('Write a comment… type @ to mention someone')
+                    : __('Write a comment…')
+                "
                 class="flex-1 text-sm rounded-lg border border-outline-gray-2 bg-surface-white px-3 py-1.5 text-ink-gray-8 focus:outline-none focus:border-blue-400"
+                @input="onCommentInput"
+                @keydown="onCommentKeydown"
+                @blur="closeMentionsSoon"
               />
+              <!-- @mention suggestions (agents only) -->
+              <div
+                v-if="mentionOpen && mentionMatches.length"
+                class="absolute bottom-full start-0 z-20 mb-1 w-64 rounded-lg border border-outline-gray-2 bg-surface-white py-1 shadow-lg"
+              >
+                <button
+                  v-for="(a, i) in mentionMatches"
+                  :key="a.value"
+                  type="button"
+                  class="flex w-full items-center gap-2 px-3 py-1.5 text-start text-sm"
+                  :class="i === mentionIndex ? 'bg-surface-gray-2 text-ink-gray-9' : 'text-ink-gray-7'"
+                  @mousedown.prevent="pickMention(a)"
+                >
+                  <Avatar size="xs" :label="a.label" />
+                  {{ a.label }}
+                </button>
+              </div>
               <Button
                 :label="__('Send')"
                 theme="blue"
@@ -1166,6 +1230,7 @@ import LucideListTodo from "~icons/lucide/list-todo";
 import LucidePencil from "~icons/lucide/pencil";
 import LucideTrendingUp from "~icons/lucide/trending-up";
 import LucideHistory from "~icons/lucide/history";
+import LucideEye from "~icons/lucide/eye";
 import LucidePieChart from "~icons/lucide/pie-chart";
 import LucideBarChart3 from "~icons/lucide/bar-chart-3";
 import LucideUsers from "~icons/lucide/users";
@@ -1912,7 +1977,10 @@ function open(t: any) {
   custComment.value = "";
   showDetail.value = true;
   comments.reload();
-  if (props.editable) activity.reload();
+  if (props.editable) {
+    activity.reload();
+    watchers.reload();
+  }
 }
 
 const updateRes = createResource({
@@ -1920,7 +1988,11 @@ const updateRes = createResource({
   onSuccess: () => {
     tasks.reload();
     if (props.projectId) milestonesRes.reload();
-    if (showDetail.value && props.editable) activity.reload();
+    if (showDetail.value && props.editable) {
+      activity.reload();
+      // A new assignee or reviewer changes who is watching.
+      watchers.reload();
+    }
     emit("changed");
   },
   onError: (e: any) =>
@@ -2135,8 +2207,11 @@ const addCommentRes = createResource({
   url: "helpdesk.api.addon.add_task_comment",
   onSuccess: () => {
     newComment.value = "";
+    pendingMentions.value = [];
     comments.reload();
     tasks.reload();
+    // Commenting, or being mentioned, makes you a watcher.
+    if (props.editable) watchers.reload();
   },
   onError: (e: any) =>
     toast.error(e?.messages?.[0] || __("Could not post comment")),
@@ -2144,6 +2219,131 @@ const addCommentRes = createResource({
 function addComment() {
   const c = newComment.value.trim();
   if (!c || !selected.value) return;
-  addCommentRes.submit({ task: selected.value.name, content: c });
+  // Only the mentions still present in the text count.
+  const mentions = pendingMentions.value
+    .filter((m) => c.includes("@" + m.label))
+    .map((m) => m.value);
+  addCommentRes.submit({ task: selected.value.name, content: c, mentions });
+}
+
+// --- @mentions in comments (agents only) -----------------------------------
+const commentInput = ref<HTMLInputElement | null>(null);
+const mentionOpen = ref(false);
+const mentionQuery = ref("");
+const mentionIndex = ref(0);
+const pendingMentions = ref<{ value: string; label: string }[]>([]);
+
+const mentionMatches = computed(() => {
+  const q = mentionQuery.value.toLowerCase();
+  return agentOptions.value
+    .filter((a: any) => a.label.toLowerCase().includes(q))
+    .slice(0, 6);
+});
+
+function onCommentInput() {
+  if (!props.editable) return;
+  const el = commentInput.value;
+  const caret = el?.selectionStart ?? newComment.value.length;
+  const match = newComment.value.slice(0, caret).match(/(?:^|\s)@([\w.-]*)$/);
+  mentionOpen.value = !!match;
+  mentionQuery.value = match ? match[1] : "";
+  mentionIndex.value = 0;
+}
+
+function onCommentKeydown(e: KeyboardEvent) {
+  if (!mentionOpen.value || !mentionMatches.value.length) return;
+  const n = mentionMatches.value.length;
+  if (e.key === "ArrowDown") {
+    e.preventDefault();
+    mentionIndex.value = (mentionIndex.value + 1) % n;
+  } else if (e.key === "ArrowUp") {
+    e.preventDefault();
+    mentionIndex.value = (mentionIndex.value - 1 + n) % n;
+  } else if (e.key === "Enter" || e.key === "Tab") {
+    // Picks the mention instead of submitting the comment.
+    e.preventDefault();
+    pickMention(mentionMatches.value[mentionIndex.value]);
+  } else if (e.key === "Escape") {
+    mentionOpen.value = false;
+  }
+}
+
+function pickMention(a: { value: string; label: string }) {
+  const el = commentInput.value;
+  const caret = el?.selectionStart ?? newComment.value.length;
+  const before = newComment.value
+    .slice(0, caret)
+    .replace(/@([\w.-]*)$/, () => "@" + a.label + " ");
+  newComment.value = before + newComment.value.slice(caret);
+  if (!pendingMentions.value.some((m) => m.value === a.value)) {
+    pendingMentions.value.push({ value: a.value, label: a.label });
+  }
+  mentionOpen.value = false;
+  nextTick(() => {
+    el?.focus();
+    el?.setSelectionRange(before.length, before.length);
+  });
+}
+
+let mentionCloseTimer: ReturnType<typeof setTimeout> | undefined;
+function closeMentionsSoon() {
+  clearTimeout(mentionCloseTimer);
+  mentionCloseTimer = setTimeout(() => (mentionOpen.value = false), 150);
+}
+
+// Render "@Name" of any agent in a comment as a highlighted mention.
+const REGEX_SPECIAL = new Set(".*+?^${}()|[]\\".split(""));
+function escapeRegex(s: string) {
+  return s
+    .split("")
+    .map((ch) => (REGEX_SPECIAL.has(ch) ? "\\" + ch : ch))
+    .join("");
+}
+const mentionLabels = computed(() =>
+  agentOptions.value
+    .map((a: any) => a.label)
+    .filter(Boolean)
+    .sort((a: string, b: string) => b.length - a.length)
+);
+function commentParts(text: string) {
+  const labels = mentionLabels.value;
+  if (!text || !labels.length || !text.includes("@")) {
+    return [{ text: text || "", mention: false }];
+  }
+  const known = new Set(labels.map((l: string) => "@" + l));
+  const re = new RegExp("(@(?:" + labels.map(escapeRegex).join("|") + "))");
+  return text
+    .split(re)
+    .filter((s) => s)
+    .map((s) => ({ text: s, mention: known.has(s) }));
+}
+
+// --- Watchers ----------------------------------------------------------------
+const watchers = createResource({
+  url: "helpdesk.api.task_collab.get_watchers",
+  makeParams: () => ({ task: selected.value?.name }),
+  onError: () => {},
+});
+const watchRes = createResource({
+  url: "helpdesk.api.task_collab.set_watching",
+  onSuccess: () => watchers.reload(),
+  onError: (e: any) =>
+    toast.error(e?.messages?.[0] || __("Could not update watching")),
+});
+const watchLabel = computed(() =>
+  !watchers.data?.watching
+    ? __("Watch")
+    : watchers.data?.can_unwatch
+    ? __("Unwatch")
+    : __("Watching")
+);
+const watchTitle = computed(() =>
+  watchers.data?.watching && !watchers.data?.can_unwatch
+    ? __("Assignees and reviewers always hear about their tasks.")
+    : ""
+);
+function toggleWatch() {
+  if (!selected.value?.name) return;
+  watchRes.submit({ task: selected.value.name, watch: watchers.data?.watching ? 0 : 1 });
 }
 </script>

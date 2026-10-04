@@ -46,6 +46,24 @@ function onTaskAssigned(data: {
   });
 }
 
+// In-app popup when someone @mentions the current user on a task.
+function onTaskMentioned(data: { subject?: string; by?: string }) {
+  toast.create({
+    title: __("You were mentioned"),
+    message: __("{0} mentioned you on “{1}”", [data?.by || "", data?.subject || ""]),
+    icon: h(LucideListChecks, { class: "text-ink-white" }),
+  });
+}
+
+// In-app popup for activity on a task the current user watches.
+function onTaskActivity(data: { subject?: string; message?: string }) {
+  toast.create({
+    title: data?.subject || __("Task updated"),
+    message: data?.message || "",
+    icon: h(LucideListChecks, { class: "text-ink-white" }),
+  });
+}
+
 // In-app popup when a task is ready for the current user's review.
 function onTaskReviewRequested(data: { subject?: string }) {
   toast.create({
@@ -122,6 +140,8 @@ onMounted(() => {
   $socket?.on("helpdesk:task_reviewed", onTaskReviewed);
   $socket?.on("helpdesk:customer_commented", onCustomerCommented);
   $socket?.on("helpdesk:ticket_replied", onTicketReplied);
+  $socket?.on("helpdesk:task_mentioned", onTaskMentioned);
+  $socket?.on("helpdesk:task_activity", onTaskActivity);
 });
 
 onUnmounted(() => {
@@ -132,6 +152,8 @@ onUnmounted(() => {
   $socket?.off("helpdesk:task_reviewed", onTaskReviewed);
   $socket?.off("helpdesk:customer_commented", onCustomerCommented);
   $socket?.off("helpdesk:ticket_replied", onTicketReplied);
+  $socket?.off("helpdesk:task_mentioned", onTaskMentioned);
+  $socket?.off("helpdesk:task_activity", onTaskActivity);
 });
 
 const AgentPortalRoot = defineAsyncComponent(

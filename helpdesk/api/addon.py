@@ -9,6 +9,7 @@ import frappe
 from frappe import _
 from frappe.utils import cint, flt
 
+from helpdesk.api import task_collab
 from helpdesk.integrations import pumble
 from helpdesk.utils import (
 	agent_has_addon,
@@ -144,6 +145,7 @@ def delete_addon(name: str) -> bool:
 		for t in tasks:
 			_snapshot_task_audit(t)
 		frappe.db.delete("HD Task Comment", {"task": ["in", tasks]})
+		frappe.db.delete("HD Task Watcher", {"task": ["in", tasks]})
 		frappe.db.delete("HD Task Subtask", {"task": ["in", tasks]})
 		frappe.db.delete("HD Addon Task", {"addon": name})
 	frappe.delete_doc("HD Addon", name, ignore_permissions=True)
@@ -915,6 +917,13 @@ def update_task(name: str, **fields) -> bool:
 		_notify_task_assignee(doc)
 	if notify_reviewer:
 		_notify_task_reviewer(doc)
+	if doc.status != old_status:
+		# The reviewer and a newly assigned agent already get their own email
+		# for this change; don't send them a second one.
+		covered = {doc.reviewer} if notify_reviewer else set()
+		if doc.assigned_to and doc.assigned_to != old_assignee:
+			covered.add(doc.assigned_to)
+		task_collab.on_status_change(doc, old_status, skip=covered)
 	return True
 
 
@@ -1278,9 +1287,14 @@ def bulk_update_tasks(names, **fields) -> int:
 	if not allowed:
 		frappe.throw(_("Nothing to update"))
 	count = 0
-	for name in names:
-		update_task(name, **allowed)
-		count += 1
+	# One status email per task would bury every watcher in a bulk move.
+	frappe.flags.in_bulk_task_update = True
+	try:
+		for name in names:
+			update_task(name, **allowed)
+			count += 1
+	finally:
+		frappe.flags.in_bulk_task_update = False
 	return count
 
 
@@ -1337,6 +1351,7 @@ def delete_task(name: str) -> bool:
 	_assert_task_access(name)
 	_snapshot_task_audit(name)
 	frappe.db.delete("HD Task Comment", {"task": name})
+	frappe.db.delete("HD Task Watcher", {"task": name})
 	frappe.db.delete("HD Task Subtask", {"task": name})
 	frappe.delete_doc("HD Addon Task", name, ignore_permissions=True)
 	return True
@@ -1379,7 +1394,7 @@ def get_task_comments(task: str) -> list:
 
 
 @frappe.whitelist()
-def add_task_comment(task: str, content: str) -> str:
+def add_task_comment(task: str, content: str, mentions: list | None = None) -> str:
 	"""Post a comment on a task. Agents and the parent's customer. Customer
 	comments notify everyone working on the task."""
 	_assert_task_access(task)
@@ -1389,9 +1404,11 @@ def add_task_comment(task: str, content: str) -> str:
 	c = frappe.get_doc(
 		{"doctype": "HD Task Comment", "task": task, "content": content}
 	).insert(ignore_permissions=True)
+	doc = frappe.get_doc("HD Addon Task", task)
 	if not is_agent():
-		doc = frappe.get_doc("HD Addon Task", task)
 		_notify_customer_comment(doc, content)
+	# The agents it @mentions, then everyone watching the task.
+	task_collab.on_comment(doc, content, mentions)
 	return c.name
 
 
