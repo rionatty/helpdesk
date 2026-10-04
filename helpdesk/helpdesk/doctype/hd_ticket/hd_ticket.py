@@ -34,6 +34,7 @@ from helpdesk.helpdesk.utils.email import (
     ticket_ingest_addresses,
 )
 from helpdesk.helpdesk.utils.ticket_routing import SCOPED, route_new_ticket
+from helpdesk.integrations import pumble
 from helpdesk.utils import (
     agent_only,
     capture_event,
@@ -455,6 +456,7 @@ class HDTicket(Document):
                 # inside that worker, so this does not depend on the
                 # email-queue flush scheduler.
                 self._enqueue_after_commit("notify_managers_new_ticket")
+                pumble.ticket_created(self)
             except Exception:
                 frappe.log_error(
                     title=f"New-ticket notification failed for {self.name}"
@@ -532,6 +534,8 @@ class HDTicket(Document):
         self.remove_assignment_if_not_in_team()
         self.publish_update()
         self.capture_update_telemetry_events()
+        if self.has_value_changed("status_category") and self.status_category == "Resolved":
+            pumble.ticket_resolved(self)
 
     def notify_agent(self, agent, notification_type="Assignment"):
         frappe.get_doc(
@@ -1778,6 +1782,16 @@ class HDTicket(Document):
                     self.status = self.default_open_status
                 # if received that means customer has replied
                 self.last_customer_response = frappe.utils.now_datetime()
+        # A customer message on an existing ticket -> Pumble. Only on insert:
+        # this hook runs on every save of the Communication, and an inbound
+        # email is saved twice (once more for its attachments).
+        if (
+            c.sent_or_received == "Received"
+            and c.flags.in_insert
+            and not self._sender_matches_automated_patterns(c.sender)
+            and not frappe.flags.get("hd_inbound_delivery_report")
+        ):
+            pumble.customer_replied(self, c)
         # If communication is outgoing, it must be a reply from agent
         if c.sent_or_received == "Sent":
             # Ignore system notifications

@@ -9,6 +9,7 @@ import frappe
 from frappe import _
 from frappe.utils import cint, flt
 
+from helpdesk.integrations import pumble
 from helpdesk.utils import (
 	agent_has_addon,
 	agent_has_project,
@@ -1103,6 +1104,8 @@ def _notify_review_submitted(doc, rating: int) -> None:
 
 def _notify_customer_comment(doc, content: str) -> None:
 	"""Tell everyone working on the task that the customer commented."""
+	# First, so the channel hears about it even when nobody is assigned yet.
+	pumble.customer_commented(doc, content)
 	recipients = _task_stakeholders(doc)
 	if not recipients:
 		return
@@ -1187,6 +1190,7 @@ def submit_customer_review(name: str, rating: int, comment: str | None = None) -
 			{"doctype": "HD Task Comment", "task": name, "content": comment}
 		).insert(ignore_permissions=True)
 	_notify_review_submitted(doc, doc.customer_rating)
+	pumble.customer_reviewed(doc, doc.customer_rating, comment)
 	return True
 
 

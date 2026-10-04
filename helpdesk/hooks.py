@@ -46,10 +46,13 @@ scheduler_events = {
             # lead window fire on the same tick.
             "helpdesk.api.reminder.create_sla_reminders",
             "helpdesk.api.reminder.send_due_reminders",
+            # Announces missed SLA deadlines in Pumble, once each.
+            "helpdesk.integrations.pumble.sla_breach_sweep",
         ],
     },
     "daily": [
-        "helpdesk.helpdesk.doctype.hd_ticket.hd_ticket.close_tickets_after_n_days"
+        "helpdesk.helpdesk.doctype.hd_ticket.hd_ticket.close_tickets_after_n_days",
+        "helpdesk.integrations.pumble.prune_log",
     ],
     "hourly_long": [
         "helpdesk.helpdesk.doctype.hd_ticket.hd_ticket.update_sla_status_in_ticket"

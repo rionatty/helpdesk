@@ -1,0 +1,150 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "hash",
+ "creation": "2026-10-04 00:00:00.000000",
+ "description": "A Pumble channel the helpdesk posts activity to.",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "channel_name",
+  "enabled",
+  "webhook_url",
+  "section_break_events",
+  "on_new_ticket",
+  "on_customer_reply",
+  "on_sla_breach",
+  "column_break_events",
+  "on_ticket_resolved",
+  "on_project_activity",
+  "section_break_scope",
+  "project",
+  "customer",
+  "email_account"
+ ],
+ "fields": [
+  {
+   "fieldname": "channel_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Channel",
+   "reqd": 1
+  },
+  {
+   "default": "1",
+   "fieldname": "enabled",
+   "fieldtype": "Check",
+   "label": "Enabled"
+  },
+  {
+   "description": "The channel's Incoming Webhook URL from Pumble. Kept secret.",
+   "fieldname": "webhook_url",
+   "fieldtype": "Password",
+   "label": "Webhook URL",
+   "length": 500,
+   "reqd": 1
+  },
+  {
+   "fieldname": "section_break_events",
+   "fieldtype": "Section Break",
+   "label": "Post When"
+  },
+  {
+   "default": "1",
+   "fieldname": "on_new_ticket",
+   "fieldtype": "Check",
+   "label": "New ticket"
+  },
+  {
+   "default": "1",
+   "fieldname": "on_customer_reply",
+   "fieldtype": "Check",
+   "label": "Customer replied"
+  },
+  {
+   "default": "1",
+   "fieldname": "on_sla_breach",
+   "fieldtype": "Check",
+   "label": "SLA breached"
+  },
+  {
+   "fieldname": "column_break_events",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "fieldname": "on_ticket_resolved",
+   "fieldtype": "Check",
+   "label": "Ticket resolved"
+  },
+  {
+   "default": "1",
+   "fieldname": "on_project_activity",
+   "fieldtype": "Check",
+   "label": "Client activity on projects"
+  },
+  {
+   "description": "Optional. Leave empty to post from everywhere.",
+   "fieldname": "section_break_scope",
+   "fieldtype": "Section Break",
+   "label": "Only For"
+  },
+  {
+   "fieldname": "project",
+   "fieldtype": "Link",
+   "label": "Project",
+   "options": "HD Project"
+  },
+  {
+   "fieldname": "customer",
+   "fieldtype": "Link",
+   "label": "Client",
+   "options": "HD Customer"
+  },
+  {
+   "fieldname": "email_account",
+   "fieldtype": "Link",
+   "label": "Inbox",
+   "options": "Email Account"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-10-04 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Helpdesk",
+ "name": "HD Pumble Channel",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Agent Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "channel_name",
+ "track_changes": 1
+}

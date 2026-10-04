@@ -10,6 +10,7 @@ import frappe
 from frappe import _
 from frappe.utils import cint, flt, today
 
+from helpdesk.integrations import pumble
 from helpdesk.utils import (
 	agent_has_project,
 	assigned_project_names,
@@ -1072,6 +1073,7 @@ def submit_milestone_signoff(name: str, approved: int, note: str | None = None) 
 	doc.signed_off_on = frappe.utils.now()
 	doc.signoff_note = (note or "").strip() or None
 	doc.save(ignore_permissions=True)
+	pumble.milestone_signed_off(doc, cint(approved), doc.signoff_note)
 	return True
 
 

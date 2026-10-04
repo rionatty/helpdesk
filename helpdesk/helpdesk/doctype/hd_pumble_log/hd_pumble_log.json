@@ -1,0 +1,99 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "hash",
+ "creation": "2026-10-04 00:00:00.000000",
+ "description": "Every message the helpdesk tried to post to Pumble.",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "channel",
+  "event",
+  "status",
+  "event_key",
+  "reference_doctype",
+  "reference_name",
+  "message",
+  "error"
+ ],
+ "fields": [
+  {
+   "fieldname": "channel",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Channel",
+   "options": "HD Pumble Channel",
+   "search_index": 1
+  },
+  {
+   "fieldname": "event",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Event"
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Status",
+   "options": "Sent\nFailed"
+  },
+  {
+   "description": "Identifies an event that must only ever be posted once.",
+   "fieldname": "event_key",
+   "fieldtype": "Data",
+   "label": "Event Key",
+   "search_index": 1
+  },
+  {
+   "fieldname": "reference_doctype",
+   "fieldtype": "Link",
+   "label": "Reference Type",
+   "options": "DocType"
+  },
+  {
+   "fieldname": "reference_name",
+   "fieldtype": "Dynamic Link",
+   "label": "Reference",
+   "options": "reference_doctype"
+  },
+  {
+   "fieldname": "message",
+   "fieldtype": "Small Text",
+   "label": "Message"
+  },
+  {
+   "fieldname": "error",
+   "fieldtype": "Small Text",
+   "label": "Error"
+  }
+ ],
+ "in_create": 1,
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-10-04 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Helpdesk",
+ "name": "HD Pumble Log",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "delete": 1,
+   "export": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager"
+  },
+  {
+   "delete": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Agent Manager"
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 0
+}
