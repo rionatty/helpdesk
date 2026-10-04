@@ -20,6 +20,7 @@ SUBTASK_FIELDS = [
 	"hours_spent",
 	"assigned_to",
 	"reviewer",
+	"review_status",
 	"score",
 	"description",
 	"due_date",
@@ -110,6 +111,7 @@ def get_subtasks(task: str) -> list:
 			r["assigned_to"] = None
 			r["reviewer"] = None
 			r["reviewer_name"] = None
+			r["review_status"] = None
 			r["score"] = 0
 			r["hours_spent"] = 0
 			r["responsibility"] = None
@@ -207,6 +209,10 @@ def update_subtask(
 				frappe.PermissionError,
 			)
 		doc.score = max(0, min(5, cint(score)))
+		# A score IS the review: it signs the subtask off.
+		if doc.score:
+			doc.review_status = "Reviewed"
+	old_status = doc.status
 	if subject is not None:
 		doc.subject = _clean_subject(subject)
 	if status is not None:
@@ -221,13 +227,28 @@ def update_subtask(
 		doc.assigned_to = assigned_to or None
 	if reviewer is not None:
 		doc.reviewer = reviewer or None
+		if not doc.reviewer:
+			# Nobody left to review it, so nothing is pending.
+			doc.review_status = None
 	if description is not None:
 		doc.description = description
 	if due_date is not None:
 		doc.due_date = due_date or None
 	if customer_visible is not None:
 		doc.customer_visible = 1 if cint(customer_visible) else 0
+	# Finishing a subtask that has a reviewer queues it for them, the same
+	# rule the parent task follows when it is marked Done.
+	queue_review = bool(
+		doc.status == "Done"
+		and old_status != "Done"
+		and doc.reviewer
+		and doc.review_status != "Reviewed"
+	)
+	if queue_review:
+		doc.review_status = "Pending Review"
 	doc.save(ignore_permissions=True)
+	if queue_review:
+		_notify_subtask_reviewer(doc)
 	return True
 
 
@@ -238,4 +259,121 @@ def delete_subtask(name: str) -> bool:
 	task = _resolve_task(name)
 	_assert_task_access(task)
 	frappe.delete_doc("HD Task Subtask", name, ignore_permissions=True)
+	return True
+
+
+# ---------------------------------------------------------------------------
+# Review: an agent submits a subtask to the colleague who checks it
+# ---------------------------------------------------------------------------
+
+
+def _notify_subtask_reviewer(doc) -> None:
+	"""Tell the reviewer a subtask is waiting on them (in-app + email).
+	Best-effort: a notification failure never fails the request, and nobody
+	is asked to review their own work."""
+	reviewer = doc.get("reviewer")
+	if not reviewer or reviewer == frappe.session.user or reviewer == "Guest":
+		return
+	task = (
+		frappe.db.get_value(
+			"HD Addon Task", doc.task, ["subject", "project", "addon"], as_dict=True
+		)
+		or frappe._dict()
+	)
+	if task.get("project"):
+		path = f"/helpdesk/projects/{task.project}"
+	elif task.get("addon"):
+		path = f"/helpdesk/addons/{task.addon}"
+	else:
+		path = "/helpdesk/tasks"
+	link = frappe.utils.get_url(path)
+	try:
+		frappe.publish_realtime(
+			"helpdesk:subtask_review_requested",
+			{
+				"subtask": doc.name,
+				"subject": doc.subject,
+				"task": doc.task,
+				"link": link,
+			},
+			user=reviewer,
+		)
+	except Exception:
+		pass
+
+	sender = frappe.db.get_value(
+		"Email Account", {"enable_outgoing": 1, "default_outgoing": 1}, "email_id"
+	) or frappe.db.get_value("Email Account", {"enable_outgoing": 1}, "email_id")
+	if not sender:
+		return
+	try:
+		first_name = (
+			frappe.db.get_value("HD Agent", reviewer, "agent_name") or reviewer
+		).split(" ")[0]
+		requester = frappe.utils.get_fullname(frappe.session.user)
+		parent = task.get("subject") or doc.task
+		frappe.sendmail(
+			recipients=[reviewer],
+			sender=sender,
+			subject=_("Review requested: {0}").format(doc.subject),
+			message=f"""
+				<p>{_('Hi')} {frappe.utils.escape_html(first_name)},</p>
+				<p>{frappe.utils.escape_html(requester)}
+					{_('asked you to review a subtask')}:</p>
+				<p style="font-size:15px;font-weight:600;margin:12px 0;">
+					{frappe.utils.escape_html(doc.subject)}</p>
+				<p style="color:#6b7280;margin:0 0 12px;">
+					{_('On task')}: {frappe.utils.escape_html(parent)}</p>
+				<p style="margin-top:16px;">
+					<a href="{link}" style="background:#2563eb;color:#fff;padding:8px 16px;
+					border-radius:6px;text-decoration:none;">{_('Open task')}</a>
+				</p>
+			""",
+			reference_doctype="HD Task Subtask",
+			reference_name=doc.name,
+			now=True,
+		)
+	except Exception:
+		frappe.log_error(
+			title="Subtask review email failed", message=frappe.get_traceback()
+		)
+
+
+@frappe.whitelist()
+def request_review(name: str, reviewer: str | None = None) -> bool:
+	"""Submit a subtask to its reviewer: record them, flag it Pending Review
+	and notify them. Agents only. Calling it again re-sends the request,
+	which is what the "Remind reviewer" button does."""
+	_assert_agent()
+	task = _resolve_task(name)
+	_assert_task_access(task)
+	doc = frappe.get_doc("HD Task Subtask", name)
+	if reviewer is not None:
+		reviewer = (reviewer or "").strip()
+		if reviewer and not frappe.db.exists("HD Agent", reviewer):
+			frappe.throw(_("{0} is not an agent").format(reviewer))
+		doc.reviewer = reviewer or None
+	if not doc.reviewer:
+		frappe.throw(_("Choose a reviewer first"))
+	doc.review_status = "Pending Review"
+	doc.save(ignore_permissions=True)
+	_notify_subtask_reviewer(doc)
+	return True
+
+
+@frappe.whitelist()
+def mark_reviewed(name: str) -> bool:
+	"""Sign a subtask off without scoring it — the reviewer named on it, or
+	a manager, same rule as scoring."""
+	_assert_agent()
+	task = _resolve_task(name)
+	_assert_task_access(task)
+	doc = frappe.get_doc("HD Task Subtask", name)
+	if not (is_agent_manager() or frappe.session.user == doc.reviewer):
+		frappe.throw(
+			_("Only the reviewer or a manager can mark this reviewed"),
+			frappe.PermissionError,
+		)
+	doc.review_status = "Reviewed"
+	doc.save(ignore_permissions=True)
 	return True

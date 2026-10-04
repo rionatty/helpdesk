@@ -333,6 +333,53 @@
               />
             </button>
           </div>
+          <!-- Submit it to the reviewer, and show where that stands -->
+          <span
+            v-if="t.review_status"
+            class="text-[10px] font-medium rounded-full px-1.5 py-0.5"
+            :class="
+              t.review_status === 'Reviewed'
+                ? 'bg-green-100 text-green-700'
+                : 'bg-amber-100 text-amber-700'
+            "
+          >
+            {{
+              t.review_status === "Reviewed"
+                ? __("Reviewed")
+                : __("Pending review")
+            }}
+          </span>
+          <button
+            v-if="t.review_status !== 'Reviewed'"
+            type="button"
+            class="text-xs font-medium"
+            :class="
+              t.reviewer
+                ? 'text-ink-gray-6 hover:text-ink-gray-9 hover:underline'
+                : 'text-ink-gray-4 cursor-not-allowed'
+            "
+            :disabled="!t.reviewer"
+            :title="
+              t.reviewer
+                ? __('Notify the reviewer')
+                : __('Pick a reviewer first')
+            "
+            @click="requestReview(t)"
+          >
+            {{
+              t.review_status === "Pending Review"
+                ? __("Remind reviewer")
+                : __("Request review")
+            }}
+          </button>
+          <button
+            v-if="t.review_status === 'Pending Review' && canScore(t)"
+            type="button"
+            class="text-xs font-medium text-green-700 hover:underline"
+            @click="markReviewed(t)"
+          >
+            {{ __("Mark reviewed") }}
+          </button>
         </div>
       </div>
     </div>
@@ -563,6 +610,37 @@ function isOverdue(t: SubtaskRow) {
 }
 function canScore(t: SubtaskRow) {
   return !!authStore.isManager || (!!t.reviewer && t.reviewer === userId);
+}
+
+// Submitting a subtask to its reviewer. The reviewer comes from the row's own
+// select, so this only notifies them and flags the subtask Pending review.
+const requestReviewRes = createResource({
+  url: "helpdesk.api.task_subtask.request_review",
+  onSuccess: () => {
+    toast.success(__("Reviewer notified"));
+    reload();
+  },
+  onError: (e: any) =>
+    toast.error(e?.messages?.[0] || __("Could not request review")),
+});
+function requestReview(t: SubtaskRow) {
+  if (!t?.name || !t.reviewer) return;
+  requestReviewRes.submit({ name: t.name, reviewer: t.reviewer });
+}
+
+// Signing off without scoring — same permission rule as the score.
+const markReviewedRes = createResource({
+  url: "helpdesk.api.task_subtask.mark_reviewed",
+  onSuccess: () => {
+    toast.success(__("Marked as reviewed"));
+    reload();
+  },
+  onError: (e: any) =>
+    toast.error(e?.messages?.[0] || __("Could not mark this reviewed")),
+});
+function markReviewed(t: SubtaskRow) {
+  if (!t?.name) return;
+  markReviewedRes.submit({ name: t.name });
 }
 
 const agents = createListResource({

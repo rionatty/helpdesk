@@ -13,6 +13,7 @@
   "column_break_main",
   "assigned_to",
   "reviewer",
+  "review_status",
   "score",
   "hours_spent",
   "due_date",
@@ -76,6 +77,14 @@
    "search_index": 1
   },
   {
+   "depends_on": "reviewer",
+   "fieldname": "review_status",
+   "fieldtype": "Select",
+   "in_standard_filter": 1,
+   "label": "Review Status",
+   "options": "\nPending Review\nReviewed"
+  },
+  {
    "default": "0",
    "description": "Review score given by the reviewer (0 = not scored, 1-5)",
    "fieldname": "score",
@@ -118,7 +127,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-07-04 00:00:00.000000",
+ "modified": "2026-10-05 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Helpdesk",
  "name": "HD Task Subtask",
