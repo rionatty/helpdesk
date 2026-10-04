@@ -27,6 +27,18 @@ jobs:
         with:
           path: apps/helpdesk
 
+      # The desk also imports frappe's vendored analytics library
+      # (src/telemetry.ts -> ../../../frappe/frappe/public/js/lib/posthog.js),
+      # which lives in the frappe app beside this one. Fetch just that.
+      - name: Frappe framework files the desk imports
+        uses: actions/checkout@v4
+        with:
+          repository: frappe/frappe
+          ref: version-16
+          path: apps/frappe
+          sparse-checkout: frappe/public/js/lib/posthog.js
+          sparse-checkout-cone-mode: false
+
       - name: Stand-in bench site config
         run: |
           mkdir -p sites
