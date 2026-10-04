@@ -36,6 +36,7 @@
    "fieldtype": "Data",
    "in_list_view": 1,
    "label": "Task",
+   "length": 500,
    "reqd": 1
   },
   {

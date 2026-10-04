@@ -91,7 +91,24 @@
               class="size-4 mt-0.5 shrink-0"
               :class="statusColor(t.status)"
             />
+            <!-- Agents rename in place; customers keep the plain-text view. -->
+            <input
+              v-if="editable"
+              type="text"
+              :value="t.subject"
+              maxlength="500"
+              :aria-label="__('Subtask subject')"
+              class="text-sm flex-1 min-w-0 leading-snug font-medium bg-transparent rounded-md border border-transparent px-1.5 py-0.5 hover:border-outline-gray-2 focus:border-blue-400 focus:bg-surface-white focus:outline-none"
+              :class="
+                t.status === 'Done'
+                  ? 'text-ink-gray-5 line-through'
+                  : 'text-ink-gray-8'
+              "
+              @blur="(e) => renameSubtask(t, e.target)"
+              @keyup.enter="(e) => e.target.blur()"
+            />
             <span
+              v-else
               class="text-sm flex-1 leading-snug font-medium"
               :class="
                 t.status === 'Done'
@@ -231,7 +248,7 @@
           type="text"
           :placeholder="__('Add a subtask…')"
           class="flex-1 text-sm rounded-lg border border-outline-gray-2 bg-surface-white px-3 py-1.5 text-ink-gray-8 focus:outline-none focus:border-blue-400"
-          maxlength="200"
+          maxlength="500"
         />
         <Button
           :label="__('Add')"
@@ -412,6 +429,33 @@ const updateRes = createResource({
 });
 function patchSubtask(name: string, fields: Record<string, any>) {
   updateRes.submit({ name, ...fields });
+}
+
+// Renames revert the row and toast themselves (see renameSubtask), so this
+// resource must not toast as well: frappe-ui falls back to the app-wide error
+// handler when a resource has no onError, and the user would get two toasts.
+const subjectRes = createResource({
+  url: "helpdesk.api.subtask.update_subtask",
+  onError: () => {},
+});
+/** Save an edited subject; put the stored one back if the server says no. */
+function renameSubtask(t: any, el: HTMLInputElement) {
+  const subject = (el.value || "").trim();
+  if (!subject || subject === t.subject) {
+    // Blank or unchanged: restore the stored subject, nothing to save.
+    el.value = t.subject || "";
+    return;
+  }
+  const previous = t.subject;
+  // Optimistic: the row shows the new subject while the save is in flight.
+  // No reload() on success — nothing in the summary depends on the subject,
+  // and a refetch here could clobber another row's in-flight edit.
+  t.subject = subject;
+  subjectRes.submit({ name: t.name, subject }).catch((e: any) => {
+    t.subject = previous;
+    el.value = previous || "";
+    toast.error(e?.messages?.[0] || __("Could not rename subtask"));
+  });
 }
 
 const deleteRes = createResource({

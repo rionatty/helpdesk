@@ -82,7 +82,21 @@
             class="size-4 mt-0.5 shrink-0"
             :class="statusColor(t.status)"
           />
+          <!-- Agents rename in place; the customer view stays read-only text. -->
+          <input
+            v-if="editable"
+            type="text"
+            :value="t.subject"
+            maxlength="500"
+            :aria-label="__('Subtask subject')"
+            :title="__('Rename this subtask')"
+            class="flex-1 min-w-0 text-sm leading-snug font-medium bg-transparent rounded-md border border-transparent px-1.5 py-0.5 hover:border-outline-gray-2 focus:border-blue-400 focus:bg-surface-white focus:outline-none"
+            :class="t.status === 'Done' ? 'text-ink-gray-5 line-through' : 'text-ink-gray-8'"
+            @change="(e) => renameSubtask(t, e.target)"
+            @keyup.enter="(e) => e.target.blur()"
+          />
           <span
+            v-else
             class="text-sm flex-1 leading-snug font-medium"
             :class="t.status === 'Done' ? 'text-ink-gray-5 line-through' : 'text-ink-gray-8'"
           >
@@ -129,7 +143,7 @@
           <select
             :value="t.status"
             class="text-xs rounded-md border border-outline-gray-2 bg-surface-white px-2 py-1 text-ink-gray-7 focus:outline-none focus:border-blue-400"
-            @change="(e) => patchSubtask(t.name, { status: e.target.value })"
+            @change="(e) => patchSubtask(t, { status: e.target.value })"
           >
             <option value="To Do">{{ __("To Do") }}</option>
             <option value="In Progress">{{ __("In Progress") }}</option>
@@ -139,7 +153,7 @@
             :value="t.assigned_to || ''"
             class="text-xs rounded-md border border-outline-gray-2 bg-surface-white px-2 py-1 text-ink-gray-7 focus:outline-none focus:border-blue-400 max-w-[120px]"
             :aria-label="__('Assignee')"
-            @change="(e) => patchSubtask(t.name, { assigned_to: e.target.value })"
+            @change="(e) => patchSubtask(t, { assigned_to: e.target.value })"
           >
             <option value="">{{ __("Unassigned") }}</option>
             <option v-for="a in agentOptions" :key="a.value" :value="a.value">
@@ -150,7 +164,7 @@
             :value="t.reviewer || ''"
             class="text-xs rounded-md border border-outline-gray-2 bg-surface-white px-2 py-1 text-ink-gray-7 focus:outline-none focus:border-blue-400 max-w-[120px]"
             :aria-label="__('Reviewer')"
-            @change="(e) => patchSubtask(t.name, { reviewer: e.target.value })"
+            @change="(e) => patchSubtask(t, { reviewer: e.target.value })"
           >
             <option value="">{{ __("No reviewer") }}</option>
             <option v-for="a in agentOptions" :key="a.value" :value="a.value">
@@ -166,7 +180,7 @@
               :value="t.hours_spent"
               class="w-14 text-xs rounded-md border border-outline-gray-2 bg-surface-white px-2 py-1 text-ink-gray-7 focus:outline-none focus:border-blue-400"
               :aria-label="__('Hours spent')"
-              @change="(e) => patchSubtask(t.name, { hours_spent: parseFloat(e.target.value) || 0 })"
+              @change="(e) => patchSubtask(t, { hours_spent: parseFloat(e.target.value) || 0 })"
             />
             <span class="text-xs text-ink-gray-5">{{ __("hrs") }}</span>
           </div>
@@ -181,7 +195,7 @@
               class="text-xs rounded-md border bg-surface-white px-2 py-1 focus:outline-none focus:border-blue-400"
               :class="isOverdue(t) ? 'border-red-300 text-ink-red-3' : 'border-outline-gray-2 text-ink-gray-7'"
               :aria-label="__('Due date')"
-              @change="(e) => patchSubtask(t.name, { due_date: e.target.value })"
+              @change="(e) => patchSubtask(t, { due_date: e.target.value })"
             />
           </div>
           <label
@@ -191,7 +205,7 @@
             <input
               type="checkbox"
               :checked="!!t.customer_visible"
-              @change="(e) => patchSubtask(t.name, { customer_visible: e.target.checked ? 1 : 0 })"
+              @change="(e) => patchSubtask(t, { customer_visible: e.target.checked ? 1 : 0 })"
             />
             {{ __("Client-visible") }}
           </label>
@@ -214,7 +228,7 @@
               :disabled="!canScore(t)"
               :class="canScore(t) ? 'cursor-pointer hover:scale-110 transition-transform' : 'cursor-default'"
               :aria-label="__('Score {0} of 5', [n])"
-              @click="canScore(t) && patchSubtask(t.name, { score: n === Number(t.score) ? 0 : n })"
+              @click="canScore(t) && patchSubtask(t, { score: n === Number(t.score) ? 0 : n })"
             >
               <LucideStar
                 class="size-4"
@@ -241,7 +255,7 @@
         type="text"
         :placeholder="__('Add a subtask…')"
         class="flex-1 text-sm rounded-lg border border-outline-gray-2 bg-surface-white px-3 py-1.5 text-ink-gray-8 focus:outline-none focus:border-blue-400"
-        maxlength="200"
+        maxlength="500"
       />
       <Button
         :label="__('Add')"
@@ -325,10 +339,14 @@ function pct(count: number) {
 }
 
 interface SubtaskRow {
+  name?: string;
+  subject?: string;
   status: string;
   due_date?: string | null;
   reviewer?: string | null;
   score?: number;
+  // Rows come straight off the API, so patchSubtask() can read/write any field.
+  [key: string]: any;
 }
 function isOverdue(t: SubtaskRow) {
   if (!t.due_date || t.status === "Done") return false;
@@ -378,11 +396,68 @@ function createSubtask() {
 
 const updateRes = createResource({
   url: "helpdesk.api.task_subtask.update_subtask",
-  onSuccess: () => reload(),
-  onError: (e: any) => toast.error(e?.messages?.[0] || __("Could not update subtask")),
+  // Failures are handled per row in patchSubtask() — it reverts the row and
+  // toasts there. Without an onError here frappe-ui treats the error as
+  // unhandled and runs the app-wide fallback handler too, so one failed save
+  // would raise two toasts.
+  onError: () => {},
 });
-function patchSubtask(name: string, fields: Record<string, any>) {
-  updateRes.submit({ name, ...fields });
+
+// One save at a time per subtask, so two quick edits to the same row (renaming
+// it and then flipping its status) can't race each other into a "document has
+// been modified" error.
+const saveChain: Record<string, Promise<any>> = {};
+
+/**
+ * Save one subtask field straight away; revert the row if the server says no.
+ * `onRevert` lets a caller put its own uncontrolled input back in step.
+ */
+function patchSubtask(
+  t: SubtaskRow,
+  fields: Record<string, any>,
+  onRevert?: () => void
+) {
+  const name = t?.name;
+  if (!name) return;
+  const previous: Record<string, any> = {};
+  const changed: Record<string, any> = {};
+  for (const [key, value] of Object.entries(fields)) {
+    if ((t[key] ?? "") === (value ?? "")) continue;
+    previous[key] = t[key];
+    changed[key] = value;
+  }
+  // Nothing actually changed — don't bother the server.
+  if (!Object.keys(changed).length) return;
+  // Optimistic: the row shows the edit while the save is in flight.
+  Object.assign(t, changed);
+  const run: Promise<any> = (saveChain[name] || Promise.resolve())
+    .catch(() => {})
+    .then(() => updateRes.submit({ name, ...changed }))
+    // Roll the progress bar, counts and score rollup forward.
+    .then(() => reload())
+    .catch((e: any) => {
+      Object.assign(t, previous);
+      onRevert?.();
+      toast.error(e?.messages?.[0] || __("Could not update subtask"));
+    })
+    .finally(() => {
+      if (saveChain[name] === run) delete saveChain[name];
+    });
+  saveChain[name] = run;
+}
+
+/** Rename a subtask from its inline input — fires on blur and on Enter. */
+function renameSubtask(t: SubtaskRow, el: HTMLInputElement) {
+  const subject = (el.value || "").trim();
+  if (!subject || subject === (t.subject || "")) {
+    // Blank or unchanged: put the stored subject back in the box, save nothing.
+    el.value = t.subject || "";
+    return;
+  }
+  el.value = subject;
+  patchSubtask(t, { subject }, () => {
+    el.value = t.subject || "";
+  });
 }
 
 const deleteRes = createResource({

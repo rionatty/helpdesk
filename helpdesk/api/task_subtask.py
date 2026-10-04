@@ -26,6 +26,10 @@ SUBTASK_FIELDS = [
 ]
 STATUSES = ("To Do", "In Progress", "Done")
 
+# Agents type subjects into a plain Data column, capped server-side so an
+# over-long title fails with a message instead of hitting the database limit.
+SUBJECT_MAX_LENGTH = 500
+
 
 def _assert_agent() -> None:
 	if not is_agent():
@@ -37,6 +41,24 @@ def _resolve_task(subtask: str) -> str:
 	if not task:
 		frappe.throw(_("Subtask not found"), frappe.DoesNotExistError)
 	return task
+
+
+def _clean_subject(subject: str | None) -> str:
+	"""Trim a subject, and refuse one that is empty or longer than the column.
+
+	The column is varchar(500), so a longer subject would be rejected by the
+	database anyway -- this turns that into a message the caller can read.
+	"""
+	subject = (subject or "").strip()
+	if not subject:
+		frappe.throw(_("Subject is required"))
+	if len(subject) > SUBJECT_MAX_LENGTH:
+		frappe.throw(
+			_("A subject can be at most {0} characters (this one is {1})").format(
+				SUBJECT_MAX_LENGTH, len(subject)
+			)
+		)
+	return subject
 
 
 @frappe.whitelist()
@@ -131,9 +153,7 @@ def add_subtask(task: str, subject: str) -> str:
 	"""Create a subtask under a task. Agents only."""
 	_assert_agent()
 	_assert_task_access(task)
-	subject = (subject or "").strip()
-	if not subject:
-		frappe.throw(_("Subject is required"))
+	subject = _clean_subject(subject)
 	doc = frappe.get_doc(
 		{
 			"doctype": "HD Task Subtask",
@@ -175,7 +195,7 @@ def update_subtask(
 			)
 		doc.score = max(0, min(5, cint(score)))
 	if subject is not None:
-		doc.subject = subject.strip()
+		doc.subject = _clean_subject(subject)
 	if status is not None:
 		if status not in STATUSES:
 			frappe.throw(_("Invalid status"))

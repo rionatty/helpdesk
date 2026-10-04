@@ -13,6 +13,10 @@ from frappe import _
 
 from helpdesk.utils import is_agent
 
+# Agents type subjects into a plain Data column, capped server-side so an
+# over-long title fails with a message instead of hitting the database limit.
+SUBJECT_MAX_LENGTH = 500
+
 
 def _assert_ticket_read(ticket: str) -> None:
 	if not frappe.db.exists("HD Ticket", ticket):
@@ -24,6 +28,24 @@ def _assert_ticket_read(ticket: str) -> None:
 def _assert_agent() -> None:
 	if not is_agent():
 		frappe.throw(_("Only agents can manage subtasks"), frappe.PermissionError)
+
+
+def _clean_subject(subject: str | None) -> str:
+	"""Trim a subject, and refuse one that is empty or longer than the column.
+
+	The column is varchar(500), so a longer subject would be rejected by the
+	database anyway -- this turns that into a message the caller can read.
+	"""
+	subject = (subject or "").strip()
+	if not subject:
+		frappe.throw(_("Subject is required"))
+	if len(subject) > SUBJECT_MAX_LENGTH:
+		frappe.throw(
+			_("A subject can be at most {0} characters (this one is {1})").format(
+				SUBJECT_MAX_LENGTH, len(subject)
+			)
+		)
+	return subject
 
 
 @frappe.whitelist()
@@ -112,9 +134,7 @@ def add_subtask(ticket: str, subject: str) -> str:
 	"""Create a subtask under a ticket. Agents only."""
 	_assert_agent()
 	_assert_ticket_read(ticket)
-	subject = (subject or "").strip()
-	if not subject:
-		frappe.throw(_("Subject is required"))
+	subject = _clean_subject(subject)
 	doc = frappe.get_doc(
 		{
 			"doctype": "HD Ticket Subtask",
@@ -142,7 +162,7 @@ def update_subtask(
 	doc = frappe.get_doc("HD Ticket Subtask", name)
 	_assert_ticket_read(doc.ticket)
 	if subject is not None:
-		doc.subject = subject.strip()
+		doc.subject = _clean_subject(subject)
 	if status is not None:
 		if status not in ("To Do", "In Progress", "Done"):
 			frappe.throw(_("Invalid status"))

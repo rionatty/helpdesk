@@ -486,6 +486,7 @@
       <input
         v-model="newSubject"
         type="text"
+        maxlength="500"
         :placeholder="hub ? __('Add a personal task…') : __('Add a task…')"
         class="flex-1 text-sm bg-transparent text-ink-gray-8 focus:outline-none"
       />
@@ -511,6 +512,7 @@
               v-if="editable"
               ref="subjectInput"
               :value="selected.subject"
+              maxlength="500"
               :placeholder="__('Task name')"
               class="flex-1 min-w-0 text-lg font-semibold text-ink-gray-9 bg-transparent focus:outline-none border-b border-transparent focus:border-outline-gray-2"
               @change="(e) => patch({ subject: e.target.value })"

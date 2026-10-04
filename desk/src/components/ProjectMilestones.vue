@@ -315,7 +315,7 @@
                     v-if="canEditTask(t)"
                     type="text"
                     :value="t.subject"
-                    maxlength="200"
+                    maxlength="500"
                     :aria-label="__('Task subject')"
                     class="flex-1 min-w-0 text-sm bg-transparent rounded-md border border-transparent px-1.5 py-0.5 hover:border-outline-gray-2 focus:border-blue-400 focus:bg-surface-white focus:outline-none"
                     :class="

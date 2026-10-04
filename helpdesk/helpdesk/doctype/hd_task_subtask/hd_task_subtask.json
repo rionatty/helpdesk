@@ -25,6 +25,7 @@
    "fieldtype": "Data",
    "in_list_view": 1,
    "label": "Subject",
+   "length": 500,
    "reqd": 1
   },
   {
