@@ -125,6 +125,11 @@
                 <p class="text-p-sm text-ink-gray-4">{{ field.description }}</p>
               </div>
             </div>
+            <!-- Only inboxes create tickets, so only they get routing. -->
+            <InboxNotificationRouting
+              v-if="accountData.enable_incoming && accountData.email_account_name"
+              :email-account="accountData.email_account_name"
+            />
             <ErrorMessage v-if="error" class="ms-1" :message="error" />
           </div>
         </div>
@@ -169,6 +174,7 @@ import { call, toast } from "frappe-ui";
 import { computed, h, reactive, ref, watch } from "vue";
 import CircleAlert from "~icons/lucide/circle-alert";
 import EmailProviderIcon from "./EmailProviderIcon.vue";
+import InboxNotificationRouting from "./InboxNotificationRouting.vue";
 import {
   customIncomingFields,
   customOutgoingFields,

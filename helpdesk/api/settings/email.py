@@ -146,3 +146,52 @@ email_service_config = {
     },
     "Custom": {},
 }
+
+
+NOTIFY_OPTIONS = ("Automatic", "Selected agents", "No one")
+
+
+@frappe.whitelist()
+def get_inbox_routing(email_account: str) -> dict:
+    """Who is emailed when a new ticket arrives in this inbox."""
+    frappe.only_for(["Agent Manager", "System Manager"])
+    name = frappe.db.get_value(
+        "HD Inbox Routing", {"email_account": email_account}, "name"
+    )
+    if not name:
+        return {"notify": "Automatic", "agents": []}
+    doc = frappe.get_doc("HD Inbox Routing", name)
+    return {"notify": doc.notify or "Automatic", "agents": [r.agent for r in doc.agents]}
+
+
+@frappe.whitelist()
+def set_inbox_routing(email_account: str, notify: str, agents: list | None = None) -> dict:
+    """Save an inbox's new-ticket email rule. Manager-only."""
+    frappe.only_for(["Agent Manager", "System Manager"])
+    if notify not in NOTIFY_OPTIONS:
+        frappe.throw(_("Invalid notification setting"))
+    if not frappe.db.exists("Email Account", email_account):
+        frappe.throw(_("Email account not found"), frappe.DoesNotExistError)
+    if isinstance(agents, str):
+        agents = frappe.parse_json(agents)
+    agents = list(dict.fromkeys(a for a in (agents or []) if a))
+    if notify == "Selected agents":
+        if not agents:
+            frappe.throw(_("Pick at least one agent, or choose Automatic"))
+        unknown = set(agents) - set(
+            frappe.get_all("HD Agent", filters={"name": ["in", agents]}, pluck="name")
+        )
+        if unknown:
+            frappe.throw(_("Not agents: {0}").format(", ".join(sorted(unknown))))
+    else:
+        agents = []
+
+    name = frappe.db.get_value(
+        "HD Inbox Routing", {"email_account": email_account}, "name"
+    )
+    doc = frappe.get_doc("HD Inbox Routing", name) if name else frappe.new_doc("HD Inbox Routing")
+    doc.email_account = email_account
+    doc.notify = notify
+    doc.set("agents", [{"agent": a} for a in agents])
+    doc.save(ignore_permissions=True)
+    return {"notify": doc.notify, "agents": [r.agent for r in doc.agents]}

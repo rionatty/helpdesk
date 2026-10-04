@@ -1,0 +1,83 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "hash",
+ "creation": "2026-10-04 00:00:00.000000",
+ "description": "Who is emailed when a new ticket arrives in an inbox.",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "email_account",
+  "notify",
+  "agents"
+ ],
+ "fields": [
+  {
+   "fieldname": "email_account",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Email Account",
+   "options": "Email Account",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "default": "Automatic",
+   "description": "Automatic: the client's project team, else everyone. Selected agents: only the agents below. No one: email nobody.",
+   "fieldname": "notify",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "New Ticket Emails",
+   "options": "Automatic\nSelected agents\nNo one"
+  },
+  {
+   "depends_on": "eval:doc.notify=='Selected agents'",
+   "fieldname": "agents",
+   "fieldtype": "Table MultiSelect",
+   "label": "Agents",
+   "options": "HD Inbox Routing Agent"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-10-04 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Helpdesk",
+ "name": "HD Inbox Routing",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Agent Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "read": 1,
+   "role": "Agent"
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

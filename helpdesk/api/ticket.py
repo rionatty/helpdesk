@@ -229,7 +229,15 @@ def diagnose_ticket_email(ticket: str) -> dict:
 		)
 	except Exception:
 		ticket_email_notifications = None
+	try:
+		from helpdesk.helpdesk.utils.ticket_routing import route_new_ticket
+
+		scope, routed = route_new_ticket(frappe.get_doc("HD Ticket", ticket))
+		new_ticket_routing = {"scope": scope, "agents": routed}
+	except Exception as e:
+		new_ticket_routing = {"error": str(e)}
 	return {
+		"new_ticket_routing": new_ticket_routing,
 		"loop_protection": {
 			"requester_is_bounce_address": is_bounce_address(requester),
 			"filter_automated_emails": settings.get("filter_automated_emails"),

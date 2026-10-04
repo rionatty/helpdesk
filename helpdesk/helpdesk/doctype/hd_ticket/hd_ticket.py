@@ -33,6 +33,7 @@ from helpdesk.helpdesk.utils.email import (
     is_bounce_address,
     ticket_ingest_addresses,
 )
+from helpdesk.helpdesk.utils.ticket_routing import SCOPED, route_new_ticket
 from helpdesk.utils import (
     agent_only,
     capture_event,
@@ -771,8 +772,11 @@ class HDTicket(Document):
         if enabled is not None and not int(enabled):
             return
 
-        candidates = []
-        if self.agent_group:
+        # Same audience as the new-ticket email: a client's ticket goes to
+        # someone on that client's team, never to an agent outside it.
+        scope, routed = route_new_ticket(self)
+        candidates = list(routed) if scope in SCOPED else []
+        if not candidates and self.agent_group:
             candidates = frappe.get_all(
                 "HD Team Member", filters={"parent": self.agent_group}, pluck="user"
             )
@@ -1521,21 +1525,29 @@ class HDTicket(Document):
             )
 
     def notify_managers_new_ticket(self):
-        """Email every active agent and Agent Manager the moment a new ticket
-        arrives."""
+        """Email the agents responsible for a new ticket the moment it arrives:
+        the client's project team, the inbox's chosen agents, or everyone -
+        see helpdesk/helpdesk/utils/ticket_routing.py."""
         # Skip bulk imports and the bundled sample ticket
         if frappe.flags.initial_sync or self.subject == "Welcome to Helpdesk":
             return
 
-        manager_ids = frappe.get_all(
-            "Has Role",
-            filters={"role": "Agent Manager", "parenttype": "User"},
-            pluck="parent",
-        )
-        agent_ids = frappe.get_all(
-            "HD Agent", filters={"is_active": 1}, pluck="name"
-        )
-        candidate_ids = list({*manager_ids, *agent_ids})
+        scope, routed = route_new_ticket(self)
+        if scope == "no_one":
+            return
+        if scope == "everyone":
+            manager_ids = frappe.get_all(
+                "Has Role",
+                filters={"role": "Agent Manager", "parenttype": "User"},
+                pluck="parent",
+            )
+            agent_ids = frappe.get_all(
+                "HD Agent", filters={"is_active": 1}, pluck="name"
+            )
+            candidate_ids = list({*manager_ids, *agent_ids})
+        else:
+            # Exactly the routed agents - not "everyone plus them".
+            candidate_ids = routed
         if not candidate_ids:
             return
 
@@ -1560,6 +1572,20 @@ class HDTicket(Document):
         subject = frappe.utils.escape_html(self.subject or "")
         priority = frappe.utils.escape_html(self.priority or "-")
         team = frappe.utils.escape_html(self.agent_group or "-")
+        # Say why this landed in their inbox, so routing is visible and
+        # easy to question.
+        reason = {
+            "project": _("You're receiving this because you're on this ticket's project team."),
+            "inbox": _("You're receiving this because you handle new tickets for {0}.").format(
+                frappe.utils.escape_html(self.email_account or "")
+            ),
+            "client": _("You're receiving this because you're on a project team for this client."),
+        }.get(scope, "")
+        reason_html = (
+            f'<p style="color:#6b7280;font-size:12px;margin-top:16px">{reason}</p>'
+            if reason
+            else ""
+        )
 
         message = f"""
             <p>A new support ticket has just been submitted.</p>
@@ -1570,6 +1596,7 @@ class HDTicket(Document):
                 <tr><td style="padding:4px 16px 4px 0"><strong>Priority</strong></td><td>{priority}</td></tr>
                 <tr><td style="padding:4px 16px 4px 0"><strong>Team</strong></td><td>{team}</td></tr>
             </table>
+            {reason_html}
             <p>
                 <a href="{url}" style="display:inline-block;background:#2563eb;color:#fff;
                    padding:8px 18px;border-radius:6px;text-decoration:none;font-weight:600">
