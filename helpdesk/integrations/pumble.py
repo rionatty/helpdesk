@@ -471,3 +471,48 @@ def hours_alert(contract, usage, level) -> None:
 		)
 	except Exception:
 		frappe.log_error(title=f"Pumble: hours alert failed for {contract.name}")
+
+
+def uat_problem(script, step) -> None:
+	"""A client failed a UAT step, or could not run it."""
+	try:
+		customer = frappe.db.get_value("HD Project", script.project, "customer")
+		head = (
+			":x: **UAT step failed**"
+			if step.outcome == "Failed"
+			else ":construction: **UAT step blocked**"
+		)
+		quote = safe(step.note, 280)
+		text = (
+			f"{head} for {safe(customer or 'the client', 80)}: "
+			f"{safe(script.title)}, step {step.idx}\n"
+			+ (f"*{quote}*\n" if quote else "")
+			+ link("Open project", f"/helpdesk/projects/{script.project}")
+		)
+		notify(
+			"project_activity", text, project=script.project, customer=customer,
+			reference=["HD UAT Script", script.name],
+		)
+	except Exception:
+		frappe.log_error(title=f"Pumble: UAT message failed for {script.name}")
+
+
+def uat_finished(script) -> None:
+	"""A client has run every step of a UAT script."""
+	try:
+		customer = frappe.db.get_value("HD Project", script.project, "customer")
+		head = (
+			":white_check_mark: **UAT script passed**"
+			if script.status == "Passed"
+			else ":warning: **UAT script finished with problems**"
+		)
+		text = (
+			f"{head}: {safe(script.title)} ({safe(customer or 'the client', 80)})\n"
+			+ link("Open project", f"/helpdesk/projects/{script.project}")
+		)
+		notify(
+			"project_activity", text, project=script.project, customer=customer,
+			reference=["HD UAT Script", script.name],
+		)
+	except Exception:
+		frappe.log_error(title=f"Pumble: UAT message failed for {script.name}")

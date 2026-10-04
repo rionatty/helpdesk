@@ -1,0 +1,191 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "hash",
+ "creation": "2026-10-05 00:00:00.000000",
+ "description": "A user acceptance test the client runs on a project: steps, each with an expected result.",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "project",
+  "title",
+  "area",
+  "milestone",
+  "column_break_main",
+  "status",
+  "ready_for_testing",
+  "sequence",
+  "section_break_people",
+  "tester",
+  "column_break_people",
+  "responsible_agent",
+  "section_break_instructions",
+  "instructions",
+  "section_break_steps",
+  "steps",
+  "section_break_last",
+  "last_tested_on",
+  "column_break_last",
+  "last_tested_by"
+ ],
+ "fields": [
+  {
+   "fieldname": "project",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Project",
+   "options": "HD Project",
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "title",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Title",
+   "reqd": 1
+  },
+  {
+   "description": "The part of the system it tests, e.g. Sales or Inventory.",
+   "fieldname": "area",
+   "fieldtype": "Data",
+   "label": "Area"
+  },
+  {
+   "fieldname": "milestone",
+   "fieldtype": "Link",
+   "label": "Milestone",
+   "options": "HD Milestone"
+  },
+  {
+   "fieldname": "column_break_main",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "Not started",
+   "description": "Follows the steps' results.",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Status",
+   "options": "Not started\nIn progress\nPassed\nFailed\nBlocked",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "description": "The client only sees scripts that are ready for testing.",
+   "fieldname": "ready_for_testing",
+   "fieldtype": "Check",
+   "label": "Ready For Testing"
+  },
+  {
+   "default": "0",
+   "fieldname": "sequence",
+   "fieldtype": "Int",
+   "label": "Sequence"
+  },
+  {
+   "fieldname": "section_break_people",
+   "fieldtype": "Section Break"
+  },
+  {
+   "description": "The client's user who should run this script.",
+   "fieldname": "tester",
+   "fieldtype": "Data",
+   "label": "Tester",
+   "options": "Email"
+  },
+  {
+   "fieldname": "column_break_people",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Gets the defects raised from this script. If empty, the project lead does.",
+   "fieldname": "responsible_agent",
+   "fieldtype": "Link",
+   "label": "Responsible Agent",
+   "options": "HD Agent"
+  },
+  {
+   "fieldname": "section_break_instructions",
+   "fieldtype": "Section Break"
+  },
+  {
+   "description": "Before you start: test data, logins, what must already be set up.",
+   "fieldname": "instructions",
+   "fieldtype": "Small Text",
+   "label": "Instructions"
+  },
+  {
+   "fieldname": "section_break_steps",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "steps",
+   "fieldtype": "Table",
+   "label": "Steps",
+   "options": "HD UAT Step"
+  },
+  {
+   "fieldname": "section_break_last",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "last_tested_on",
+   "fieldtype": "Datetime",
+   "label": "Last Tested On",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_last",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "last_tested_by",
+   "fieldtype": "Link",
+   "label": "Last Tested By",
+   "options": "User",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-10-05 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Helpdesk",
+ "name": "HD UAT Script",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "export": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "export": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Agent Manager",
+   "write": 1
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Agent"
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "title",
+ "track_changes": 1
+}

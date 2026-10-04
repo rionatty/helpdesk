@@ -13,6 +13,11 @@ class HDAddonTask(Document):
 		before = self.get_doc_before_save()
 		if before and before.milestone and before.milestone != self.milestone:
 			self._sync_milestone(before.milestone)
+		# A UAT defect marked Done goes back to the client for a retest.
+		if self.status == "Done" and before and before.status != "Done":
+			from helpdesk.api.uat import defect_fixed
+
+			defect_fixed(self.name)
 
 	def after_delete(self):
 		self._sync_milestone(self.milestone)

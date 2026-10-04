@@ -1,0 +1,79 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "creation": "2026-10-05 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "action",
+  "expected",
+  "outcome",
+  "note",
+  "tested_by",
+  "tested_on",
+  "defect_task"
+ ],
+ "fields": [
+  {
+   "description": "What the tester does.",
+   "fieldname": "action",
+   "fieldtype": "Small Text",
+   "in_list_view": 1,
+   "label": "Action",
+   "reqd": 1
+  },
+  {
+   "description": "What should happen.",
+   "fieldname": "expected",
+   "fieldtype": "Small Text",
+   "in_list_view": 1,
+   "label": "Expected Result"
+  },
+  {
+   "default": "Not run",
+   "fieldname": "outcome",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Outcome",
+   "options": "Not run\nPassed\nFailed\nBlocked"
+  },
+  {
+   "description": "What actually happened, in the tester's words.",
+   "fieldname": "note",
+   "fieldtype": "Small Text",
+   "label": "Note"
+  },
+  {
+   "fieldname": "tested_by",
+   "fieldtype": "Link",
+   "label": "Tested By",
+   "options": "User"
+  },
+  {
+   "fieldname": "tested_on",
+   "fieldtype": "Datetime",
+   "label": "Tested On"
+  },
+  {
+   "description": "The task raised when this step failed or was blocked. Plain text, so the task can be deleted freely.",
+   "fieldname": "defect_task",
+   "fieldtype": "Data",
+   "label": "Defect Task"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "istable": 1,
+ "links": [],
+ "modified": "2026-10-05 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Helpdesk",
+ "name": "HD UAT Step",
+ "owner": "Administrator",
+ "permissions": [],
+ "row_format": "Dynamic",
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 0
+}

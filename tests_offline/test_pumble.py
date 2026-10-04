@@ -229,6 +229,33 @@ class TestHoursAlert(unittest.TestCase):
 		self.assertEqual(ENQUEUED[0][1]["event_key"], "hours:C1:2026-10-01:100")
 
 
+class TestUatMessages(unittest.TestCase):
+	def setUp(self):
+		base = {"enabled": 1, "on_project_activity": 1, "project": None, "customer": None, "email_account": None}
+		CHANNELS[:] = [
+			{**base, "name": "all"},
+			{**base, "name": "luuka", "project": "P-LUUKA"},
+			{**base, "name": "other-project", "project": "P-OTHER"},
+		]
+		ENQUEUED.clear()
+		pumble.frappe.db = types.SimpleNamespace(get_value=lambda *a, **k: "Client X")
+
+	def test_a_failed_step_reaches_the_projects_channels_defused(self):
+		script = Row(name="U1", project="P-LUUKA", title="Sales *invoice*", status="Failed")
+		step = Row(idx=3, outcome="Failed", note="@here it crashed [click](http://evil)")
+		pumble.uat_problem(script, step)
+		self.assertEqual(sorted(kw["channel"] for _, kw in ENQUEUED), ["all", "luuka"])
+		text = ENQUEUED[0][1]["text"]
+		self.assertIn("UAT step failed", text)
+		self.assertIn("step 3", text)
+		self.assertNotIn("@here", text)
+		self.assertNotIn("](http://evil)", text)
+
+	def test_finished(self):
+		pumble.uat_finished(Row(name="U1", project="P-LUUKA", title="Sales", status="Passed"))
+		self.assertIn("UAT script passed", ENQUEUED[0][1]["text"])
+
+
 class TestPost(unittest.TestCase):
 	URL = "https://api.pumble.com/workspaces/a/incomingWebhooks/postMessage/b"
 

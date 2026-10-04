@@ -760,6 +760,13 @@ def delete_project(name: str) -> bool:
 		frappe.db.delete("HD Task Watcher", {"task": ["in", tasks]})
 		frappe.db.delete("HD Task Subtask", {"task": ["in", tasks]})
 		frappe.db.delete("HD Addon Task", {"project": name})
+	# Test scripts before milestones: they point at them.
+	scripts = frappe.get_all("HD UAT Script", filters={"project": name}, pluck="name")
+	if scripts:
+		frappe.db.delete(
+			"HD UAT Step", {"parenttype": "HD UAT Script", "parent": ["in", scripts]}
+		)
+		frappe.db.delete("HD UAT Script", {"project": name})
 	milestones = frappe.get_all(
 		"HD Milestone", filters={"project": name}, pluck="name"
 	)
@@ -1019,13 +1026,13 @@ def update_milestone(name: str, **fields) -> bool:
 
 @frappe.whitelist()
 def delete_milestone(name: str) -> bool:
-	"""Delete a milestone; its tasks and features are unlinked, not deleted.
-	Assigned agents and managers only."""
+	"""Delete a milestone; its tasks, features and test scripts are unlinked,
+	not deleted. Assigned agents and managers only."""
 	project = frappe.db.get_value("HD Milestone", name, "project")
 	if not project:
 		frappe.throw(_("Milestone not found"), frappe.DoesNotExistError)
 	_assert_agent_project(project)
-	for doctype in ("HD Addon Task", "HD Addon Feature"):
+	for doctype in ("HD Addon Task", "HD Addon Feature", "HD UAT Script"):
 		frappe.db.set_value(
 			doctype, {"milestone": name}, "milestone", None, update_modified=False
 		)

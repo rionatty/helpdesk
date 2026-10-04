@@ -669,6 +669,14 @@
         />
       </div>
 
+      <!-- User acceptance testing: the client runs the scripts; failures become tasks -->
+      <ProjectUat
+        v-if="!isInternal"
+        :project-id="projectId"
+        :editable="editable"
+        @changed="taskBoardRef?.reload(); milestonesRef?.reload(); timelineRef?.reload()"
+      />
+
       <!-- Linked tickets + Upcoming features -->
       <div ref="ticketsSection" class="grid grid-cols-1 md:grid-cols-2 gap-5">
         <div class="executive-card p-5 flex flex-col gap-3">
@@ -962,6 +970,7 @@ import DocAttachments from "@/components/DocAttachments.vue";
 import ProjectComments from "@/components/ProjectComments.vue";
 import ProjectMilestones from "@/components/ProjectMilestones.vue";
 import ProjectTimeline from "@/components/ProjectTimeline.vue";
+import ProjectUat from "@/components/ProjectUat.vue";
 import ReminderButton from "@/components/ReminderButton.vue";
 import ClientUpdateButton from "@/components/ClientUpdateButton.vue";
 import TaskBoard from "@/components/TaskBoard.vue";

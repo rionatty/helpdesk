@@ -216,7 +216,7 @@ const EVENTS = [
     field: "on_project_activity",
     label: __("Client activity on projects"),
     description: __(
-      "A client comments on or reviews a task, or signs off a milestone."
+      "A client comments on or reviews a task, signs off a milestone, or reports a test result."
     ),
   },
   {
