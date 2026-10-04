@@ -75,13 +75,71 @@
         </div>
       </div>
 
-      <!-- Subtask list -->
+      <!-- Filters (agent only, long lists only). View-only: the counts, the
+           progress bar and the estimate above keep covering EVERY subtask —
+           only the list below is narrowed. -->
       <div
-        v-if="subtasks.data && subtasks.data.length"
-        class="flex flex-col gap-2"
+        v-if="showFilters"
+        class="flex flex-wrap items-center gap-2 rounded-lg border border-outline-gray-1 bg-surface-gray-1 px-2.5 py-2"
       >
+        <LucideFilter class="size-3.5 text-ink-gray-5 shrink-0" />
+        <select
+          v-model="rowFilters.status"
+          class="text-xs rounded-md border border-outline-gray-2 bg-surface-white px-2 py-1 text-ink-gray-7 focus:outline-none focus:border-blue-400"
+          :aria-label="__('Filter by status')"
+        >
+          <option value="">{{ __("All statuses") }}</option>
+          <option value="To Do">{{ __("To Do") }}</option>
+          <option value="In Progress">{{ __("In Progress") }}</option>
+          <option value="Done">{{ __("Done") }}</option>
+        </select>
+        <select
+          v-model="rowFilters.assignee"
+          class="text-xs rounded-md border border-outline-gray-2 bg-surface-white px-2 py-1 text-ink-gray-7 focus:outline-none focus:border-blue-400 max-w-[140px]"
+          :aria-label="__('Filter by assignee')"
+        >
+          <option value="">{{ __("All assignees") }}</option>
+          <option
+            v-for="a in assigneeFilterOptions"
+            :key="a.value"
+            :value="a.value"
+          >
+            {{ a.label }}
+          </option>
+        </select>
+        <select
+          v-model="rowFilters.responsibility"
+          class="text-xs rounded-md border border-outline-gray-2 bg-surface-white px-2 py-1 text-ink-gray-7 focus:outline-none focus:border-blue-400"
+          :aria-label="__('Filter by responsibility')"
+        >
+          <option value="">{{ __("Everyone") }}</option>
+          <option value="Us">{{ __("Us") }}</option>
+          <option value="Client">{{ __("Client") }}</option>
+          <option value="Joint">{{ __("Joint") }}</option>
+        </select>
+        <template v-if="filtered">
+          <span class="text-xs text-ink-gray-5">
+            {{
+              __("showing {0} of {1}", [
+                visibleSubtasks.length,
+                subtasks.data.length,
+              ])
+            }}
+          </span>
+          <button
+            type="button"
+            class="text-xs font-medium text-ink-gray-6 hover:text-ink-gray-8 hover:underline"
+            @click="clearFilters"
+          >
+            {{ __("Clear") }}
+          </button>
+        </template>
+      </div>
+
+      <!-- Subtask list -->
+      <div v-if="visibleSubtasks.length" class="flex flex-col gap-2">
         <div
-          v-for="t in subtasks.data"
+          v-for="t in visibleSubtasks"
           :key="t.name"
           class="rounded-lg border border-outline-gray-1 bg-surface-gray-1 px-3 py-2.5 flex flex-col gap-2"
         >
@@ -117,6 +175,16 @@
               "
             >
               {{ t.subject }}
+            </span>
+            <!-- Who does the work. Internal: agents only, and hidden when the
+                 field isn't there (older rows / API without it). -->
+            <span
+              v-if="editable && responsibilityOf(t)"
+              class="shrink-0 text-[10px] font-medium rounded-full px-1.5 py-0.5"
+              :class="responsibilityClass(responsibilityOf(t))"
+              :title="__('Who does this work')"
+            >
+              {{ __(responsibilityOf(t)) }}
             </span>
             <Badge
               v-if="!editable"
@@ -185,6 +253,19 @@
                 {{ a.label }}
               </option>
             </select>
+            <select
+              :value="responsibilityOf(t) || 'Us'"
+              class="text-xs rounded-md border border-outline-gray-2 bg-surface-white px-2 py-1 text-ink-gray-7 focus:outline-none focus:border-blue-400"
+              :aria-label="__('Responsibility')"
+              :title="__('Who does this work')"
+              @change="
+                (e) => patchSubtask(t.name, { responsibility: e.target.value })
+              "
+            >
+              <option value="Us">{{ __("Us") }}</option>
+              <option value="Client">{{ __("Client") }}</option>
+              <option value="Joint">{{ __("Joint") }}</option>
+            </select>
             <div class="flex items-center gap-1">
               <LucideClock class="size-3.5 text-ink-gray-5" />
               <input
@@ -223,6 +304,21 @@
             </div>
           </div>
         </div>
+      </div>
+
+      <!-- Filters hid everything — the list itself isn't empty. -->
+      <div
+        v-else-if="subtasks.data && subtasks.data.length"
+        class="flex flex-wrap items-center gap-2 text-xs text-ink-gray-5 px-1 py-1"
+      >
+        {{ __("No subtasks match these filters.") }}
+        <button
+          type="button"
+          class="font-medium text-ink-gray-7 hover:text-ink-gray-9 hover:underline"
+          @click="clearFilters"
+        >
+          {{ __("Clear filters") }}
+        </button>
       </div>
 
       <!-- Empty state -->
@@ -317,6 +413,7 @@ import LucideCircleDot from "~icons/lucide/circle-dot";
 import LucideCheckCircle2 from "~icons/lucide/check-circle-2";
 import LucideCalendarClock from "~icons/lucide/calendar-clock";
 import LucideAlertTriangle from "~icons/lucide/alert-triangle";
+import LucideFilter from "~icons/lucide/filter";
 
 interface P {
   ticketId: string;
@@ -390,6 +487,85 @@ const agentOptions = computed(() =>
   }))
 );
 
+// Who does the work: us (CyveTech), the client, or both together. Internal —
+// kept out of the customer view. Independent of customer visibility.
+const RESPONSIBILITIES = ["Us", "Client", "Joint"];
+/** The row's stored responsibility, or "" when it isn't set / isn't there. */
+function responsibilityOf(t: any): string {
+  const value = t?.responsibility;
+  return RESPONSIBILITIES.includes(value) ? value : "";
+}
+function responsibilityClass(value: string) {
+  if (value === "Client") return "bg-amber-100 text-amber-700";
+  if (value === "Joint") return "bg-violet-100 text-violet-700";
+  return "bg-blue-100 text-blue-700";
+}
+
+// --- Filters -------------------------------------------------------------
+// View-only: they narrow the rendered list and nothing else. The summary,
+// progress bar, overdue count and the estimate all come from get_summary,
+// which always covers every subtask of the ticket.
+//
+// Only worth the space once scanning the list is actually work.
+const FILTER_THRESHOLD = 5;
+// "" means "all"; a filter on the assignee needs its own sentinel for "nobody".
+const UNASSIGNED = "__unassigned__";
+const rowFilters = ref({ status: "", assignee: "", responsibility: "" });
+
+// Agent-only, like the per-row controls: the customer view has no assignee or
+// responsibility to filter on in the first place.
+const showFilters = computed(
+  () => props.editable && (subtasks.data?.length || 0) >= FILTER_THRESHOLD
+);
+const filtered = computed(
+  () =>
+    showFilters.value &&
+    !!(
+      rowFilters.value.status ||
+      rowFilters.value.assignee ||
+      rowFilters.value.responsibility
+    )
+);
+const visibleSubtasks = computed(() => {
+  const rows = subtasks.data || [];
+  // Filters that aren't on screen must not quietly hide rows.
+  if (!filtered.value) return rows;
+  const f = rowFilters.value;
+  return rows.filter((t: any) => {
+    if (f.status && t.status !== f.status) return false;
+    if (f.assignee && (t.assigned_to || UNASSIGNED) !== f.assignee)
+      return false;
+    // A blank/legacy value reads as the stored default "Us" here (the row's
+    // own select shows "Us" for it), even though the badge stays hidden.
+    if (f.responsibility && (responsibilityOf(t) || "Us") !== f.responsibility)
+      return false;
+    return true;
+  });
+});
+// Only the people who actually appear in this ticket's subtasks.
+const assigneeFilterOptions = computed(() => {
+  const rows = subtasks.data || [];
+  const seen = new Map<string, string>();
+  let anyUnassigned = false;
+  for (const t of rows as any[]) {
+    if (!t.assigned_to) {
+      anyUnassigned = true;
+      continue;
+    }
+    if (!seen.has(t.assigned_to))
+      seen.set(t.assigned_to, t.assigned_to_name || t.assigned_to);
+  }
+  const options = [...seen.entries()]
+    .map(([value, label]) => ({ value, label }))
+    .sort((a, b) => a.label.localeCompare(b.label));
+  if (anyUnassigned)
+    options.push({ value: UNASSIGNED, label: __("Unassigned") });
+  return options;
+});
+function clearFilters() {
+  rowFilters.value = { status: "", assignee: "", responsibility: "" };
+}
+
 const overBudget = computed(
   () =>
     summary.value.estimated_hours > 0 &&
@@ -403,13 +579,20 @@ function reload() {
 
 watch(
   () => props.ticketId,
-  () => reload()
+  () => {
+    // A filter from the previous ticket means nothing on this one.
+    clearFilters();
+    reload();
+  }
 );
 
 const addRes = createResource({
   url: "helpdesk.api.subtask.add_subtask",
   onSuccess: () => {
     newSubject.value = "";
+    // A new subtask starts as "To Do" / "Us" / unassigned, which an active
+    // filter could hide — so the agent would see nothing happen. Show it.
+    clearFilters();
     reload();
   },
   onError: (e: any) =>

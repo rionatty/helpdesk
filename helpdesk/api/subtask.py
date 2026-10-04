@@ -17,6 +17,21 @@ from helpdesk.utils import is_agent
 # over-long title fails with a message instead of hitting the database limit.
 SUBJECT_MAX_LENGTH = 500
 
+# Who does the work: us (the implementor), the client, or both. Internal to the
+# team — unrelated to what the customer can see on the portal.
+RESPONSIBILITIES = ("Us", "Client", "Joint")
+
+SUBTASK_FIELDS = [
+	"name",
+	"subject",
+	"status",
+	"responsibility",
+	"hours_spent",
+	"assigned_to",
+	"description",
+	"due_date",
+]
+
 
 def _assert_ticket_read(ticket: str) -> None:
 	if not frappe.db.exists("HD Ticket", ticket):
@@ -48,6 +63,14 @@ def _clean_subject(subject: str | None) -> str:
 	return subject
 
 
+def _clean_responsibility(responsibility: str | None) -> str:
+	"""Who does the work. Falls back to "Us"; refuses anything else."""
+	responsibility = (responsibility or "Us").strip()
+	if responsibility not in RESPONSIBILITIES:
+		frappe.throw(_("Invalid responsibility"))
+	return responsibility
+
+
 @frappe.whitelist()
 def get_subtasks(ticket: str) -> list:
 	"""Subtasks for a ticket. Allowed for agents and the ticket's customer.
@@ -59,15 +82,7 @@ def get_subtasks(ticket: str) -> list:
 	rows = frappe.get_all(
 		"HD Ticket Subtask",
 		filters={"ticket": ticket},
-		fields=[
-			"name",
-			"subject",
-			"status",
-			"hours_spent",
-			"assigned_to",
-			"description",
-			"due_date",
-		],
+		fields=SUBTASK_FIELDS,
 		order_by="creation asc",
 	)
 	if rows:
@@ -90,7 +105,9 @@ def get_subtasks(ticket: str) -> list:
 				assignee if agent else (_("Support agent") if assignee else None)
 			)
 			if not agent:
+				# Responsibility (us/client/joint) is an internal split.
 				r["assigned_to"] = None
+				r["responsibility"] = None
 	return rows
 
 
@@ -130,7 +147,7 @@ def get_summary(ticket: str) -> dict:
 
 
 @frappe.whitelist()
-def add_subtask(ticket: str, subject: str) -> str:
+def add_subtask(ticket: str, subject: str, responsibility: str = "Us") -> str:
 	"""Create a subtask under a ticket. Agents only."""
 	_assert_agent()
 	_assert_ticket_read(ticket)
@@ -141,6 +158,7 @@ def add_subtask(ticket: str, subject: str) -> str:
 			"ticket": ticket,
 			"subject": subject,
 			"status": "To Do",
+			"responsibility": _clean_responsibility(responsibility),
 			"hours_spent": 0,
 		}
 	).insert(ignore_permissions=True)
@@ -152,6 +170,7 @@ def update_subtask(
 	name: str,
 	subject: str | None = None,
 	status: str | None = None,
+	responsibility: str | None = None,
 	hours_spent: float | None = None,
 	assigned_to: str | None = None,
 	description: str | None = None,
@@ -167,6 +186,8 @@ def update_subtask(
 		if status not in ("To Do", "In Progress", "Done"):
 			frappe.throw(_("Invalid status"))
 		doc.status = status
+	if responsibility is not None:
+		doc.responsibility = _clean_responsibility(responsibility)
 	if hours_spent is not None:
 		doc.hours_spent = max(0, hours_spent)
 	if assigned_to is not None:

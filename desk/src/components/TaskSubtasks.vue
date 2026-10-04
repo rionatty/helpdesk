@@ -69,10 +69,68 @@
       <span v-if="overBudget">{{ __("over budget") }}</span>
     </div>
 
+    <!-- Filters (agent view, long lists only).
+         View-only: narrowing the list changes nothing that is saved, and the
+         chip, progress bar and hours above keep covering ALL subtasks — only
+         the rows below are filtered. -->
+    <div v-if="showFilters" class="flex flex-wrap items-center gap-2">
+      <select
+        v-model="statusFilter"
+        class="text-xs rounded-md border border-outline-gray-2 bg-surface-white px-2 py-1 text-ink-gray-7 focus:outline-none focus:border-blue-400"
+        :aria-label="__('Filter by status')"
+      >
+        <option value="">{{ __("All statuses") }}</option>
+        <option value="To Do">{{ __("To Do") }}</option>
+        <option value="In Progress">{{ __("In Progress") }}</option>
+        <option value="Done">{{ __("Done") }}</option>
+      </select>
+      <select
+        v-if="filterAssigneeOptions.length || hasUnassigned"
+        v-model="assigneeFilter"
+        class="text-xs rounded-md border border-outline-gray-2 bg-surface-white px-2 py-1 text-ink-gray-7 focus:outline-none focus:border-blue-400 max-w-[120px]"
+        :aria-label="__('Filter by assignee')"
+      >
+        <option value="">{{ __("All assignees") }}</option>
+        <option v-if="hasUnassigned" value="__unassigned__">
+          {{ __("Unassigned") }}
+        </option>
+        <option v-for="a in filterAssigneeOptions" :key="a.value" :value="a.value">
+          {{ a.label }}
+        </option>
+      </select>
+      <!-- Only offered once the rows actually carry a responsibility. -->
+      <select
+        v-if="hasResponsibility"
+        v-model="responsibilityFilter"
+        class="text-xs rounded-md border border-outline-gray-2 bg-surface-white px-2 py-1 text-ink-gray-7 focus:outline-none focus:border-blue-400"
+        :aria-label="__('Filter by responsibility')"
+      >
+        <option value="">{{ __("All responsibilities") }}</option>
+        <option v-for="r in RESPONSIBILITIES" :key="r" :value="r">
+          {{ respLabel(r) }}
+        </option>
+      </select>
+      <span
+        v-if="anyFilterActive"
+        class="text-xs text-ink-gray-5"
+        :title="__('The counts and progress above still cover every subtask')"
+      >
+        {{ __("showing {0} of {1}", [visibleSubtasks.length, subtasks.data.length]) }}
+      </span>
+      <button
+        v-if="anyFilterActive"
+        type="button"
+        class="text-xs text-blue-600 hover:text-blue-700 font-medium inline-flex items-center gap-0.5 px-1"
+        @click="clearFilters"
+      >
+        <LucideX class="size-3" /> {{ __("Clear") }}
+      </button>
+    </div>
+
     <!-- Subtask list -->
-    <div v-if="subtasks.data && subtasks.data.length" class="flex flex-col gap-2">
+    <div v-if="visibleSubtasks.length" class="flex flex-col gap-2">
       <div
-        v-for="t in subtasks.data"
+        v-for="t in visibleSubtasks"
         :key="t.name"
         class="rounded-lg border border-outline-gray-1 bg-surface-gray-1 px-3 py-2.5 flex flex-col gap-2"
       >
@@ -101,6 +159,15 @@
             :class="t.status === 'Done' ? 'text-ink-gray-5 line-through' : 'text-ink-gray-8'"
           >
             {{ t.subject }}
+          </span>
+          <!-- Who does the work. Internal: scrubbed from the customer payload. -->
+          <span
+            v-if="editable && t.responsibility"
+            class="text-[10px] font-medium rounded-full px-1.5 py-0.5 shrink-0"
+            :class="respClass(t.responsibility)"
+            :title="__('Who does this work')"
+          >
+            {{ respLabel(t.responsibility) }}
           </span>
           <span
             v-if="Number(t.score)"
@@ -148,6 +215,18 @@
             <option value="To Do">{{ __("To Do") }}</option>
             <option value="In Progress">{{ __("In Progress") }}</option>
             <option value="Done">{{ __("Done") }}</option>
+          </select>
+          <!-- Who does the work — not the same thing as customer visibility. -->
+          <select
+            :value="t.responsibility || 'Us'"
+            class="text-xs rounded-md border border-outline-gray-2 bg-surface-white px-2 py-1 text-ink-gray-7 focus:outline-none focus:border-blue-400"
+            :aria-label="__('Responsibility')"
+            :title="__('Who does this work — us, the client, or both')"
+            @change="(e) => patchSubtask(t, { responsibility: e.target.value })"
+          >
+            <option v-for="r in RESPONSIBILITIES" :key="r" :value="r">
+              {{ respLabel(r) }}
+            </option>
           </select>
           <select
             :value="t.assigned_to || ''"
@@ -240,6 +319,21 @@
       </div>
     </div>
 
+    <!-- Everything filtered out: the subtasks are still there, just hidden. -->
+    <div
+      v-else-if="subtasks.data && subtasks.data.length"
+      class="flex items-center gap-2 text-xs text-ink-gray-5 px-1"
+    >
+      {{ __("No subtasks match these filters.") }}
+      <button
+        type="button"
+        class="text-blue-600 hover:text-blue-700 font-medium"
+        @click="clearFilters"
+      >
+        {{ __("Clear") }}
+      </button>
+    </div>
+
     <div v-else-if="!subtasks.loading" class="text-xs text-ink-gray-5 px-1">
       {{ __("No subtasks yet — break this task into steps below.") }}
     </div>
@@ -290,6 +384,7 @@ import LucideCheckCircle2 from "~icons/lucide/check-circle-2";
 import LucideCalendarClock from "~icons/lucide/calendar-clock";
 import LucideAlertTriangle from "~icons/lucide/alert-triangle";
 import LucideStar from "~icons/lucide/star";
+import LucideX from "~icons/lucide/x";
 
 interface P {
   taskId: string;
@@ -345,6 +440,10 @@ interface SubtaskRow {
   due_date?: string | null;
   reviewer?: string | null;
   score?: number;
+  assigned_to?: string | null;
+  assigned_to_name?: string | null;
+  // Who does the work: "Us" | "Client" | "Joint". Absent on customer payloads.
+  responsibility?: string | null;
   // Rows come straight off the API, so patchSubtask() can read/write any field.
   [key: string]: any;
 }
@@ -370,13 +469,97 @@ const agentOptions = computed(() =>
   }))
 );
 
+// --- responsibility: who does the work (us, the client, or both) ---
+// Not the same thing as customer visibility (`customer_visible`), which decides
+// who may *see* the subtask. Stored values, in the doctype's order.
+const RESPONSIBILITIES = ["Us", "Client", "Joint"] as const;
+/** Shown as stored — "Us" / "Client" / "Joint" — translated where we have one. */
+function respLabel(r: string | null | undefined) {
+  return r ? __(r) : "";
+}
+function respClass(r: string | null | undefined) {
+  return (
+    {
+      Us: "bg-blue-100 text-blue-700",
+      Client: "bg-amber-100 text-amber-700",
+      Joint: "bg-violet-100 text-violet-700",
+    }[r || ""] || "bg-surface-gray-2 text-ink-gray-6"
+  );
+}
+
+// --- filters (view-only) ---
+// These narrow the rows on screen and nothing else: no save is triggered, and
+// the done chip, progress bar and hours rollup keep counting every subtask.
+// A short list isn't worth a toolbar, so the filters only appear once there are
+// enough rows to be worth narrowing.
+const FILTER_THRESHOLD = 4;
+const statusFilter = ref("");
+const assigneeFilter = ref(""); // "" all · "__unassigned__" · else assigned_to
+const responsibilityFilter = ref(""); // "" all · "Us" | "Client" | "Joint"
+
+const rows = computed<SubtaskRow[]>(() => subtasks.data || []);
+// Agents only: a customer's rows are scrubbed of assignee and responsibility,
+// so there would be nothing to filter by.
+const showFilters = computed(
+  () => props.editable && rows.value.length >= FILTER_THRESHOLD
+);
+// Keyed on the field being in the payload at all, not on it being set: rows
+// that pre-date the field read as empty, and they still need filtering. A
+// payload without the field (a customer's, or an older build) gets no filter.
+const hasResponsibility = computed(() =>
+  rows.value.some((t) => t.responsibility !== undefined)
+);
+// Built from the rows themselves, so the list only offers people who appear.
+const filterAssigneeOptions = computed(() => {
+  const map = new Map<string, string>();
+  rows.value.forEach((t) => {
+    if (t.assigned_to) map.set(t.assigned_to, t.assigned_to_name || t.assigned_to);
+  });
+  return Array.from(map, ([value, label]) => ({ value, label }));
+});
+const hasUnassigned = computed(() => rows.value.some((t) => !t.assigned_to));
+const anyFilterActive = computed(
+  () => !!statusFilter.value || !!assigneeFilter.value || !!responsibilityFilter.value
+);
+const visibleSubtasks = computed<SubtaskRow[]>(() => {
+  // Filters the user can't see (short list, customer view) never hide a row.
+  if (!showFilters.value || !anyFilterActive.value) return rows.value;
+  return rows.value.filter((t) => {
+    if (statusFilter.value && t.status !== statusFilter.value) return false;
+    if (assigneeFilter.value === "__unassigned__" && t.assigned_to) return false;
+    if (
+      assigneeFilter.value &&
+      assigneeFilter.value !== "__unassigned__" &&
+      t.assigned_to !== assigneeFilter.value
+    )
+      return false;
+    if (
+      responsibilityFilter.value &&
+      // Blank (pre-backfill) rows read as the stored default, which is what
+      // the row's own select shows — filtering "Us" must not hide them.
+      (t.responsibility || "Us") !== responsibilityFilter.value
+    )
+      return false;
+    return true;
+  });
+});
+function clearFilters() {
+  statusFilter.value = "";
+  assigneeFilter.value = "";
+  responsibilityFilter.value = "";
+}
+
 function reload() {
   subtasks.reload();
   summaryRes.reload();
 }
 watch(
   () => props.taskId,
-  () => props.taskId && reload()
+  () => {
+    // A different task starts unfiltered.
+    clearFilters();
+    props.taskId && reload();
+  }
 );
 defineExpose({ reload });
 

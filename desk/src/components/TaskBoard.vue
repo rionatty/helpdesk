@@ -155,6 +155,16 @@
           <option value="">{{ __("All priorities") }}</option>
           <option v-for="p in PRIORITIES" :key="p" :value="p">{{ p }}</option>
         </select>
+        <!-- Responsibility (agent only: who does the work, us or the client) -->
+        <select
+          v-if="editable"
+          v-model="responsibilityFilter"
+          class="text-xs rounded-md border border-outline-gray-2 bg-surface-white px-2 py-1.5 text-ink-gray-7 focus:outline-none focus:border-blue-400"
+          :title="__('Who does the work')"
+        >
+          <option value="">{{ __("All responsibilities") }}</option>
+          <option v-for="r in RESPONSIBILITIES" :key="r" :value="r">{{ r }}</option>
+        </select>
         <!-- Assignee -->
         <select
           v-if="assigneeOptions.length || hasUnassigned"
@@ -297,6 +307,13 @@
         <option v-for="s in STATUSES" :key="s" :value="s">{{ s }}</option>
       </select>
       <select
+        class="text-xs rounded-md border border-outline-gray-2 bg-surface-white px-2 py-1.5 text-ink-gray-7 focus:outline-none focus:border-blue-400"
+        @change="bulkSetResponsibility"
+      >
+        <option value="">{{ __("Set responsibility…") }}</option>
+        <option v-for="r in RESPONSIBILITIES" :key="r" :value="r">{{ r }}</option>
+      </select>
+      <select
         class="text-xs rounded-md border border-outline-gray-2 bg-surface-white px-2 py-1.5 text-ink-gray-7 focus:outline-none focus:border-blue-400 max-w-[150px]"
         @change="bulkAssign"
       >
@@ -399,6 +416,15 @@
               :class="priorityClass(t.priority)"
             >
               {{ t.priority }}
+            </span>
+            <!-- Who does the work — internal, so agents only. -->
+            <span
+              v-if="editable"
+              class="text-[10px] font-medium rounded-full px-1.5 py-0.5"
+              :class="responsibilityClass(respOf(t))"
+              :title="__('Who does the work')"
+            >
+              {{ respOf(t) }}
             </span>
             <span
               v-if="t.end_date"
@@ -647,6 +673,24 @@
                 {{ featureTitle(selected.feature) || "—" }}
               </span>
             </div>
+          </div>
+
+          <!-- Responsibility (agent only) — who does the work. Independent of
+               the visibility toggle below: a task can be ours and hidden, or
+               the client's and visible. -->
+          <div v-if="editable" class="flex flex-col gap-1">
+            <span class="text-xs text-ink-gray-5">
+              {{ __("Responsibility") }} · {{ __("who does the work") }}
+            </span>
+            <select
+              :value="respOf(selected)"
+              class="w-fit text-sm rounded-md border border-outline-gray-2 bg-surface-white px-2 py-1 text-ink-gray-7 focus:outline-none focus:border-blue-400"
+              @change="(e) => patch({ responsibility: e.target.value })"
+            >
+              <option v-for="r in RESPONSIBILITIES" :key="r" :value="r">
+                {{ r }}
+              </option>
+            </select>
           </div>
 
           <!-- Internal toggle (agent; not for standalone/hub personal tasks) -->
@@ -1116,6 +1160,9 @@ const canAssignOthers = computed(() => !props.hub || isManager.value);
 
 const STATUSES = ["To Do", "In Progress", "Pending", "Postponed", "Done"];
 const PRIORITIES = ["Low", "Medium", "High", "Urgent"];
+// Who does the work: us (the implementor), the client, or both together. This
+// is internal — unlike `is_internal`, which is about customer visibility.
+const RESPONSIBILITIES = ["Us", "Client", "Joint"];
 const COLUMNS = [
   { key: "To Do", dot: "bg-ink-gray-4" },
   { key: "In Progress", dot: "bg-blue-500" },
@@ -1186,6 +1233,7 @@ watch(
 // --- filters ---
 const search = ref("");
 const priorityFilter = ref("");
+const responsibilityFilter = ref(""); // "" all · Us · Client · Joint
 const assigneeFilter = ref(""); // "" all · "__unassigned__" · else assigned_to value
 const milestoneFilter = ref("");
 const projectFilter = ref(""); // hub only: "" all · "__standalone__" · parent_name
@@ -1497,6 +1545,8 @@ const filteredTasks = computed(() => {
     )
       return false;
     if (priorityFilter.value && t.priority !== priorityFilter.value) return false;
+    if (responsibilityFilter.value && respOf(t) !== responsibilityFilter.value)
+      return false;
     if (assigneeFilter.value === "__unassigned__" && t.assigned_to) return false;
     if (
       assigneeFilter.value &&
@@ -1523,6 +1573,7 @@ const anyFilterActive = computed(
   () =>
     !!search.value ||
     !!priorityFilter.value ||
+    !!responsibilityFilter.value ||
     !!assigneeFilter.value ||
     !!milestoneFilter.value ||
     !!projectFilter.value ||
@@ -1535,6 +1586,7 @@ const anyFilterActive = computed(
 function clearFilters() {
   search.value = "";
   priorityFilter.value = "";
+  responsibilityFilter.value = "";
   assigneeFilter.value = "";
   milestoneFilter.value = "";
   projectFilter.value = "";
@@ -1679,6 +1731,20 @@ function priorityClass(p: string) {
     }[p] || "bg-surface-gray-2 text-ink-gray-6"
   );
 }
+// Stored value, defaulting to the doctype default so a row saved before the
+// field existed still reads as ours.
+function respOf(t: any) {
+  return t?.responsibility || "Us";
+}
+function responsibilityClass(r: string) {
+  return (
+    {
+      Us: "bg-blue-50 text-blue-700",
+      Client: "bg-amber-100 text-amber-700",
+      Joint: "bg-violet-100 text-violet-700",
+    }[r] || "bg-surface-gray-2 text-ink-gray-6"
+  );
+}
 function isOverdue(t: any) {
   if (!t.end_date || t.status === "Done") return false;
   return dayjs(t.end_date).isBefore(dayjs().startOf("day"));
@@ -1745,6 +1811,7 @@ async function openNew(name: string, status: string) {
     subject: __("New task"),
     status,
     priority: "Medium",
+    responsibility: "Us",
     milestone: milestoneFilter.value || "",
     feature: "",
     is_internal: 0,
@@ -1932,6 +1999,12 @@ function bulkSetStatus(e: any) {
   const status = e.target.value;
   if (!status || !selectedTasks.value.size) return;
   bulkUpdateRes.submit({ names: [...selectedTasks.value], status });
+  e.target.value = "";
+}
+function bulkSetResponsibility(e: any) {
+  const responsibility = e.target.value;
+  if (!responsibility || !selectedTasks.value.size) return;
+  bulkUpdateRes.submit({ names: [...selectedTasks.value], responsibility });
   e.target.value = "";
 }
 function bulkAssign(e: any) {

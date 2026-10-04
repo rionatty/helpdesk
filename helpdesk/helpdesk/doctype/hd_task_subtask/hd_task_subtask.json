@@ -9,6 +9,7 @@
   "subject",
   "task",
   "status",
+  "responsibility",
   "column_break_main",
   "assigned_to",
   "reviewer",
@@ -47,6 +48,15 @@
    "label": "Status",
    "options": "To Do\nIn Progress\nDone",
    "reqd": 1
+  },
+  {
+   "default": "Us",
+   "description": "Who does the work: us (the implementor), the client, or both",
+   "fieldname": "responsibility",
+   "fieldtype": "Select",
+   "in_standard_filter": 1,
+   "label": "Responsibility",
+   "options": "Us\nClient\nJoint"
   },
   {
    "fieldname": "column_break_main",

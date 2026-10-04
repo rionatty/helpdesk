@@ -224,6 +224,7 @@ TASK_FIELDS = [
 	"subject",
 	"status",
 	"priority",
+	"responsibility",
 	"assigned_to",
 	"reviewer",
 	"score",
@@ -250,6 +251,7 @@ TASK_WRITABLE = {
 	"subject",
 	"status",
 	"priority",
+	"responsibility",
 	"assigned_to",
 	"reviewer",
 	"milestone",
@@ -261,6 +263,9 @@ TASK_WRITABLE = {
 	"estimated_hours",
 	"description",
 }
+# Who does the work: us (the implementor), the client, or both. Independent of
+# `is_internal`, which is about what the customer can SEE.
+RESPONSIBILITIES = ("Us", "Client", "Joint")
 
 
 def _assert_addon_access(addon: str) -> frappe._dict:
@@ -294,10 +299,14 @@ def _get_features(addon: str) -> list:
 		return []
 
 
-def _get_tasks(addon: str | None = None, project: str | None = None) -> list:
+def _get_tasks(
+	addon: str | None = None,
+	project: str | None = None,
+	responsibility: str | None = None,
+) -> list:
 	"""Tasks for an add-on, a project, or standalone (neither), with assignee/
 	reviewer names + comment counts. Portal users don't get internal tasks,
-	agent emails, nor review data (reviewer/score are internal QA)."""
+	agent emails, nor review data (reviewer/score/responsibility are internal)."""
 	agent = is_agent()
 	or_filters = None
 	if addon:
@@ -315,6 +324,10 @@ def _get_tasks(addon: str | None = None, project: str | None = None) -> list:
 				["assigned_to", "=", me],
 				["reviewer", "=", me],
 			]
+	if responsibility and agent:
+		# Agent-only facet: who does the work. Never narrowed for the portal,
+		# which isn't shown the field at all.
+		filters["responsibility"] = responsibility
 	if not agent:
 		filters["is_internal"] = 0
 	try:
@@ -366,11 +379,13 @@ def _get_tasks(addon: str | None = None, project: str | None = None) -> list:
 		if not agent:
 			# assigned_to/owner are emails; the portal gets display names only.
 			# Reviewer, score and review status are internal QA — never shown.
+			# Responsibility (us/client/joint) is an internal split too.
 			r["assigned_to"] = None
 			r["owner"] = None
 			r["reviewer"] = None
 			r["score"] = 0
 			r["review_status"] = None
+			r["responsibility"] = None
 	return rows
 
 
@@ -537,12 +552,17 @@ def delete_feature(name: str) -> bool:
 
 
 @frappe.whitelist()
-def get_tasks(addon: str | None = None, project: str | None = None) -> list:
+def get_tasks(
+	addon: str | None = None,
+	project: str | None = None,
+	responsibility: str | None = None,
+) -> list:
 	"""Tasks for an add-on or project (agents and the parent's customer), or —
 	with no parent — the standalone Tasks workspace (agents only; non-managers
-	see the tasks they created, are assigned to, or review)."""
+	see the tasks they created, are assigned to, or review). `responsibility`
+	optionally narrows to "Us" / "Client" / "Joint" (agents only)."""
 	_assert_parent_access(addon=addon, project=project)
-	return _get_tasks(addon=addon, project=project)
+	return _get_tasks(addon=addon, project=project, responsibility=responsibility)
 
 
 def _grant_task_access(doc) -> None:
@@ -743,6 +763,7 @@ def add_task(
 	ticket: str | None = None,
 	status: str = "To Do",
 	priority: str = "Medium",
+	responsibility: str = "Us",
 	assigned_to: str | None = None,
 	reviewer: str | None = None,
 	start_date: str | None = None,
@@ -783,6 +804,7 @@ def add_task(
 			"subject": subject.strip(),
 			"status": status or "To Do",
 			"priority": priority or "Medium",
+			"responsibility": responsibility or "Us",
 			"assigned_to": assigned_to or None,
 			"reviewer": reviewer or None,
 			"start_date": start_date,
@@ -1206,13 +1228,18 @@ def request_customer_review_bulk(names) -> int:
 
 @frappe.whitelist()
 def bulk_update_tasks(names, **fields) -> int:
-	"""Apply the same field update (status / priority / assigned_to) to many
-	tasks. Reuses update_task per row, so per-task access, the completion/review
-	workflow and notifications all still apply. Returns the count updated."""
+	"""Apply the same field update (status / priority / responsibility /
+	assigned_to) to many tasks. Reuses update_task per row, so per-task access,
+	the completion/review workflow and notifications all still apply. Returns
+	the count updated."""
 	_assert_agent()
 	names = frappe.parse_json(names) if isinstance(names, str) else (names or [])
 	# Only allow the safe bulk fields through.
-	allowed = {k: v for k, v in fields.items() if k in ("status", "priority", "assigned_to")}
+	allowed = {
+		k: v
+		for k, v in fields.items()
+		if k in ("status", "priority", "responsibility", "assigned_to")
+	}
 	if not allowed:
 		frappe.throw(_("Nothing to update"))
 	count = 0

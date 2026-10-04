@@ -25,6 +25,31 @@
       </Button>
     </div>
 
+    <!-- Who does the work: implementor / client split. Agents only. -->
+    <div
+      v-if="editable && anyTasks"
+      class="flex flex-wrap items-center gap-1 -mt-1"
+    >
+      <span class="text-[11px] text-ink-gray-5 me-0.5">
+        {{ __("Responsibility") }}
+      </span>
+      <button
+        v-for="o in respFilterOptions"
+        :key="o.value"
+        type="button"
+        class="text-[11px] rounded-full border px-2 py-0.5 transition-colors"
+        :class="
+          respFilter === o.value
+            ? respChipActiveClass(o.value)
+            : 'border-transparent text-ink-gray-6 hover:bg-surface-gray-2'
+        "
+        :aria-pressed="respFilter === o.value"
+        @click="respFilter = o.value"
+      >
+        {{ o.label }}
+      </button>
+    </div>
+
     <!-- Tracker -->
     <div
       v-if="milestones.data?.length"
@@ -106,13 +131,15 @@
           <p v-if="m.description" class="text-xs text-ink-gray-6 mt-1 whitespace-pre-line">
             {{ m.description }}
           </p>
-          <!-- Task list under the milestone (shown to agents and customers) -->
+          <!-- Task list under the milestone (shown to agents and customers).
+               The customer payload is { subject, status } only, so anything
+               agent-only below is guarded on `editable`. -->
           <div
-            v-if="m.tasks?.length"
+            v-if="visibleTasks(m).length"
             class="mt-2 flex flex-col gap-0.5"
           >
             <div
-              v-for="(t, ti) in m.tasks"
+              v-for="(t, ti) in visibleTasks(m)"
               :key="t.name || `${ti}-${t.subject}`"
               class="flex items-center gap-2 text-xs py-0.5"
             >
@@ -136,6 +163,14 @@
                 {{ t.subject }}
               </span>
               <span
+                v-if="editable && t.responsibility"
+                class="shrink-0 text-[10px] rounded px-1.5 py-0.5"
+                :class="respClass(t.responsibility)"
+                :title="__('Who does this work')"
+              >
+                {{ t.responsibility }}
+              </span>
+              <span
                 v-if="t.status !== 'To Do'"
                 class="shrink-0 text-[10px] rounded px-1.5 py-0.5"
                 :class="taskStatusClass(t.status)"
@@ -144,6 +179,12 @@
               </span>
             </div>
           </div>
+          <p
+            v-else-if="editable && respFilter && m.tasks?.length"
+            class="mt-2 text-[11px] text-ink-gray-4"
+          >
+            {{ __("No {0} tasks in this milestone", [__(respFilter)]) }}
+          </p>
         </button>
 
         <!-- Client sign-off controls -->
@@ -268,13 +309,26 @@
                   · {{ editingTasks.length }}
                 </span>
               </span>
-              <Button
-                v-if="editingTasks.length"
-                variant="ghost"
-                size="sm"
-                :label="__('View on task board')"
-                @click="viewOnBoard"
-              />
+              <div v-if="editingTasks.length" class="flex items-center gap-1.5">
+                <!-- Same filter as the timeline chips, reachable from inside
+                     the dialog (which covers them). -->
+                <select
+                  v-model="respFilter"
+                  class="text-[11px] rounded-md border border-outline-gray-2 bg-surface-white px-1.5 py-0.5 text-ink-gray-7 focus:outline-none focus:border-blue-400"
+                  :aria-label="__('Filter by responsibility')"
+                >
+                  <option value="">{{ __("All responsibilities") }}</option>
+                  <option v-for="r in RESPONSIBILITIES" :key="r" :value="r">
+                    {{ __(r) }}
+                  </option>
+                </select>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  :label="__('View on task board')"
+                  @click="viewOnBoard"
+                />
+              </div>
             </div>
             <!-- Local rollup: moves the moment a row is edited. -->
             <div v-if="editingTasks.length" class="flex items-center gap-2">
@@ -293,13 +347,22 @@
             </div>
             <p v-if="editingTasks.length" class="text-[11px] text-ink-gray-4">
               {{ __("Task changes save as you make them.") }}
+              <template v-if="respFilter">
+                ·
+                {{
+                  __("Showing {0} of {1} tasks", [
+                    visibleEditingTasks.length,
+                    editingTasks.length,
+                  ])
+                }}
+              </template>
             </p>
             <div
-              v-if="editingTasks.length"
+              v-if="visibleEditingTasks.length"
               class="flex flex-col gap-1.5 max-h-72 overflow-y-auto pr-1"
             >
               <div
-                v-for="(t, ti) in editingTasks"
+                v-for="(t, ti) in visibleEditingTasks"
                 :key="t.name || `${ti}-${t.subject}`"
                 class="rounded-lg border border-outline-gray-1 bg-surface-gray-1 px-2.5 py-2 flex flex-col gap-1.5 transition-opacity"
                 :class="t.name && savingTasks[t.name] ? 'opacity-60' : ''"
@@ -345,6 +408,14 @@
                     <LucideEyeOff class="size-3" /> {{ __("Internal") }}
                   </span>
                   <!-- Rows without an id (customer payload) stay read-only. -->
+                  <span
+                    v-if="!canEditTask(t) && t.responsibility"
+                    class="shrink-0 text-[10px] rounded px-1.5 py-0.5"
+                    :class="respClass(t.responsibility)"
+                    :title="__('Who does this work')"
+                  >
+                    {{ t.responsibility }}
+                  </span>
                   <span
                     v-if="!canEditTask(t)"
                     class="shrink-0 text-[10px] rounded px-1.5 py-0.5"
@@ -393,6 +464,20 @@
                       {{ __(p) }}
                     </option>
                   </select>
+                  <!-- Who does the work — not the same thing as "Internal",
+                       which is about what the customer can see. -->
+                  <select
+                    :value="t.responsibility || 'Us'"
+                    class="text-xs rounded-md border bg-surface-white px-2 py-1 focus:outline-none focus:border-blue-400"
+                    :class="respSelectClass(t.responsibility || 'Us')"
+                    :aria-label="__('Responsibility')"
+                    :title="__('Who does this work')"
+                    @change="(e) => patchTask(t, { responsibility: e.target.value })"
+                  >
+                    <option v-for="r in RESPONSIBILITIES" :key="r" :value="r">
+                      {{ __(r) }}
+                    </option>
+                  </select>
                   <div class="flex items-center gap-1">
                     <LucideCalendar
                       class="size-3.5"
@@ -414,6 +499,9 @@
                 </div>
               </div>
             </div>
+            <p v-else-if="editingTasks.length" class="text-xs text-ink-gray-4">
+              {{ __("No {0} tasks in this milestone", [__(respFilter)]) }}
+            </p>
             <p v-else class="text-xs text-ink-gray-4">
               {{ __("No tasks yet — add tasks to this milestone from the task board below.") }}
             </p>
@@ -551,6 +639,60 @@ function taskOverdue(t: any) {
   return dayjs(t.end_date).isBefore(dayjs().startOf("day"));
 }
 
+// --- Responsibility: who does the work, us (the implementor) or the client ---
+// Deliberately separate from `is_internal`, which is about what the customer
+// can see. Agent-only: the field is scrubbed from customer payloads, so every
+// use of it below is guarded on `editable` (or on the value being present).
+const RESPONSIBILITIES = ["Us", "Client", "Joint"];
+const respFilter = ref("");
+const respFilterOptions = computed(() => [
+  { value: "", label: __("All") },
+  ...RESPONSIBILITIES.map((r) => ({ value: r, label: __(r) })),
+]);
+function respClass(r: string) {
+  return (
+    {
+      Us: "bg-blue-50 text-blue-700",
+      Client: "bg-amber-50 text-amber-700",
+      Joint: "bg-violet-50 text-violet-700",
+    }[r] || "bg-surface-gray-2 text-ink-gray-6"
+  );
+}
+function respSelectClass(r: string) {
+  return (
+    {
+      Us: "border-blue-200 text-blue-700",
+      Client: "border-amber-300 text-amber-700",
+      Joint: "border-violet-300 text-violet-700",
+    }[r] || "border-outline-gray-2 text-ink-gray-7"
+  );
+}
+function respChipActiveClass(r: string) {
+  return (
+    {
+      Us: "border-blue-200 bg-blue-50 text-blue-700",
+      Client: "border-amber-200 bg-amber-50 text-amber-700",
+      Joint: "border-violet-200 bg-violet-50 text-violet-700",
+    }[r] || "border-outline-gray-3 bg-surface-gray-2 text-ink-gray-8"
+  );
+}
+// Rows written before the field existed come back blank; the stored default is
+// "Us", so they filter as "Us" (the badge still only shows a real value).
+function matchesResp(t: any) {
+  if (!respFilter.value) return true;
+  return (t?.responsibility || "Us") === respFilter.value;
+}
+/** Task rows of a milestone that pass the responsibility filter. Customers
+ * never see the filter (and have no such field), so nothing is hidden there. */
+function visibleTasks(m: any) {
+  const tasks = m?.tasks || [];
+  return respFilter.value ? tasks.filter(matchesResp) : tasks;
+}
+// Only the milestone tracker needs this; customers have no filter row.
+const anyTasks = computed(() =>
+  (milestones.data || []).some((m: any) => m.tasks?.length)
+);
+
 // --- create / edit ---
 const showDialog = ref(false);
 const editing = ref<string | null>(null);
@@ -638,6 +780,11 @@ function canEditTask(t: any) {
 
 const editingDone = computed(
   () => editingTasks.value.filter((t: any) => t.status === "Done").length
+);
+// The responsibility filter hides rows only; the rollup above still counts the
+// whole milestone, so it never disagrees with the timeline's progress bar.
+const visibleEditingTasks = computed(() =>
+  respFilter.value ? editingTasks.value.filter(matchesResp) : editingTasks.value
 );
 
 const savingTasks = reactive<Record<string, boolean>>({});

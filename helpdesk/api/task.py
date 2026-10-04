@@ -15,13 +15,17 @@ HUB_FIELDS = TASK_FIELDS + ["addon", "project"]
 
 
 @frappe.whitelist()
-def get_my_tasks() -> list:
+def get_my_tasks(responsibility: str | None = None) -> list:
 	"""Tasks visible to the current agent. Managers/admins get all; other
 	agents get the tasks they own, are assigned to, or review — enriched with
-	assignee/reviewer names, the parent's label, comment counts and score."""
+	assignee/reviewer names, the parent's label, comment counts and score.
+	`responsibility` optionally narrows to "Us" / "Client" / "Joint"."""
 	if not is_agent():
 		frappe.throw(_("Only agents can view tasks"), frappe.PermissionError)
 
+	filters: dict = {}
+	if responsibility:
+		filters["responsibility"] = responsibility
 	or_filters = None
 	if not is_agent_manager():
 		me = frappe.session.user
@@ -32,7 +36,7 @@ def get_my_tasks() -> list:
 		]
 	rows = frappe.get_all(
 		"HD Addon Task",
-		filters={},
+		filters=filters,
 		or_filters=or_filters,
 		fields=HUB_FIELDS,
 		order_by="modified desc",

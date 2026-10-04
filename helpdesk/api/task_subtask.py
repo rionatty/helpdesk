@@ -9,13 +9,14 @@ import frappe
 from frappe import _
 from frappe.utils import cint, flt
 
-from helpdesk.api.addon import _assert_task_access
+from helpdesk.api.addon import RESPONSIBILITIES, _assert_task_access
 from helpdesk.utils import is_agent, is_agent_manager
 
 SUBTASK_FIELDS = [
 	"name",
 	"subject",
 	"status",
+	"responsibility",
 	"hours_spent",
 	"assigned_to",
 	"reviewer",
@@ -61,6 +62,14 @@ def _clean_subject(subject: str | None) -> str:
 	return subject
 
 
+def _clean_responsibility(responsibility: str | None) -> str:
+	"""Who does the work. Falls back to "Us"; refuses anything else."""
+	responsibility = (responsibility or "Us").strip()
+	if responsibility not in RESPONSIBILITIES:
+		frappe.throw(_("Invalid responsibility"))
+	return responsibility
+
+
 @frappe.whitelist()
 def get_subtasks(task: str) -> list:
 	"""Subtasks of a task. Agents see all with assignee/reviewer names; the
@@ -96,12 +105,14 @@ def get_subtasks(task: str) -> list:
 		)
 		r["reviewer_name"] = names.get(r.reviewer) or r.reviewer
 		if not agent:
-			# Reviewer, score, hours and the assignee email are internal QA.
+			# Reviewer, score, hours and the assignee email are internal QA,
+			# and responsibility (us/client/joint) is an internal split.
 			r["assigned_to"] = None
 			r["reviewer"] = None
 			r["reviewer_name"] = None
 			r["score"] = 0
 			r["hours_spent"] = 0
+			r["responsibility"] = None
 	return rows
 
 
@@ -149,7 +160,7 @@ def get_summary(task: str) -> dict:
 
 
 @frappe.whitelist()
-def add_subtask(task: str, subject: str) -> str:
+def add_subtask(task: str, subject: str, responsibility: str = "Us") -> str:
 	"""Create a subtask under a task. Agents only."""
 	_assert_agent()
 	_assert_task_access(task)
@@ -160,6 +171,7 @@ def add_subtask(task: str, subject: str) -> str:
 			"task": task,
 			"subject": subject,
 			"status": "To Do",
+			"responsibility": _clean_responsibility(responsibility),
 			"hours_spent": 0,
 		}
 	).insert(ignore_permissions=True)
@@ -171,6 +183,7 @@ def update_subtask(
 	name: str,
 	subject: str | None = None,
 	status: str | None = None,
+	responsibility: str | None = None,
 	hours_spent: float | None = None,
 	assigned_to: str | None = None,
 	reviewer: str | None = None,
@@ -200,6 +213,8 @@ def update_subtask(
 		if status not in STATUSES:
 			frappe.throw(_("Invalid status"))
 		doc.status = status
+	if responsibility is not None:
+		doc.responsibility = _clean_responsibility(responsibility)
 	if hours_spent is not None:
 		doc.hours_spent = max(0, flt(hours_spent))
 	if assigned_to is not None:

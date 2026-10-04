@@ -906,6 +906,7 @@ def _get_milestones(project: str) -> list:
 		task_fields += [
 			"name",
 			"priority",
+			"responsibility",
 			"assigned_to",
 			"end_date",
 			"is_internal",
@@ -946,6 +947,7 @@ def _get_milestones(project: str) -> list:
 				"subject": t.subject,
 				"status": t.status,
 				"priority": t.priority,
+				"responsibility": t.responsibility,
 				"assigned_to": t.assigned_to,
 				"assigned_to_name": agent_names.get(t.assigned_to) or t.assigned_to,
 				"end_date": t.end_date,
