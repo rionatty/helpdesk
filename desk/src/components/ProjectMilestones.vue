@@ -14,15 +14,25 @@
           · {{ milestones.data.length }}
         </span>
       </div>
-      <Button
-        v-if="editable"
-        variant="subtle"
-        size="sm"
-        @click="openCreate"
-      >
-        <template #prefix><LucidePlus class="size-3.5" /></template>
-        {{ __("Add milestone") }}
-      </Button>
+      <div class="flex items-center gap-2">
+        <button
+          v-if="milestones.data?.length"
+          type="button"
+          class="text-xs font-medium text-ink-gray-6 hover:text-ink-gray-9 hover:underline"
+          @click="toggleAll"
+        >
+          {{ allCollapsed ? __("Expand all") : __("Collapse all") }}
+        </button>
+        <Button
+          v-if="editable"
+          variant="subtle"
+          size="sm"
+          @click="openCreate"
+        >
+          <template #prefix><LucidePlus class="size-3.5" /></template>
+          {{ __("Add milestone") }}
+        </Button>
+      </div>
     </div>
 
     <!-- Who does the work: implementor / client split. Agents only. -->
@@ -88,6 +98,21 @@
           @click="editable && openEdit(m)"
         >
           <div class="flex flex-wrap items-center gap-2">
+            <span
+              role="button"
+              tabindex="0"
+              class="-ms-1 shrink-0 rounded p-0.5 text-ink-gray-5 hover:bg-surface-gray-2 hover:text-ink-gray-8"
+              :aria-expanded="!isCollapsed(m.name)"
+              :title="isCollapsed(m.name) ? __('Show details') : __('Hide details')"
+              @click.stop="toggle(m.name)"
+              @keydown.enter.stop.prevent="toggle(m.name)"
+              @keydown.space.stop.prevent="toggle(m.name)"
+            >
+              <LucideChevronRight
+                class="size-4 transition-transform"
+                :class="isCollapsed(m.name) ? '' : 'rotate-90'"
+              />
+            </span>
             <span class="text-sm font-medium text-ink-gray-9">{{ m.title }}</span>
             <Badge :label="m.status" :theme="statusTheme(m.status)" variant="subtle" />
             <Badge
@@ -128,14 +153,14 @@
               {{ __("{0} of {1} tasks done", [m.tasks_done, m.tasks_total]) }}
             </span>
           </div>
-          <p v-if="m.description" class="text-xs text-ink-gray-6 mt-1 whitespace-pre-line">
+          <p v-if="m.description && !isCollapsed(m.name)" class="text-xs text-ink-gray-6 mt-1 whitespace-pre-line">
             {{ m.description }}
           </p>
           <!-- Task list under the milestone (shown to agents and customers).
                The customer payload is { subject, status } only, so anything
                agent-only below is guarded on `editable`. -->
           <div
-            v-if="visibleTasks(m).length"
+            v-if="visibleTasks(m).length && !isCollapsed(m.name)"
             class="mt-2 flex flex-col gap-1"
           >
             <div
@@ -191,7 +216,7 @@
             </div>
           </div>
           <p
-            v-else-if="editable && respFilter && m.tasks?.length"
+            v-else-if="editable && respFilter && m.tasks?.length && !isCollapsed(m.name)"
             class="mt-2 text-[11px] text-ink-gray-4"
           >
             {{ __("No {0} tasks in this milestone", [__(respFilter)]) }}
@@ -569,12 +594,31 @@ import LucideCheck from "~icons/lucide/check";
 import LucideFlag from "~icons/lucide/flag";
 import LucideCalendar from "~icons/lucide/calendar";
 import LucideEyeOff from "~icons/lucide/eye-off";
+import LucideChevronRight from "~icons/lucide/chevron-right";
+import { useMilestoneCollapse } from "@/composables/useMilestoneCollapse";
 
 interface P {
   projectId: string;
   editable?: boolean;
 }
 const props = withDefaults(defineProps<P>(), { editable: false });
+
+// Folding a milestone hides its description and task list — here and in the
+// timeline, which reads the same state.
+const { isCollapsed, toggle, setAll } = useMilestoneCollapse(
+  () => props.projectId
+);
+const milestoneNames = computed(() =>
+  (milestones.data || []).map((m: any) => m.name)
+);
+const allCollapsed = computed(
+  () =>
+    !!milestoneNames.value.length &&
+    milestoneNames.value.every((n: string) => isCollapsed(n))
+);
+function toggleAll() {
+  setAll(milestoneNames.value, !allCollapsed.value);
+}
 const emit = defineEmits(["changed", "view-tasks"]);
 
 const STATUSES = ["Upcoming", "In Progress", "Completed", "Missed"];

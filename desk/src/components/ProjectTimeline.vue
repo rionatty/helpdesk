@@ -77,12 +77,32 @@
               </span>
             </template>
             <template v-else>
+              <button
+                v-if="r.collapsible"
+                type="button"
+                class="shrink-0 rounded p-0.5 text-ink-gray-5 hover:bg-surface-gray-2 hover:text-ink-gray-8"
+                :aria-expanded="!r.collapsed"
+                :title="r.collapsed ? __('Show tasks') : __('Hide tasks')"
+                @click="toggle(r.name)"
+              >
+                <LucideChevronRight
+                  class="size-3.5 transition-transform"
+                  :class="r.collapsed ? '' : 'rotate-90'"
+                />
+              </button>
               <span
                 v-if="r.color"
                 class="size-2 shrink-0 rounded-full"
                 :style="{ background: r.color }"
               />
               <span class="truncate font-semibold text-ink-gray-8">{{ r.label }}</span>
+              <span
+                v-if="r.hidden"
+                class="shrink-0 rounded bg-surface-gray-2 px-1 text-[10px] text-ink-gray-6"
+                :title="__('{0} tasks hidden', [r.hidden])"
+              >
+                {{ r.hidden }}
+              </span>
             </template>
           </div>
           <div class="relative h-full shrink-0" :style="{ width: chartWidth + 'px' }">
@@ -144,6 +164,11 @@ import { createResource, dayjs } from "frappe-ui";
 import { __ } from "@/translation";
 import { buildMilestoneColors, milestoneColorOf } from "@/utils";
 import LucideCalendarRange from "~icons/lucide/calendar-range";
+import LucideChevronRight from "~icons/lucide/chevron-right";
+import {
+  NO_MILESTONE,
+  useMilestoneCollapse,
+} from "@/composables/useMilestoneCollapse";
 
 const props = defineProps<{
   projectId: string;
@@ -151,6 +176,10 @@ const props = defineProps<{
   projectStart?: string | null;
   projectEnd?: string | null;
 }>();
+
+// A milestone folded in the list above is folded here too: its task bars
+// drop out and the row keeps a count of what it is hiding.
+const { isCollapsed, toggle } = useMilestoneCollapse(() => props.projectId);
 
 const LABEL = 220; // px for the name column
 const ZOOMS = [
@@ -310,25 +339,41 @@ const rows = computed(() => {
       spanEnd = list.reduce((a: any, t: any) => (t.e.isAfter(a) ? t.e : a), list[0].e);
     }
     if (due && (!spanEnd || due.isAfter(spanEnd))) spanEnd = due;
+    const folded = isCollapsed(m.name);
     out.push({
       key: "m:" + m.name,
       kind: "milestone",
+      name: m.name,
       label: m.title,
       color: milestoneColorOf(m.name, colors.value).dot,
       dueX: due ? xOf(due) + px.value / 2 : null,
       spanX: spanStart ? xOf(spanStart) : null,
       spanW: spanStart ? xOf(spanEnd.add(1, "day")) - xOf(spanStart) : 0,
       done: m.status === "Completed",
+      collapsible: !!list.length,
+      collapsed: folded,
+      // The milestone's own bar and diamond stay: folding hides its tasks.
+      hidden: folded ? list.length : 0,
       tip: m.title + (due ? " · " + __("due {0}", [due.format("D MMM YYYY")]) : ""),
     });
-    out.push(...list.map(taskRow));
+    if (!folded) out.push(...list.map(taskRow));
   }
 
   // No milestone, or one this viewer can't see.
   const rest = sortTasks(scheduled.filter((t: any) => !t.milestone || !known.has(t.milestone)));
   if (rest.length) {
-    out.push({ key: "g:none", kind: "group", label: __("Not in a milestone"), color: null });
-    out.push(...rest.map(taskRow));
+    const folded = isCollapsed(NO_MILESTONE);
+    out.push({
+      key: "g:none",
+      kind: "group",
+      name: NO_MILESTONE,
+      label: __("Not in a milestone"),
+      color: null,
+      collapsible: true,
+      collapsed: folded,
+      hidden: folded ? rest.length : 0,
+    });
+    if (!folded) out.push(...rest.map(taskRow));
   }
   return out;
 });
