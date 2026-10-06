@@ -14,6 +14,7 @@
   "column_break_main",
   "ticket",
   "subtask",
+  "job_card",
   "logged_by",
   "section_break_description",
   "description"
@@ -74,6 +75,15 @@
    "search_index": 1
   },
   {
+   "description": "The job card this time is on, so it never lands on two.",
+   "fieldname": "job_card",
+   "fieldtype": "Link",
+   "label": "Job Card",
+   "options": "HD Job Card",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
    "fieldname": "logged_by",
    "fieldtype": "Link",
    "in_standard_filter": 1,
@@ -93,7 +103,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-10-05 00:00:00.000000",
+ "modified": "2026-10-06 00:00:00.000000",
  "modified_by": "Administrator",
  "module": "Helpdesk",
  "name": "HD Time Log",

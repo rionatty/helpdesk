@@ -1,0 +1,304 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "format:JC-{YYYY}-{#####}",
+ "creation": "2026-10-06 00:00:00.000000",
+ "description": "The printable record of a piece of work done for a client, signed off by the client.",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "status",
+  "date",
+  "customer",
+  "ticket",
+  "project",
+  "column_break_main",
+  "service_type",
+  "location",
+  "time_in",
+  "time_out",
+  "technician",
+  "technician_name",
+  "section_break_contact",
+  "contact",
+  "contact_name",
+  "column_break_contact",
+  "contact_phone",
+  "contact_email",
+  "section_break_work",
+  "work_requested",
+  "work_done",
+  "work_status",
+  "recommendations",
+  "section_break_time",
+  "lines",
+  "total_hours",
+  "section_break_items",
+  "items",
+  "section_break_signoff",
+  "signed_by",
+  "signed_designation",
+  "signed_on",
+  "satisfied",
+  "column_break_signoff",
+  "customer_comments",
+  "customer_signature"
+ ],
+ "fields": [
+  {
+   "default": "Open",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Status",
+   "options": "Open\nCompleted\nSigned\nCancelled",
+   "read_only": 1
+  },
+  {
+   "default": "Today",
+   "fieldname": "date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Date",
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "customer",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Client",
+   "options": "HD Customer",
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "description": "The ticket this work was for, if any.",
+   "fieldname": "ticket",
+   "fieldtype": "Data",
+   "label": "Ticket",
+   "search_index": 1
+  },
+  {
+   "fieldname": "project",
+   "fieldtype": "Data",
+   "label": "Project"
+  },
+  {
+   "fieldname": "column_break_main",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "Remote",
+   "fieldname": "service_type",
+   "fieldtype": "Select",
+   "label": "Service",
+   "options": "Remote\nOn-site\nPhone"
+  },
+  {
+   "fieldname": "location",
+   "fieldtype": "Data",
+   "label": "Location"
+  },
+  {
+   "fieldname": "time_in",
+   "fieldtype": "Time",
+   "label": "Time In"
+  },
+  {
+   "fieldname": "time_out",
+   "fieldtype": "Time",
+   "label": "Time Out"
+  },
+  {
+   "fieldname": "technician",
+   "fieldtype": "Link",
+   "label": "Technician",
+   "options": "User"
+  },
+  {
+   "fieldname": "technician_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Technician Name",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_break_contact",
+   "fieldtype": "Section Break",
+   "label": "Client Contact"
+  },
+  {
+   "fieldname": "contact",
+   "fieldtype": "Link",
+   "label": "Contact",
+   "options": "Contact"
+  },
+  {
+   "fieldname": "contact_name",
+   "fieldtype": "Data",
+   "label": "Contact Name"
+  },
+  {
+   "fieldname": "column_break_contact",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "contact_phone",
+   "fieldtype": "Data",
+   "label": "Phone"
+  },
+  {
+   "fieldname": "contact_email",
+   "fieldtype": "Data",
+   "label": "Email"
+  },
+  {
+   "fieldname": "section_break_work",
+   "fieldtype": "Section Break",
+   "label": "Work"
+  },
+  {
+   "fieldname": "work_requested",
+   "fieldtype": "Small Text",
+   "label": "Work Requested"
+  },
+  {
+   "fieldname": "work_done",
+   "fieldtype": "Small Text",
+   "label": "Work Done"
+  },
+  {
+   "default": "Resolved",
+   "fieldname": "work_status",
+   "fieldtype": "Select",
+   "label": "Outcome",
+   "options": "Resolved\nPartly resolved\nFollow-up needed"
+  },
+  {
+   "fieldname": "recommendations",
+   "fieldtype": "Small Text",
+   "label": "Recommendations"
+  },
+  {
+   "fieldname": "section_break_time",
+   "fieldtype": "Section Break",
+   "label": "Time Spent"
+  },
+  {
+   "fieldname": "lines",
+   "fieldtype": "Table",
+   "label": "Time Lines",
+   "options": "HD Job Card Line"
+  },
+  {
+   "default": "0",
+   "fieldname": "total_hours",
+   "fieldtype": "Float",
+   "in_list_view": 1,
+   "label": "Total Hours",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_break_items",
+   "fieldtype": "Section Break",
+   "label": "Items Used"
+  },
+  {
+   "fieldname": "items",
+   "fieldtype": "Table",
+   "label": "Items",
+   "options": "HD Job Card Item"
+  },
+  {
+   "fieldname": "section_break_signoff",
+   "fieldtype": "Section Break",
+   "label": "Client Sign-off"
+  },
+  {
+   "fieldname": "signed_by",
+   "fieldtype": "Data",
+   "label": "Signed By",
+   "read_only": 1
+  },
+  {
+   "fieldname": "signed_designation",
+   "fieldtype": "Data",
+   "label": "Title",
+   "read_only": 1
+  },
+  {
+   "fieldname": "signed_on",
+   "fieldtype": "Datetime",
+   "label": "Signed On",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "satisfied",
+   "fieldtype": "Check",
+   "label": "Work Accepted",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_signoff",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "customer_comments",
+   "fieldtype": "Small Text",
+   "label": "Client Comments",
+   "read_only": 1
+  },
+  {
+   "fieldname": "customer_signature",
+   "fieldtype": "Signature",
+   "label": "Client Signature",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-10-06 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Helpdesk",
+ "name": "HD Job Card",
+ "naming_rule": "Expression",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Agent Manager",
+   "write": 1
+  },
+  {
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Agent"
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "customer",
+ "track_changes": 1
+}

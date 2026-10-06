@@ -136,6 +136,7 @@
             <div class="truncate text-ink-gray-5">
               {{ l.logged_by_name }}
               <template v-if="!l.billable"> · {{ __("not billable") }}</template>
+              <template v-if="l.job_card"> · {{ l.job_card }}</template>
             </div>
           </div>
           <button

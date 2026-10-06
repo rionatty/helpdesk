@@ -55,6 +55,7 @@ LOG_FIELDS = [
 	"description",
 	"ticket",
 	"subtask",
+	"job_card",
 	"logged_by",
 ]
 # Alert keys ("<period start>:<level>") remembered per contract: two years of
@@ -265,20 +266,27 @@ def _record(customer, on, change) -> None:
 		frappe.log_error(title=f"Support hours: alert failed for {c.name}")
 
 
-def _new_log(customer, ticket, subtask, on, hours, description=None, billable=1) -> None:
-	frappe.get_doc(
-		{
-			"doctype": "HD Time Log",
-			"customer": customer,
-			"ticket": ticket,
-			"subtask": subtask,
-			"date": on,
-			"hours": hours,
-			"billable": 1 if cint(billable) else 0,
-			"description": description or None,
-			"logged_by": frappe.session.user,
-		}
-	).insert(ignore_permissions=True)
+def _new_log(
+	customer, ticket, subtask, on, hours, description=None, billable=1, job_card=None, logged_by=None
+) -> str:
+	return (
+		frappe.get_doc(
+			{
+				"doctype": "HD Time Log",
+				"customer": customer,
+				"ticket": ticket,
+				"subtask": subtask,
+				"job_card": job_card,
+				"date": on,
+				"hours": hours,
+				"billable": 1 if cint(billable) else 0,
+				"description": description or None,
+				"logged_by": logged_by or frappe.session.user,
+			}
+		)
+		.insert(ignore_permissions=True)
+		.name
+	)
 
 
 def sync_subtask_hours(subtask) -> None:
@@ -586,6 +594,8 @@ def delete_time_log(name: str) -> bool:
 	log = frappe.get_doc("HD Time Log", name)
 	if log.subtask:
 		frappe.throw(_("This time comes from a subtask. Change the subtask's hours instead."))
+	if log.job_card and frappe.db.get_value("HD Job Card", log.job_card, "status") == "Signed":
+		frappe.throw(_("This time is on job card {0}, which the client has signed").format(log.job_card))
 	if not _can_change(log):
 		frappe.throw(
 			_("Only the person who logged this time, or a manager, can remove it"),

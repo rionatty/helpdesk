@@ -9,6 +9,7 @@ import LucidePackage from "~icons/lucide/package";
 import LucideListChecks from "~icons/lucide/list-checks";
 import LucideBell from "~icons/lucide/bell";
 import LucideTimer from "~icons/lucide/timer";
+import LucideFileText from "~icons/lucide/file-text";
 import { OrganizationsIcon } from "../icons";
 import PhoneIcon from "../icons/PhoneIcon.vue";
 import LucideHome from "~icons/lucide/home";
@@ -65,6 +66,11 @@ export const agentPortalWorkspaceOptions = [
     label: __("Contracts"),
     icon: LucideTimer,
     to: "ContractsAgent",
+  },
+  {
+    label: __("Job cards"),
+    icon: LucideFileText,
+    to: "JobCardsAgent",
   },
   {
     label: __("Reminders"),
@@ -138,6 +144,11 @@ export const agentPortalSidebarOptions = [
     label: __("Contracts"),
     icon: LucideTimer,
     to: "ContractsAgent",
+  },
+  {
+    label: __("Job cards"),
+    icon: LucideFileText,
+    to: "JobCardsAgent",
   },
   {
     label: __("Reminders"),

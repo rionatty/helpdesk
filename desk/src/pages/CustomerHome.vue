@@ -199,6 +199,9 @@
       <!-- Support plan: hours used and left this period -->
       <SupportPlanCard />
 
+      <!-- Job cards: the work done, to view, print and sign -->
+      <CustomerJobCards />
+
       <!-- Customer analytics charts -->
       <CustomerAnalytics />
 
@@ -506,6 +509,7 @@ import { RouterLink, useRouter } from "vue-router";
 import { LayoutHeader } from "@/components";
 import CustomerAnalytics from "@/components/CustomerAnalytics.vue";
 import SupportPlanCard from "@/components/SupportPlanCard.vue";
+import CustomerJobCards from "@/components/CustomerJobCards.vue";
 import { useConfigStore } from "@/stores/config";
 import { useAuthStore } from "@/stores/auth";
 import { useTicketStatusStore } from "@/stores/ticketStatus";

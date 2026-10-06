@@ -160,6 +160,14 @@ const routes = [
     },
   },
   {
+    path: "/job-cards",
+    name: "JobCardsAgent",
+    component: () => import("@/pages/JobCardsView.vue"),
+    meta: {
+      agent: true,
+    },
+  },
+  {
     path: "/reminders",
     name: "RemindersAgent",
     component: () => import("@/pages/RemindersPage.vue"),

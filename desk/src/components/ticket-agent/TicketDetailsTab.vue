@@ -70,6 +70,13 @@
           @changed="subtasksRef?.reload()"
         />
       </div>
+      <!-- Job cards: the printable record of the work, for the client to sign -->
+      <div class="px-4 py-4">
+        <TicketJobCards
+          :ticket-id="ticketName"
+          @changed="supportHoursRef?.reload(); subtasksRef?.reload()"
+        />
+      </div>
       <!-- Ticket Info (custom fields) -->
       <div v-if="Boolean(customFields.length)">
         <Section label="Ticket Info" v-model:opened="openedSections.ticketInfo">
@@ -190,6 +197,7 @@ import Section from "../Section.vue";
 import TicketField from "../TicketField.vue";
 import TicketSubtasks from "@/components/ticket/TicketSubtasks.vue";
 import TicketSupportHours from "@/components/ticket/TicketSupportHours.vue";
+import TicketJobCards from "@/components/ticket/TicketJobCards.vue";
 import AssignTo from "./AssignTo.vue";
 import TicketContact from "./TicketContact.vue";
 
