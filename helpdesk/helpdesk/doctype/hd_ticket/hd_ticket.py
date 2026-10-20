@@ -1543,7 +1543,9 @@ class HDTicket(Document):
             return "automated"
         if self.raised_by.lower() in ticket_ingest_addresses():
             return "own-inbox"
-        if is_agent(self.raised_by):
+        # An agent's own ticket. Not is_agent(): that also says yes for anyone
+        # while Administrator is signed in, as background jobs are.
+        if frappe.db.exists("HD Agent", self.raised_by):
             return "agent"
         from helpdesk.api.profile import wants_email_updates
 
