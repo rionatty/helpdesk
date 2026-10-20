@@ -84,6 +84,8 @@
           </Button>
         </div>
         <TicketStatusStepper />
+        <!-- Who is handling the ticket, and when it should be resolved -->
+        <TicketHandlerStrip />
         <div v-if="canReopen" class="px-4 md:px-10 pt-3">
           <div
             class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 px-4 py-3 rounded-lg border border-outline-amber-1 bg-surface-amber-1"
@@ -277,6 +279,7 @@ import { ITicket } from "./symbols";
 import TicketConversation from "./TicketConversation.vue";
 import TicketFeedback from "./TicketFeedback.vue";
 import TicketStatusStepper from "@/components/ticket/TicketStatusStepper.vue";
+import TicketHandlerStrip from "@/components/ticket/TicketHandlerStrip.vue";
 import TicketHeader from "@/components/ticket/TicketHeader.vue";
 import TypingIndicator from "@/components/TypingIndicator.vue";
 import { useTyping } from "@/composables/realtime";

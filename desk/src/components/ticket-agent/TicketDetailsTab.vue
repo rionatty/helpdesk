@@ -36,6 +36,9 @@
         <!-- Assignee component -->
         <AssignTo />
 
+        <!-- When the assigned agent expects to resolve it; the customer sees it -->
+        <TicketResolutionEta />
+
         <!-- Push real work to the add-on/project task board -->
         <Button
           v-if="ticket?.doc?.addon || ticket?.doc?.project"
@@ -199,6 +202,7 @@ import TicketSubtasks from "@/components/ticket/TicketSubtasks.vue";
 import TicketSupportHours from "@/components/ticket/TicketSupportHours.vue";
 import TicketJobCards from "@/components/ticket/TicketJobCards.vue";
 import AssignTo from "./AssignTo.vue";
+import TicketResolutionEta from "./TicketResolutionEta.vue";
 import TicketContact from "./TicketContact.vue";
 
 const ticket = inject(TicketSymbol)!;

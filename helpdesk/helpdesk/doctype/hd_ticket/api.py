@@ -185,7 +185,20 @@ def get_one(name: str, is_customer_portal: bool = False):
             else None
         ),
         "assignee_name": _assignee_display_name(name),
+        "assignee_image": _assignee_image(name),
     }
+
+
+def _assignee_image(ticket: str) -> str | None:
+    """The assigned agent's photo, for the customer's ticket page."""
+    try:
+        parsed = frappe.parse_json(
+            frappe.db.get_value("HD Ticket", ticket, "_assign") or "[]"
+        )
+        agent = parsed[0] if isinstance(parsed, list) and parsed else None
+        return frappe.db.get_value("User", agent, "user_image") if agent else None
+    except Exception:
+        return None
 
 
 def _assignee_display_name(ticket: str) -> str | None:

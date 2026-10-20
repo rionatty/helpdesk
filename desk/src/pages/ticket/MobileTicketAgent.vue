@@ -65,6 +65,10 @@
                   :ticketId="ticket.doc?.name"
                   @email:open="communicationAreaRef.toggleEmailBox()"
                 />
+                <!-- When the assigned agent expects to resolve it -->
+                <div class="px-6 pb-3">
+                  <TicketResolutionEta />
+                </div>
                 <!-- feedback component -->
                 <TicketFeedback
                   v-if="ticket.doc?.feedback_rating"
@@ -206,6 +210,7 @@ import { TicketAgentActivities } from "@/components/ticket";
 
 import CustomActions from "@/components/CustomActions.vue";
 import AssignTo from "@/components/ticket-agent/AssignTo.vue";
+import TicketResolutionEta from "@/components/ticket-agent/TicketResolutionEta.vue";
 import SetContactPhoneModal from "@/components/ticket/SetContactPhoneModal.vue";
 import TicketAgentDetails from "@/components/ticket/TicketAgentDetails.vue";
 import TicketAgentFields from "@/components/ticket/TicketAgentFields.vue";

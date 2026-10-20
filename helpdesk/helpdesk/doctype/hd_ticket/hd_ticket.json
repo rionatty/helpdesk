@@ -63,6 +63,7 @@
   "column_break_16",
   "via_customer_portal",
   "whatsapp_number",
+  "resolution_eta",
   "attachment",
   "content_type",
   "split_and_merge_section",
@@ -385,6 +386,13 @@
    "search_index": 1
   },
   {
+   "description": "When the assigned agent expects to resolve the ticket. The customer sees it.",
+   "fieldname": "resolution_eta",
+   "fieldtype": "Datetime",
+   "label": "Expected Resolution",
+   "read_only": 1
+  },
+  {
    "fieldname": "attachment",
    "fieldtype": "Attach",
    "hidden": 1,
@@ -522,7 +530,7 @@
  "icon": "fa fa-issue",
  "idx": 61,
  "links": [],
- "modified": "2026-10-05 00:00:00.000000",
+ "modified": "2026-10-20 00:00:00.000000",
  "modified_by": "Administrator",
  "module": "Helpdesk",
  "name": "HD Ticket",

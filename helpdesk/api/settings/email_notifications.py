@@ -103,6 +103,16 @@ def get_weekly_client_update_data():
     }
 
 
+def get_assignment_notice_data():
+    return {
+        "enabled": bool(
+            frappe.utils.cint(
+                frappe.db.get_single_value("HD Settings", "notify_customer_of_assignment")
+            )
+        )
+    }
+
+
 @frappe.whitelist(methods=["GET"])
 def get_data(notification: str):
     only_for_managers()
@@ -121,6 +131,9 @@ def get_data(notification: str):
 
     if notification == "weekly_client_update":
         return get_weekly_client_update_data()
+
+    if notification == "assignment_notice":
+        return get_assignment_notice_data()
 
     frappe.throw(_("Invalid notification"))
 
@@ -210,3 +223,14 @@ def update_weekly_client_update(enabled: bool):
         "HD Settings", "send_weekly_client_update", 1 if frappe.utils.sbool(enabled) else 0
     )
     return get_weekly_client_update_data()
+
+
+@frappe.whitelist(methods=["PUT"])
+def update_assignment_notice(enabled: bool):
+    only_for_managers()
+    frappe.db.set_single_value(
+        "HD Settings",
+        "notify_customer_of_assignment",
+        1 if frappe.utils.sbool(enabled) else 0,
+    )
+    return get_assignment_notice_data()

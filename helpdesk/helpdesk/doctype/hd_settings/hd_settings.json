@@ -87,7 +87,9 @@
   "enable_reply_email_via_agent",
   "reply_via_agent_email_content",
   "weekly_client_update_section",
-  "send_weekly_client_update"
+  "send_weekly_client_update",
+  "assignment_notice_section",
+  "notify_customer_of_assignment"
  ],
  "fields": [
   {
@@ -443,6 +445,18 @@
    "label": "Enabled"
   },
   {
+   "fieldname": "assignment_notice_section",
+   "fieldtype": "Section Break",
+   "label": "Assignment And Expected Resolution"
+  },
+  {
+   "default": "1",
+   "description": "Tell the customer who is handling their ticket, and when the assigned agent expects to resolve it.",
+   "fieldname": "notify_customer_of_assignment",
+   "fieldtype": "Check",
+   "label": "Enabled"
+  },
+  {
    "fieldname": "reply_from_contact_section",
    "fieldtype": "Section Break",
    "label": "Reply From Contact"
@@ -586,7 +600,7 @@
  "grid_page_length": 50,
  "issingle": 1,
  "links": [],
- "modified": "2026-07-22 12:00:00.000000",
+ "modified": "2026-10-20 00:00:00.000000",
  "modified_by": "Administrator",
  "module": "Helpdesk",
  "name": "HD Settings",

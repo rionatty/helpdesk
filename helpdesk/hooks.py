@@ -87,6 +87,10 @@ doc_events = {
     "Contact": {
         "before_insert": "helpdesk.overrides.contact.before_insert",
     },
+    # A new assignment: tell the customer who is handling their ticket.
+    "ToDo": {
+        "after_insert": "helpdesk.api.assignment.on_todo_insert",
+    },
     "Assignment Rule": {
         "on_trash": "helpdesk.extends.assignment_rule.on_assignment_rule_trash",
         "validate": "helpdesk.extends.assignment_rule.on_assignment_rule_validate",

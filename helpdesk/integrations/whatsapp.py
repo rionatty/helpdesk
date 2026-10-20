@@ -637,10 +637,38 @@ def _acknowledge(s, ticket, wa_id: str, name: str | None) -> None:
 			message=f"Ticket {ticket.name}: the per-number limit was reached.",
 		)
 		return
+	from helpdesk.api.assignment import handled_by_text
+
+	text = render_ack(s.acknowledgement_message, ticket.name, name)
+	text = f"{text} {handled_by_text(ticket)}".strip()
 	try:
-		send_text(s, wa_id, render_ack(s.acknowledgement_message, ticket.name, name), ticket=ticket.name)
+		send_text(s, wa_id, text, ticket=ticket.name)
 	except WhatsAppError:
 		frappe.log_error(title=f"WhatsApp: acknowledgement failed for {ticket.name}")
+
+
+# (seconds, notices per ticket): who is handling it, when it should be done.
+NOTICE_LIMITS = ((3600, 3), (86400, 8))
+
+
+def notify_customer(ticket, text: str) -> str:
+	"""HD Ticket.send_customer_notice for a WhatsApp ticket. Free text only
+	goes within WhatsApp's 24-hour window; outside it the customer still sees
+	the update on their ticket. Returns what happened."""
+	s = settings()
+	if not is_ready(s):
+		return "whatsapp-off"
+	to = digits(ticket.get("whatsapp_number"))
+	if not within_window(last_inbound(to), now_datetime()):
+		return "window-closed"
+	if _rate_limited(f"hd-wa-notice:{ticket.name}", NOTICE_LIMITS):
+		return "rate-limited"
+	try:
+		send_text(s, to, text, ticket=ticket.name)
+	except WhatsAppError:
+		frappe.log_error(title=f"WhatsApp: notice failed for {ticket.name}")
+		return "failed"
+	return "sent"
 
 
 def _delivery(status: dict) -> None:

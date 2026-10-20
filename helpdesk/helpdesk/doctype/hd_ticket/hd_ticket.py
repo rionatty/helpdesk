@@ -422,6 +422,9 @@ class HDTicket(Document):
             )
 
     def after_insert(self):
+        # An agent assigned while the ticket is being created is named in its
+        # acknowledgement, not in a second email (helpdesk/api/assignment.py).
+        frappe.flags.hd_new_ticket = self.name
 
         # Telemetry Event
         self.capture_ticket_created_telemetry_events()
@@ -1511,6 +1514,67 @@ class HDTicket(Document):
                 return True
         return False
 
+    def _handled_by_note(self) -> str:
+        """For the acknowledgement: who is handling the ticket, when an agent
+        was assigned as it was created."""
+        try:
+            from helpdesk.api.assignment import handled_by_html
+
+            return handled_by_html(self)
+        except Exception:
+            return ""
+
+    def send_customer_notice(
+        self, kind: str, subject: str, message: str, text: str
+    ) -> str:
+        """An automated update to the requester: who is handling the ticket,
+        or when it should be resolved (helpdesk/api/assignment.py). The
+        acknowledgement's gates - never an automated sender, one of our own
+        inboxes, an agent's own ticket or someone who turned email updates
+        off - with the loop breaker last and RFC 3834 headers. A WhatsApp
+        ticket is told on WhatsApp. Returns what happened."""
+        if self.get("whatsapp_number"):
+            from helpdesk.integrations import whatsapp
+
+            return whatsapp.notify_customer(self, text)
+        if not self.raised_by:
+            return "no-address"
+        if self.is_automated_requester():
+            return "automated"
+        if self.raised_by.lower() in ticket_ingest_addresses():
+            return "own-inbox"
+        if is_agent(self.raised_by):
+            return "agent"
+        from helpdesk.api.profile import wants_email_updates
+
+        if not wants_email_updates(self.raised_by):
+            return "opted-out"
+        # Loop circuit breaker - last, so the budget is only spent on a send.
+        if self._auto_email_rate_limited(kind):
+            return "rate-limited"
+        sender_account = self.sender_email()
+        try:
+            frappe.sendmail(
+                recipients=[self.raised_by],
+                sender=sender_account.email_id if sender_account else None,
+                subject=subject,
+                message=message,
+                reference_doctype="HD Ticket",
+                reference_name=self.name,
+                now=True,
+                expose_recipients="header",
+                email_headers={
+                    "X-Auto-Generated": f"hd-{kind}",
+                    "Auto-Submitted": "auto-generated",
+                    "X-Auto-Response-Suppress": "All",
+                    "Precedence": "bulk",
+                },
+            )
+        except Exception:
+            frappe.log_error(title=f"HD Ticket {self.name}: {kind} notice failed")
+            return "failed"
+        return "sent"
+
     def send_acknowledgement_email(self):
         from helpdesk.api.profile import wants_email_updates
 
@@ -1556,7 +1620,8 @@ class HDTicket(Document):
                 message=self._get_rendered_template(
                     acknowledgement_email_content,
                     default_acknowledgement_email_content,
-                ),
+                )
+                + self._handled_by_note(),
                 reference_doctype="HD Ticket",
                 reference_name=self.name,
                 now=True,

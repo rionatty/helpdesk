@@ -19,6 +19,7 @@ import ReplyViaAgent from "./ReplyViaAgent.vue";
 import ShareFeedback from "./ShareFeedback.vue";
 import ReplyToAgents from "./ReplyToAgents.vue";
 import WeeklyClientUpdate from "./WeeklyClientUpdate.vue";
+import AssignmentNotice from "./AssignmentNotice.vue";
 
 const curNotification = ref<Notification | null>(null);
 
@@ -31,6 +32,7 @@ const notificationToComponent: Record<
   reply_to_agents: markRaw(ReplyToAgents),
   reply_via_agent: markRaw(ReplyViaAgent),
   weekly_client_update: markRaw(WeeklyClientUpdate),
+  assignment_notice: markRaw(AssignmentNotice),
 };
 
 function resetCurNotification() {

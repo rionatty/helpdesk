@@ -87,6 +87,13 @@ const notifications: AtLeastOneNotifcation = [
     ),
   },
   {
+    name: "assignment_notice",
+    label: __("Assignment and expected resolution"),
+    description: __(
+      "Sent to the customer when an agent is assigned to their ticket, and when the agent sets when it should be resolved."
+    ),
+  },
+  {
     name: "weekly_client_update",
     label: __("Weekly client update"),
     description: __(
