@@ -89,7 +89,9 @@
   "weekly_client_update_section",
   "send_weekly_client_update",
   "assignment_notice_section",
-  "notify_customer_of_assignment"
+  "notify_customer_of_assignment",
+  "status_notice_section",
+  "notify_customer_of_status"
  ],
  "fields": [
   {
@@ -457,6 +459,18 @@
    "label": "Enabled"
   },
   {
+   "fieldname": "status_notice_section",
+   "fieldtype": "Section Break",
+   "label": "Status Updates"
+  },
+  {
+   "default": "1",
+   "description": "Tell the customer's team when their ticket moves - picked up, paused, reopened. Resolved and closed send their own email.",
+   "fieldname": "notify_customer_of_status",
+   "fieldtype": "Check",
+   "label": "Enabled"
+  },
+  {
    "fieldname": "reply_from_contact_section",
    "fieldtype": "Section Break",
    "label": "Reply From Contact"
@@ -600,7 +614,7 @@
  "grid_page_length": 50,
  "issingle": 1,
  "links": [],
- "modified": "2026-10-20 00:00:00.000000",
+ "modified": "2026-10-21 10:00:00.000000",
  "modified_by": "Administrator",
  "module": "Helpdesk",
  "name": "HD Settings",

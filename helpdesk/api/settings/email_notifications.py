@@ -135,6 +135,9 @@ def get_data(notification: str):
     if notification == "assignment_notice":
         return get_assignment_notice_data()
 
+    if notification == "status_notice":
+        return get_status_notice_data()
+
     frappe.throw(_("Invalid notification"))
 
 
@@ -234,3 +237,24 @@ def update_assignment_notice(enabled: bool):
         1 if frappe.utils.sbool(enabled) else 0,
     )
     return get_assignment_notice_data()
+
+
+def get_status_notice_data():
+    return {
+        "enabled": bool(
+            frappe.utils.cint(
+                frappe.db.get_single_value("HD Settings", "notify_customer_of_status")
+            )
+        )
+    }
+
+
+@frappe.whitelist(methods=["PUT"])
+def update_status_notice(enabled: bool):
+    only_for_managers()
+    frappe.db.set_single_value(
+        "HD Settings",
+        "notify_customer_of_status",
+        1 if frappe.utils.sbool(enabled) else 0,
+    )
+    return get_status_notice_data()

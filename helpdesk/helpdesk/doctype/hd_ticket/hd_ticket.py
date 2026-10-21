@@ -349,9 +349,11 @@ class HDTicket(Document):
         if self.is_automated_requester():
             return
 
-        from helpdesk.api.profile import wants_email_updates
-
-        if not wants_email_updates(self.raised_by):
+        # The requester and everyone else on the customer's card. Each
+        # address is held to its own email-updates preference inside, so a
+        # requester who opted out is dropped without silencing their team.
+        recipients, _reason = self.customer_notice_recipients()
+        if not recipients:
             return
 
         sender_account = self.sender_email()
@@ -394,7 +396,7 @@ class HDTicket(Document):
         last_communication = self.get_last_communication()
         try:
             frappe.sendmail(
-                recipients=[self.raised_by],
+                recipients=recipients,
                 sender=formataddr((sender_account.name, sender_account.email_id)),
                 reply_to=sender_account.email_id,
                 subject=f"Re: {self.subject}",
@@ -543,6 +545,27 @@ class HDTicket(Document):
             pumble.ticket_resolved(self)
         if self.get_doc_before_save() and self.has_value_changed("customer"):
             support_contracts.retag_ticket(self.name, self.customer)
+        if self.get_doc_before_save() and self.has_value_changed("status"):
+            self._queue_status_notice()
+
+    def _queue_status_notice(self) -> None:
+        """Tell the customer's team the ticket moved, once the change is
+        committed. Not for a status a reply just set — that reply is already
+        on its way — nor for Resolved/Closed, which send their own email."""
+        if self.flags.get("hd_status_from_reply"):
+            return
+        if self.status_category == "Resolved":
+            return
+        try:
+            frappe.enqueue(
+                "helpdesk.api.status_notice.notify_status_change",
+                queue="short",
+                enqueue_after_commit=True,
+                ticket=self.name,
+                status=self.status,
+            )
+        except Exception:
+            frappe.log_error(title=f"Status notice: could not queue for {self.name}")
 
     def notify_agent(self, agent, notification_type="Assignment"):
         frappe.get_doc(
@@ -1524,10 +1547,80 @@ class HDTicket(Document):
         except Exception:
             return ""
 
+    def _customer_contact_emails(self) -> list:
+        """Everyone listed under this ticket's customer — the people on the
+        customer's card in Customers. They follow their company's tickets
+        alongside whoever raised this one."""
+        if not self.customer:
+            return []
+        try:
+            return [
+                e
+                for e in frappe.get_all(
+                    "Contact",
+                    filters=[
+                        ["Dynamic Link", "link_doctype", "=", "HD Customer"],
+                        ["Dynamic Link", "link_name", "=", self.customer],
+                    ],
+                    pluck="email_id",
+                )
+                if e
+            ]
+        except Exception:
+            # A contact lookup must never cost the customer their notice.
+            return []
+
+    def _notice_block_reason(self, address: str | None) -> str | None:
+        """Why this address must not receive an automated notice, or None."""
+        if not address:
+            return "no-address"
+        if address.lower() in ticket_ingest_addresses():
+            return "own-inbox"
+        if self._sender_matches_automated_patterns(address):
+            return "automated"
+        # An agent's own address. Not is_agent(): that also says yes for
+        # anyone while Administrator is signed in, as background jobs are.
+        if frappe.db.exists("HD Agent", address):
+            return "agent"
+        from helpdesk.api.profile import wants_email_updates
+
+        if not wants_email_updates(address):
+            return "opted-out"
+        return None
+
+    def customer_notice_recipients(self) -> tuple:
+        """(recipients, reason) for an automated notice: the requester plus
+        the customer's other contacts, each held to the same gates.
+
+        `reason` explains an empty list, and is the requester's own whenever
+        they have one — so a ticket whose customer has no other contacts
+        reports exactly what it reported before."""
+        candidates: list = []
+        seen: set = set()
+        for address in [self.raised_by, *self._customer_contact_emails()]:
+            address = (address or "").strip()
+            if address and address.lower() not in seen:
+                seen.add(address.lower())
+                candidates.append(address)
+
+        recipients: list = []
+        reasons: dict = {}
+        for address in candidates:
+            reason = self._notice_block_reason(address)
+            if reason:
+                reasons[address] = reason
+            else:
+                recipients.append(address)
+        if recipients:
+            return recipients, None
+        if self.raised_by and self.raised_by in reasons:
+            return [], reasons[self.raised_by]
+        return [], next(iter(reasons.values()), "no-address")
+
     def send_customer_notice(
         self, kind: str, subject: str, message: str, text: str
     ) -> str:
-        """An automated update to the requester: who is handling the ticket,
+        """An automated update to the customer's team: who is handling the ticket,
         or when it should be resolved (helpdesk/api/assignment.py). The
         acknowledgement's gates - never an automated sender, one of our own
         inboxes, an agent's own ticket or someone who turned email updates
@@ -1537,27 +1630,18 @@ class HDTicket(Document):
             from helpdesk.integrations import whatsapp
 
             return whatsapp.notify_customer(self, text)
-        if not self.raised_by:
-            return "no-address"
         if self.is_automated_requester():
             return "automated"
-        if self.raised_by.lower() in ticket_ingest_addresses():
-            return "own-inbox"
-        # An agent's own ticket. Not is_agent(): that also says yes for anyone
-        # while Administrator is signed in, as background jobs are.
-        if frappe.db.exists("HD Agent", self.raised_by):
-            return "agent"
-        from helpdesk.api.profile import wants_email_updates
-
-        if not wants_email_updates(self.raised_by):
-            return "opted-out"
+        recipients, reason = self.customer_notice_recipients()
+        if not recipients:
+            return reason
         # Loop circuit breaker - last, so the budget is only spent on a send.
         if self._auto_email_rate_limited(kind):
             return "rate-limited"
         sender_account = self.sender_email()
         try:
             frappe.sendmail(
-                recipients=[self.raised_by],
+                recipients=recipients,
                 sender=sender_account.email_id if sender_account else None,
                 subject=subject,
                 message=message,
@@ -1875,6 +1959,10 @@ class HDTicket(Document):
     # is an external dependency. Refer `communication.py` of Frappe framework for more.
     # Since this is called from communication itself, `c` is the communication doc.
     def on_communication_update(self, c):
+        # Any status this method sets comes with a message of its own — the
+        # agent's reply going out, or the customer's reply arriving — so the
+        # status notice stays quiet for this save.
+        self.flags.hd_status_from_reply = True
         # If communication is incoming, then it is a reply from customer, and ticket must
         # be reopened.
         # handle re opening tickets for email

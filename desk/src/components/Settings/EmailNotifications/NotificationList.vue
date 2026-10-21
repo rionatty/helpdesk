@@ -94,6 +94,13 @@ const notifications: AtLeastOneNotifcation = [
     ),
   },
   {
+    name: "status_notice",
+    label: __("Status updates"),
+    description: __(
+      "Sent to the customer's team when their ticket moves - picked up, paused, reopened. Resolved and closed have their own email."
+    ),
+  },
+  {
     name: "weekly_client_update",
     label: __("Weekly client update"),
     description: __(

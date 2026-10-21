@@ -47,3 +47,4 @@ helpdesk.patches.backfill_task_completed_on
 helpdesk.patches.backfill_task_responsibility
 helpdesk.patches.backfill_ticket_time_logs
 helpdesk.patches.enable_assignment_notices
+helpdesk.patches.enable_status_notices
