@@ -37,6 +37,7 @@ from helpdesk.helpdesk.utils.ticket_routing import SCOPED, route_new_ticket
 from helpdesk.api import contracts as support_contracts
 from helpdesk.integrations import pumble
 from helpdesk.utils import (
+    agent_customers,
     agent_only,
     capture_event,
     get_agents_team,
@@ -44,6 +45,8 @@ from helpdesk.utils import (
     get_doc_room,
     is_admin,
     is_agent,
+    is_agent_manager,
+    is_ticket_supervisor,
     publish_event,
 )
 
@@ -2240,6 +2243,26 @@ def has_permission(doc, user=None):
     if not is_agent(user):
         return False
 
+    # Running the helpdesk, or watching all of it: the whole queue.
+    if is_agent_manager(user) or is_ticket_supervisor(user):
+        return True
+
+    # Restricted by client: an agent sees the clients they are assigned to,
+    # whatever is assigned to them personally, and anything not yet tagged
+    # to a client (someone has to triage it).
+    if frappe.db.get_single_value("HD Settings", "restrict_tickets_by_customer"):
+        if not doc.get("customer"):
+            return True
+        if doc.get("customer") in agent_customers(user):
+            return True
+        if doc.get("_assign"):
+            try:
+                if user in json.loads(doc._assign):
+                    return True
+            except Exception:
+                pass
+        return False
+
     enable_restrictions = frappe.db.get_single_value(
         "HD Settings", "restrict_tickets_by_agent_group"
     )
@@ -2292,6 +2315,26 @@ def permission_query(user):
         )
 
     if not is_agent(user):
+        return query
+
+    # Running the helpdesk, or watching all of it: no filter at all.
+    if is_agent_manager(user) or is_ticket_supervisor(user):
+        return
+
+    # Restricted by client: the clients this agent is assigned to, whatever
+    # is assigned to them personally, and anything not yet tagged to a
+    # client. Takes precedence over the team restriction below.
+    if frappe.db.get_single_value("HD Settings", "restrict_tickets_by_customer"):
+        query += (
+            " OR (JSON_SEARCH(`tabHD Ticket`._assign, 'all', {user}) IS NOT NULL)"
+        ).format(user=frappe.db.escape(user))
+        query += (
+            " OR (`tabHD Ticket`.customer is null OR `tabHD Ticket`.customer = '')"
+        )
+        assigned = agent_customers(user)
+        if assigned:
+            names = ", ".join(frappe.db.escape(c) for c in sorted(assigned))
+            query += f" OR (`tabHD Ticket`.customer in ({names}))"
         return query
 
     enable_restrictions = frappe.db.get_single_value(

@@ -9,6 +9,7 @@
   "default_priority",
   "column_break_nvbf",
   "agent_groups_section",
+  "restrict_tickets_by_customer",
   "restrict_tickets_by_agent_group",
   "do_not_restrict_tickets_without_an_agent_group",
   "column_break_dxlq",
@@ -117,6 +118,13 @@
    "fieldname": "agent_groups_section",
    "fieldtype": "Section Break",
    "label": "Team Restrictions"
+  },
+  {
+   "default": "0",
+   "description": "An agent sees only the tickets of the clients they are assigned to - the customer behind any project or add-on they are on - plus tickets assigned to them and tickets no one has tagged to a client yet. Agent Managers and Ticket Supervisors always see every ticket. Takes precedence over restricting by team.",
+   "fieldname": "restrict_tickets_by_customer",
+   "fieldtype": "Check",
+   "label": "Restrict tickets by assigned client"
   },
   {
    "default": "0",
@@ -614,7 +622,7 @@
  "grid_page_length": 50,
  "issingle": 1,
  "links": [],
- "modified": "2026-10-21 10:00:00.000000",
+ "modified": "2026-10-26 10:00:00.000000",
  "modified_by": "Administrator",
  "module": "Helpdesk",
  "name": "HD Settings",

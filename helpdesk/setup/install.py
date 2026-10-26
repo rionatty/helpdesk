@@ -23,6 +23,7 @@ def after_install():
     add_default_agent_groups()
     update_agent_role_permissions()
     add_agent_manager_permissions()
+    add_ticket_supervisor_role()
     add_default_assignment_rule()
     create_default_template()
     create_fallback_ticket_type()
@@ -212,6 +213,26 @@ def add_agent_manager_permissions():
         add_permission(dt, "Agent Manager")
         for p in doc_to_permissions[dt]:
             update_permission_property(dt, "Agent Manager", 0, p, 1)
+
+
+def add_ticket_supervisor_role():
+    """Sees every ticket without running the helpdesk - a lead, a director,
+    QA. Agents are otherwise held to the clients they are assigned to."""
+    from helpdesk.utils import TICKET_SUPERVISOR_ROLE
+
+    if not frappe.db.exists("Role", TICKET_SUPERVISOR_ROLE):
+        frappe.get_doc(
+            {
+                "doctype": "Role",
+                "role_name": TICKET_SUPERVISOR_ROLE,
+                "desk_access": 1,
+            }
+        ).insert(ignore_permissions=True)
+    add_permission("HD Ticket", TICKET_SUPERVISOR_ROLE, 0)
+    for permission in ("read", "report", "export", "share"):
+        update_permission_property(
+            "HD Ticket", TICKET_SUPERVISOR_ROLE, 0, permission, 1
+        )
 
 
 def add_website_settings_permission():

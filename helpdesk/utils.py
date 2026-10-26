@@ -493,6 +493,54 @@ def is_agent_manager(user: str = None) -> bool:
 	return "Agent Manager" in roles or "System Manager" in roles
 
 
+# Sees every ticket without running the helpdesk: a lead, a director, QA.
+TICKET_SUPERVISOR_ROLE = "Ticket Supervisor"
+
+
+def is_ticket_supervisor(user: str = None) -> bool:
+	"""Whether `user` holds the role that sees every ticket, whichever
+	client it belongs to."""
+	user = user or frappe.session.user
+	return TICKET_SUPERVISOR_ROLE in frappe.get_roles(user)
+
+
+def agent_customers(user: str = None) -> set:
+	"""The clients an agent is assigned to: the customer behind any project
+	they are a member or the lead of, and behind any add-on they are a
+	member of. This is what "their clients" means when tickets are
+	restricted by client."""
+	user = user or frappe.session.user
+	customers: set = set()
+	try:
+		projects = frappe.get_all(
+			"HD Project Member", filters={"agent": user}, pluck="project"
+		)
+		if projects:
+			customers |= set(
+				frappe.get_all(
+					"HD Project", filters={"name": ["in", projects]}, pluck="customer"
+				)
+			)
+		customers |= set(
+			frappe.get_all("HD Project", filters={"lead": user}, pluck="customer")
+		)
+		addons = frappe.get_all(
+			"HD Addon Member", filters={"agent": user}, pluck="addon"
+		)
+		if addons:
+			customers |= set(
+				frappe.get_all(
+					"HD Addon", filters={"name": ["in", addons]}, pluck="customer"
+				)
+			)
+	except Exception:
+		# A table that isn't there yet (mid-migrate) must not be read as
+		# "this agent has no clients" without saying so.
+		frappe.log_error(title=f"Could not read the clients assigned to {user}")
+		return set()
+	return {c for c in customers if c}
+
+
 def agent_has_project(project: str, user: str = None) -> bool:
 	"""Whether an agent may open `project`: managers always; otherwise the
 	project lead or an assigned HD Project Member."""
