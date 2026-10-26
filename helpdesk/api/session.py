@@ -1,6 +1,6 @@
 import frappe
 
-from helpdesk.utils import agent_only
+from helpdesk.utils import TICKET_SUPERVISOR_ROLE, agent_only
 
 
 @frappe.whitelist()
@@ -13,14 +13,19 @@ def get_users():
         "Has Role",
         filters={
             "parenttype": "User",
-            "role": ["in", ["Agent Manager", "Agent", "Guest"]],
+            "role": ["in", ["Agent Manager", TICKET_SUPERVISOR_ROLE, "Agent", "Guest"]],
         },
         fields=["parent", "role"],
     )
 
-    # Role priority: Manager > Agent > Guest
-    priority = {"Agent Manager": 3, "Agent": 2, "Guest": 1}
-    label = {"Agent Manager": "Manager", "Agent": "Agent", "Guest": "Guest"}
+    # Role priority: Manager > Supervisor > Agent > Guest
+    priority = {"Agent Manager": 4, TICKET_SUPERVISOR_ROLE: 3, "Agent": 2, "Guest": 1}
+    label = {
+        "Agent Manager": "Manager",
+        TICKET_SUPERVISOR_ROLE: "Supervisor",
+        "Agent": "Agent",
+        "Guest": "Guest",
+    }
     roles_map = {}
     for row in role_rows:
         if priority.get(row.role, 0) > priority.get(roles_map.get(row.parent), 0):

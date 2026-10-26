@@ -148,6 +148,8 @@
                         ? 'user'
                         : getUserRole(agent.name) === 'Manager'
                         ? 'briefcase'
+                        : getUserRole(agent.name) === 'Supervisor'
+                        ? 'eye'
                         : null,
                   }"
                   placement="right"
@@ -219,6 +221,20 @@ function getRoles(agent: string) {
     },
   ];
   if (isManager) {
+    // An agent who sees every ticket, whichever client it belongs to.
+    roles.unshift({
+      label: "Supervisor",
+      component: (props) =>
+        RoleOption({
+          role: "Supervisor",
+          active: props.active,
+          selected: agentRole === "Supervisor",
+          icon: "lucide-eye",
+          onClick: () => {
+            updateRole(agent, "Supervisor");
+          },
+        }),
+    });
     roles.unshift({
       label: "Manager",
       component: (props) =>
