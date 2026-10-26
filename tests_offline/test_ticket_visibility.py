@@ -24,7 +24,8 @@ TICKET = (
 
 AGENTS = {"plain@cyvetech.com", "boss@cyvetech.com", "watcher@cyvetech.com"}
 MANAGERS = {"boss@cyvetech.com"}
-SUPERVISORS = {"watcher@cyvetech.com"}
+# watcher is also an agent; viewer holds only the supervisor role.
+SUPERVISORS = {"watcher@cyvetech.com", "viewer@cyvetech.com"}
 CLIENTS_OF = {"plain@cyvetech.com": {"Acme"}}
 CONTACT_OF = {"buyer@acme.com": ["Acme"]}
 SETTINGS: dict = {}
@@ -102,6 +103,10 @@ class SingleTicket(unittest.TestCase):
 		restricted()
 		self.assertTrue(has_permission(ticket("Globex"), "watcher@cyvetech.com"))
 
+	def test_a_supervisor_who_is_not_an_agent_still_sees_everything(self):
+		restricted()
+		self.assertTrue(has_permission(ticket("Globex"), "viewer@cyvetech.com"))
+
 	def test_an_agent_sees_a_client_they_are_assigned_to(self):
 		restricted()
 		self.assertTrue(has_permission(ticket("Acme"), "plain@cyvetech.com"))
@@ -150,6 +155,10 @@ class ListFilter(unittest.TestCase):
 		restricted()
 		self.assertIsNone(permission_query("boss@cyvetech.com"))
 		self.assertIsNone(permission_query("watcher@cyvetech.com"))
+
+	def test_a_supervisor_who_is_not_an_agent_is_unfiltered(self):
+		restricted()
+		self.assertIsNone(permission_query("viewer@cyvetech.com"))
 
 	def test_a_restricted_agent_gets_their_clients_their_tickets_and_untagged(self):
 		restricted()

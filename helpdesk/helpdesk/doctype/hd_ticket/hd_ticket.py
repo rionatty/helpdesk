@@ -2240,11 +2240,15 @@ def has_permission(doc, user=None):
     ):
         return True
 
+    # Watching the whole queue, whether or not they are also an agent.
+    if is_ticket_supervisor(user):
+        return True
+
     if not is_agent(user):
         return False
 
-    # Running the helpdesk, or watching all of it: the whole queue.
-    if is_agent_manager(user) or is_ticket_supervisor(user):
+    # Running the helpdesk: the whole queue.
+    if is_agent_manager(user):
         return True
 
     # Restricted by client: an agent sees the clients they are assigned to,
@@ -2314,11 +2318,15 @@ def permission_query(user):
             customer=frappe.db.escape(c)
         )
 
+    # Watching the whole queue, whether or not they are also an agent.
+    if is_ticket_supervisor(user):
+        return
+
     if not is_agent(user):
         return query
 
-    # Running the helpdesk, or watching all of it: no filter at all.
-    if is_agent_manager(user) or is_ticket_supervisor(user):
+    # Running the helpdesk: no filter at all.
+    if is_agent_manager(user):
         return
 
     # Restricted by client: the clients this agent is assigned to, whatever
