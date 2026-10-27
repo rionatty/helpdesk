@@ -748,6 +748,9 @@ def delete_project(name: str) -> bool:
 		)
 	frappe.db.delete("HD Project Comment", {"project": name})
 	frappe.db.delete("HD Project Member", {"project": name})
+	from helpdesk.api.notes import delete_notes_for
+
+	delete_notes_for("HD Project", name)
 	tasks = frappe.get_all(
 		"HD Addon Task", filters={"project": name}, pluck="name"
 	)
@@ -759,6 +762,7 @@ def delete_project(name: str) -> bool:
 		frappe.db.delete("HD Task Comment", {"task": ["in", tasks]})
 		frappe.db.delete("HD Task Watcher", {"task": ["in", tasks]})
 		frappe.db.delete("HD Task Subtask", {"task": ["in", tasks]})
+		delete_notes_for("HD Addon Task", tasks)
 		frappe.db.delete("HD Addon Task", {"project": name})
 	# Test scripts before milestones: they point at them.
 	scripts = frappe.get_all("HD UAT Script", filters={"project": name}, pluck="name")

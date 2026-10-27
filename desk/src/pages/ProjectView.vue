@@ -790,6 +790,11 @@
         />
       </div>
 
+      <!-- Notes: the team's own, never shown on the portal -->
+      <div v-if="editable" class="executive-card p-5">
+        <InternalNotes reference-doctype="HD Project" :reference-name="projectId" />
+      </div>
+
       <!-- Discussion -->
       <div class="executive-card p-5">
         <ProjectComments :project-id="projectId" />
@@ -968,6 +973,7 @@ import { useRouter } from "vue-router";
 import { LayoutHeader, Link } from "@/components";
 import DocAttachments from "@/components/DocAttachments.vue";
 import ProjectComments from "@/components/ProjectComments.vue";
+import InternalNotes from "@/components/InternalNotes.vue";
 import ProjectMilestones from "@/components/ProjectMilestones.vue";
 import ProjectTimeline from "@/components/ProjectTimeline.vue";
 import ProjectUat from "@/components/ProjectUat.vue";

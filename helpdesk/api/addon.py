@@ -1353,6 +1353,9 @@ def delete_task(name: str) -> bool:
 	frappe.db.delete("HD Task Comment", {"task": name})
 	frappe.db.delete("HD Task Watcher", {"task": name})
 	frappe.db.delete("HD Task Subtask", {"task": name})
+	from helpdesk.api.notes import delete_notes_for
+
+	delete_notes_for("HD Addon Task", name)
 	frappe.delete_doc("HD Addon Task", name, ignore_permissions=True)
 	return True
 

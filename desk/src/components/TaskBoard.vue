@@ -1018,6 +1018,17 @@
             </p>
           </div>
 
+          <!-- Notes: the team's own, never shown on the portal -->
+          <div
+            v-if="editable && selected.name"
+            class="border-t border-outline-gray-1 pt-3"
+          >
+            <InternalNotes
+              reference-doctype="HD Addon Task"
+              :reference-name="selected.name"
+            />
+          </div>
+
           <!-- Subtasks (agents edit; customers see client-visible ones) -->
           <div v-if="selected.name" class="border-t border-outline-gray-1 pt-3">
             <TaskSubtasks
@@ -1218,6 +1229,7 @@ import {
 } from "frappe-ui";
 import DocAttachments from "@/components/DocAttachments.vue";
 import TaskSubtasks from "@/components/TaskSubtasks.vue";
+import InternalNotes from "@/components/InternalNotes.vue";
 import { timeAgo, dataTheme, buildMilestoneColors, milestoneColorOf } from "@/utils";
 import { __ } from "@/translation";
 import { useAuthStore } from "@/stores/auth";
