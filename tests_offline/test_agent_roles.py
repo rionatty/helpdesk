@@ -8,12 +8,18 @@ import sys
 import types
 import unittest
 from pathlib import Path
+from unittest import mock
 
 AGENT_PY = (
 	Path(__file__).resolve().parents[1]
 	/ "helpdesk/helpdesk/doctype/hd_agent/hd_agent.py"
 )
 SUPERVISOR = "Ticket Supervisor"
+
+USERS: dict = {}
+# Stand-ins for modules the function imports when it runs, installed per test
+# so they never leak into another test module.
+STAND_INS: dict = {}
 
 
 class FakeUser:
@@ -44,9 +50,6 @@ class FakeUser:
 		return {d.role for d in self.roles}
 
 
-USERS: dict = {}
-
-
 def _load():
 	tree = ast.parse(AGENT_PY.read_text(encoding="utf-8"))
 	fn = next(
@@ -69,7 +72,6 @@ def _load():
 		raise ValidationError(message)
 
 	frappe.throw = throw
-	frappe.ValidationError = ValidationError
 	frappe.db = types.SimpleNamespace(exists=lambda doctype, name: True)
 	docs: dict = {}
 	frappe.get_doc = lambda doctype, name: docs[name]
@@ -77,7 +79,7 @@ def _load():
 
 	utils = types.ModuleType("helpdesk.utils")
 	utils.TICKET_SUPERVISOR_ROLE = SUPERVISOR
-	sys.modules["helpdesk.utils"] = utils
+	STAND_INS["helpdesk.utils"] = utils
 
 	ns = {"frappe": frappe}
 	exec(compile(module, "hd_agent.py", "exec"), ns)
@@ -95,6 +97,11 @@ def user(*roles):
 
 
 class Tiers(unittest.TestCase):
+	def setUp(self):
+		patcher = mock.patch.dict(sys.modules, STAND_INS)
+		patcher.start()
+		self.addCleanup(patcher.stop)
+
 	def test_agent_to_supervisor(self):
 		u = user("Agent")
 		update_agent_role(u.name, "Supervisor")

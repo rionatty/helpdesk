@@ -13,6 +13,7 @@ import sys
 import types
 import unittest
 from pathlib import Path
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 TICKET = ROOT / "helpdesk/helpdesk/doctype/hd_ticket/hd_ticket.py"
@@ -24,6 +25,8 @@ METHODS = {
 	"customer_notice_recipients",
 }
 
+# Installed per test so it never leaks into another test module.
+STAND_INS: dict = {}
 INGEST = {"support@cyvetech.com"}
 AGENTS = {"ferdinand@cyvetech.com"}
 
@@ -65,7 +68,7 @@ def _ticket_class():
 
 	profile = types.ModuleType("helpdesk.api.profile")
 	profile.wants_email_updates = lambda address: address not in opted_out
-	sys.modules["helpdesk.api.profile"] = profile
+	STAND_INS["helpdesk.api.profile"] = profile
 
 	ns = {
 		"frappe": frappe,
@@ -95,6 +98,11 @@ def ticket(raised_by="buyer@acme.com", customer="Acme", contacts=None, opted_out
 
 
 class Recipients(unittest.TestCase):
+	def setUp(self):
+		patcher = mock.patch.dict(sys.modules, STAND_INS)
+		patcher.start()
+		self.addCleanup(patcher.stop)
+
 	def test_requester_first_then_the_customers_team(self):
 		t = ticket(contacts=["boss@acme.com", "ops@acme.com"])
 		self.assertEqual(
