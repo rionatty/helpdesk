@@ -7,6 +7,20 @@ from frappe.utils import now_datetime
 
 
 class HDAddonTask(Document):
+	def validate(self):
+		# A timed session has to end after it starts. Across days (a multi-day
+		# session) the times are on different dates, so any order is fine.
+		if self.start_time and self.end_time:
+			from frappe.utils import get_time, getdate
+
+			same_day = (
+				not self.start_date
+				or not self.end_date
+				or getdate(self.start_date) == getdate(self.end_date)
+			)
+			if same_day and get_time(self.end_time) <= get_time(self.start_time):
+				frappe.throw(frappe._("A session must end after it starts"))
+
 	def on_update(self):
 		# Sync the current milestone, and the previous one if it changed.
 		self._sync_milestone(self.milestone)

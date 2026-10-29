@@ -452,6 +452,25 @@
               {{ respOf(t) }}
             </span>
             <span
+              v-if="t.session_type"
+              class="text-[10px] font-medium rounded-full px-1.5 py-0.5 inline-flex items-center gap-0.5"
+              :class="
+                t.session_type === 'Onsite'
+                  ? 'bg-amber-100 text-amber-800'
+                  : 'bg-blue-100 text-blue-800'
+              "
+              :title="
+                t.session_type === 'Onsite'
+                  ? __('Onsite session')
+                  : __('Online session')
+              "
+            >
+              <LucideMapPin v-if="t.session_type === 'Onsite'" class="size-3" />
+              <LucideVideo v-else class="size-3" />
+              {{ __(t.session_type)
+              }}<template v-if="t.start_time"> · {{ toInputTime(t.start_time) }}</template>
+            </span>
+            <span
               v-if="t.end_date"
               class="text-[10px] rounded-full px-1.5 py-0.5 inline-flex items-center gap-0.5"
               :class="
@@ -680,6 +699,107 @@
               />
               <span v-else class="text-sm text-ink-gray-8">
                 {{ selected.end_date || "—" }}
+              </span>
+            </div>
+          </div>
+
+          <!-- Session: Onsite at the client, or Online. Sessions show on the
+               Calendar, where two for one person at once are a clash. -->
+          <div class="flex flex-col gap-2">
+            <div class="grid grid-cols-2 gap-3">
+              <div class="flex flex-col gap-1">
+                <span class="text-xs text-ink-gray-5">{{ __("Session") }}</span>
+                <select
+                  v-if="editable"
+                  :value="selected.session_type || ''"
+                  class="text-sm rounded-md border border-outline-gray-2 bg-surface-white px-2 py-1 text-ink-gray-7 focus:outline-none focus:border-blue-400"
+                  @change="(e) => patch({ session_type: e.target.value })"
+                >
+                  <option value="">{{ __("Not a session") }}</option>
+                  <option value="Onsite">{{ __("Onsite") }}</option>
+                  <option value="Online">{{ __("Online") }}</option>
+                </select>
+                <span v-else class="text-sm text-ink-gray-8">
+                  {{ selected.session_type ? __(selected.session_type) : "—" }}
+                </span>
+              </div>
+              <div v-if="selected.session_type" class="flex flex-col gap-1">
+                <span class="text-xs text-ink-gray-5">{{ __("Time") }}</span>
+                <div v-if="editable" class="flex items-center gap-1">
+                  <input
+                    type="time"
+                    :value="toInputTime(selected.start_time)"
+                    class="min-w-0 flex-1 text-sm rounded-md border border-outline-gray-2 bg-surface-white px-2 py-1 text-ink-gray-7 focus:outline-none focus:border-blue-400"
+                    :aria-label="__('Start time')"
+                    @change="(e) => patch({ start_time: e.target.value || null })"
+                  />
+                  <span class="text-ink-gray-4">–</span>
+                  <input
+                    type="time"
+                    :value="toInputTime(selected.end_time)"
+                    class="min-w-0 flex-1 text-sm rounded-md border border-outline-gray-2 bg-surface-white px-2 py-1 text-ink-gray-7 focus:outline-none focus:border-blue-400"
+                    :aria-label="__('End time')"
+                    @change="(e) => patch({ end_time: e.target.value || null })"
+                  />
+                </div>
+                <span v-else class="text-sm text-ink-gray-8">
+                  {{ sessionTimeLabel(selected) }}
+                </span>
+              </div>
+            </div>
+            <div v-if="selected.session_type === 'Onsite'" class="flex flex-col gap-1">
+              <span class="text-xs text-ink-gray-5">{{ __("Location") }}</span>
+              <input
+                v-if="editable"
+                type="text"
+                :value="selected.location || ''"
+                :placeholder="__('Client site, office, room…')"
+                class="text-sm rounded-md border border-outline-gray-2 bg-surface-white px-2 py-1 text-ink-gray-7 focus:outline-none focus:border-blue-400"
+                @change="(e) => patch({ location: e.target.value })"
+              />
+              <span v-else class="text-sm text-ink-gray-8">
+                {{ selected.location || "—" }}
+              </span>
+            </div>
+            <div v-if="selected.session_type === 'Online'" class="flex flex-col gap-1">
+              <span class="text-xs text-ink-gray-5">{{ __("Meeting link") }}</span>
+              <input
+                v-if="editable"
+                type="url"
+                :value="selected.meeting_link || ''"
+                :placeholder="__('https://meet.google.com/…')"
+                class="text-sm rounded-md border border-outline-gray-2 bg-surface-white px-2 py-1 text-ink-gray-7 focus:outline-none focus:border-blue-400"
+                @change="(e) => patch({ meeting_link: e.target.value })"
+              />
+              <a
+                v-else-if="webLink(selected.meeting_link)"
+                :href="webLink(selected.meeting_link)"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="text-sm text-blue-600 hover:underline truncate"
+              >
+                {{ selected.meeting_link }}
+              </a>
+              <span v-else class="text-sm text-ink-gray-8">
+                {{ selected.meeting_link || "—" }}
+              </span>
+            </div>
+            <!-- Double-booked: the assignee has another session at this time -->
+            <div
+              v-if="editable && (sessionClashes.length || hiddenClashes)"
+              class="flex flex-col gap-1 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800"
+            >
+              <span class="inline-flex items-center gap-1 font-semibold">
+                <LucideAlertTriangle class="size-3.5" />
+                {{ __("Clashes with another session for the same person") }}
+              </span>
+              <span v-for="c in sessionClashes" :key="c.name">
+                {{ c.subject
+                }}<template v-if="c.parent_label"> · {{ c.parent_label }}</template>
+                · {{ c.start_date }} {{ sessionTimeLabel(c) }}
+              </span>
+              <span v-if="hiddenClashes">
+                {{ __("+{0} more in projects you are not on", [hiddenClashes]) }}
               </span>
             </div>
           </div>
@@ -1217,6 +1337,7 @@
 
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from "vue";
+import { useRoute } from "vue-router";
 import {
   Avatar,
   Button,
@@ -1256,6 +1377,8 @@ import LucideUser from "~icons/lucide/user";
 import LucideStar from "~icons/lucide/star";
 import LucideFolder from "~icons/lucide/folder";
 import LucideAlertTriangle from "~icons/lucide/alert-triangle";
+import LucideMapPin from "~icons/lucide/map-pin";
+import LucideVideo from "~icons/lucide/video";
 import LucideCircleDot from "~icons/lucide/circle-dot";
 import LucideCircleCheck from "~icons/lucide/circle-check";
 import LucideCirclePause from "~icons/lucide/circle-pause";
@@ -1992,8 +2115,56 @@ function open(t: any) {
   if (props.editable) {
     activity.reload();
     watchers.reload();
+    clashRes.reload();
   }
 }
+
+// Sessions this task's assignee is double-booked against (see Calendar).
+// Loaded when a task opens and after each save, once it is committed.
+const clashRes = createResource({
+  url: "helpdesk.api.calendar.get_clashes",
+  makeParams: () => ({ task: selected.value?.name }),
+});
+const sessionClashes = computed<any[]>(() => clashRes.data?.clashes || []);
+const hiddenClashes = computed<number>(() => clashRes.data?.hidden || 0);
+
+/** "9:00:00" or "09:00" from the server, as "09:00" for <input type="time">. */
+function toInputTime(value: any): string {
+  if (!value) return "";
+  const [h, m = "00"] = String(value).split(":");
+  return `${h.padStart(2, "0")}:${m.padStart(2, "0")}`;
+}
+function sessionTimeLabel(t: any): string {
+  const start = toInputTime(t.start_time);
+  const end = toInputTime(t.end_time);
+  return start && end ? `${start} – ${end}` : __("All day");
+}
+/** A meeting link is only ever a web link - never script. */
+function webLink(url: string | null | undefined): string | null {
+  const value = (url || "").trim();
+  const lower = value.toLowerCase();
+  return lower.startsWith("https://") || lower.startsWith("http://")
+    ? value
+    : null;
+}
+
+// Open the task named in ?task= (the Calendar links here) once, when loaded.
+const route = useRoute();
+let openedFromQuery = "";
+watch(
+  () => [tasks.data, route.query.task],
+  () => {
+    const wanted = route.query.task as string | undefined;
+    if (!wanted || wanted === openedFromQuery) return;
+    const t = (tasks.data || []).find((x: any) => x.name === wanted);
+    if (t) {
+      openedFromQuery = wanted;
+      open(t);
+    }
+  }
+  // Not immediate: open() reaches resources declared further down, so this
+  // must first run once the tasks load, after setup has finished.
+);
 
 const updateRes = createResource({
   url: "helpdesk.api.addon.update_task",
@@ -2004,6 +2175,7 @@ const updateRes = createResource({
       activity.reload();
       // A new assignee or reviewer changes who is watching.
       watchers.reload();
+      clashRes.reload();
     }
     emit("changed");
   },

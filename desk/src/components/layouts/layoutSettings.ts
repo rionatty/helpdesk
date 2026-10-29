@@ -7,6 +7,7 @@ import LucideLayoutGrid from "~icons/lucide/layout-grid";
 import LucideLayoutTemplate from "~icons/lucide/layout-template";
 import LucidePackage from "~icons/lucide/package";
 import LucideListChecks from "~icons/lucide/list-checks";
+import LucideCalendarDays from "~icons/lucide/calendar-days";
 import LucideBell from "~icons/lucide/bell";
 import LucideTimer from "~icons/lucide/timer";
 import LucideFileText from "~icons/lucide/file-text";
@@ -61,6 +62,11 @@ export const agentPortalWorkspaceOptions = [
     label: __("Tasks"),
     icon: LucideListChecks,
     to: "TasksAgent",
+  },
+  {
+    label: __("Calendar"),
+    icon: LucideCalendarDays,
+    to: "CalendarAgent",
   },
   {
     label: __("Contracts"),
@@ -139,6 +145,11 @@ export const agentPortalSidebarOptions = [
     label: __("Tasks"),
     icon: LucideListChecks,
     to: "TasksAgent",
+  },
+  {
+    label: __("Calendar"),
+    icon: LucideCalendarDays,
+    to: "CalendarAgent",
   },
   {
     label: __("Contracts"),

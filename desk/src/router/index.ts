@@ -152,6 +152,14 @@ const routes = [
     component: () => import("@/pages/TasksView.vue"),
   },
   {
+    path: "/calendar",
+    name: "CalendarAgent",
+    component: () => import("@/pages/CalendarView.vue"),
+    meta: {
+      agent: true,
+    },
+  },
+  {
     path: "/contracts",
     name: "ContractsAgent",
     component: () => import("@/pages/ContractsView.vue"),

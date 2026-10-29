@@ -245,6 +245,11 @@ TASK_FIELDS = [
 	"customer_rating",
 	"customer_reviewed_on",
 	"description",
+	"session_type",
+	"start_time",
+	"end_time",
+	"location",
+	"meeting_link",
 	"creation",
 ]
 # `score`, `completed_on` and `review_status` are deliberately NOT writable
@@ -265,6 +270,11 @@ TASK_WRITABLE = {
 	"end_date",
 	"estimated_hours",
 	"description",
+	"session_type",
+	"start_time",
+	"end_time",
+	"location",
+	"meeting_link",
 }
 # Who does the work: us (the implementor), the client, or both. Independent of
 # `is_internal`, which is about what the customer can SEE.

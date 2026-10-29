@@ -22,6 +22,11 @@
   "score",
   "start_date",
   "end_date",
+  "session_type",
+  "start_time",
+  "end_time",
+  "location",
+  "meeting_link",
   "estimated_hours",
   "completed_on",
   "customer_review",
@@ -150,6 +155,39 @@
    "label": "Due Date"
   },
   {
+   "description": "A session with the client: Onsite at their premises, or Online. Two sessions for the same person that overlap are flagged as a clash.",
+   "fieldname": "session_type",
+   "fieldtype": "Select",
+   "in_standard_filter": 1,
+   "label": "Session",
+   "options": "\nOnsite\nOnline"
+  },
+  {
+   "depends_on": "session_type",
+   "description": "Leave the times empty for a session that takes the whole day.",
+   "fieldname": "start_time",
+   "fieldtype": "Time",
+   "label": "Start Time"
+  },
+  {
+   "depends_on": "session_type",
+   "fieldname": "end_time",
+   "fieldtype": "Time",
+   "label": "End Time"
+  },
+  {
+   "depends_on": "eval:doc.session_type=='Onsite'",
+   "fieldname": "location",
+   "fieldtype": "Data",
+   "label": "Location"
+  },
+  {
+   "depends_on": "eval:doc.session_type=='Online'",
+   "fieldname": "meeting_link",
+   "fieldtype": "Data",
+   "label": "Meeting Link"
+  },
+  {
    "default": "0",
    "description": "Hours budgeted for this task",
    "fieldname": "estimated_hours",
@@ -207,7 +245,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-06-09 00:00:00.000000",
+ "modified": "2026-10-29 10:00:00.000000",
  "modified_by": "Administrator",
  "module": "Helpdesk",
  "name": "HD Addon Task",
