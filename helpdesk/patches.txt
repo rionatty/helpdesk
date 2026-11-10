@@ -49,3 +49,4 @@ helpdesk.patches.backfill_ticket_time_logs
 helpdesk.patches.enable_assignment_notices
 helpdesk.patches.enable_status_notices
 helpdesk.patches.add_ticket_supervisor_role
+helpdesk.patches.lengthen_password_link_lifetime

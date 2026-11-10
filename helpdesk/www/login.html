@@ -687,6 +687,10 @@
       .brand-panel { padding: 60px 60px; }
     }
   </style>
+  <!-- Frappe replaces the marker below with frappe.csrf_token = "...". It is
+       only checked once someone is signed in, so a visitor sends none. -->
+  <script>window.frappe = window.frappe || {};</script>
+  <!-- csrf_token -->
 </head>
 <body>
   <div class="page">
@@ -1023,8 +1027,10 @@
       return '/helpdesk';
     }
 
-    /* ---- CSRF token from cookie (Frappe sets this for all visitors) ---- */
+    /* ---- CSRF token: filled in by Frappe for a signed-in browser ---- */
     function getCsrfToken() {
+      var t = window.frappe && window.frappe.csrf_token;
+      if (t && t !== 'None') return t;
       try {
         var m = document.cookie.match(/(?:^|;\s*)X-Frappe-CSRF-Token=([^;]+)/);
         return m ? decodeURIComponent(m[1]) : 'fetch';
