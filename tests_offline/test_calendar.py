@@ -158,6 +158,38 @@ class Clash(unittest.TestCase):
 		self.assertFalse(cal.sessions_clash(a, b))
 
 
+class Proposed(unittest.TestCase):
+	"""A session typed into the New task form, checked before it is saved."""
+
+	def test_it_clashes_with_an_overlapping_session(self):
+		p = cal.proposed_session("ana@cyvetech.com", "2026-11-03", None, "10:00", "11:00", "Online")
+		self.assertTrue(cal.sessions_clash(p, task("A", start="10:30", end="12:00")))
+
+	def test_back_to_back_is_still_fine(self):
+		p = cal.proposed_session("ana@cyvetech.com", "2026-11-03", None, "12:00", "13:00", "Online")
+		self.assertFalse(cal.sessions_clash(p, task("A", start="10:00", end="12:00")))
+
+	def test_one_date_means_that_one_day(self):
+		p = cal.proposed_session("ana@cyvetech.com", "2026-11-03", session_type="Onsite")
+		self.assertEqual(p["end_date"], "2026-11-03")
+		self.assertTrue(cal.sessions_clash(p, task("A", start="16:00", end="17:00")))
+
+	def test_without_a_session_type_nothing_is_booked(self):
+		p = cal.proposed_session("ana@cyvetech.com", "2026-11-03", None, "10:00", "11:00", None)
+		self.assertFalse(cal.sessions_clash(p, task("A", start="10:00", end="11:00")))
+
+	def test_without_an_assignee_nothing_is_booked(self):
+		p = cal.proposed_session(None, "2026-11-03", None, "10:00", "11:00", "Onsite")
+		self.assertFalse(cal.sessions_clash(p, task("A", start="10:00", end="11:00")))
+
+	def test_an_unsaved_session_is_never_taken_for_an_existing_task(self):
+		p = cal.proposed_session("ana@cyvetech.com", "2026-11-03", None, "10:00", "11:00", "Online")
+		self.assertIsNone(p["name"])
+		ghost = task(None, start="10:00", end="11:00")
+		ghost["name"] = "TASK-0001"
+		self.assertTrue(cal.sessions_clash(p, ghost))
+
+
 class FindAll(unittest.TestCase):
 	def test_only_the_colliding_sessions_are_flagged_both_ways(self):
 		rows = [

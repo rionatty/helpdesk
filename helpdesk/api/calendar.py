@@ -297,35 +297,32 @@ def get_events(
 	return rows
 
 
-@frappe.whitelist()
-def get_clashes(task: str) -> dict:
-	"""The sessions that clash with this one, for the task drawer's warning.
-	Ones the caller can't open are counted, not named."""
-	_assert_agent()
-	row = frappe.db.get_value("HD Addon Task", task, list(TASK_COLUMNS), as_dict=True)
-	if not row or not _occupies(row):
+def _clashes_for(session) -> dict:
+	"""The assignee's other sessions that collide with `session` (saved or
+	only proposed). Every one counts, whoever can see it; ones the caller
+	can't open are counted, not named."""
+	if not _occupies(session):
 		return {"clashes": [], "hidden": 0}
-	window = session_window(row)
+	window = session_window(session)
 	first_day = window[0].date()
 	last_day = (window[1] - timedelta(seconds=1)).date()
 
-	# Every session of the assignee in those days, whoever can see them.
 	from frappe.query_builder.functions import Coalesce
 
 	T = frappe.qb.DocType("HD Addon Task")
 	first = Coalesce(T.start_date, T.end_date)
 	last = Coalesce(T.end_date, T.start_date)
-	others = (
+	q = (
 		frappe.qb.from_(T)
 		.select(*[T[c] for c in TASK_COLUMNS])
-		.where(T.assigned_to == row.assigned_to)
-		.where(T.name != row.name)
+		.where(T.assigned_to == session["assigned_to"])
 		.where(first.isnotnull())
 		.where(first <= last_day)
 		.where(last >= first_day)
-		.run(as_dict=True)
 	)
-	clashing = [o for o in others if sessions_clash(row, o)]
+	if session.get("name"):
+		q = q.where(T.name != session["name"])
+	clashing = [o for o in q.run(as_dict=True) if sessions_clash(session, o)]
 
 	user = frappe.session.user
 	projects, addons = _memberships(user)
@@ -335,3 +332,52 @@ def get_clashes(task: str) -> dict:
 		for private in ("owner", "reviewer"):
 			o.pop(private, None)
 	return {"clashes": visible, "hidden": len(clashing) - len(visible)}
+
+
+@frappe.whitelist()
+def get_clashes(task: str) -> dict:
+	"""The sessions that clash with this one, for the task drawer's warning."""
+	_assert_agent()
+	row = frappe.db.get_value("HD Addon Task", task, list(TASK_COLUMNS), as_dict=True)
+	if not row:
+		return {"clashes": [], "hidden": 0}
+	return _clashes_for(row)
+
+
+def proposed_session(
+	assigned_to=None,
+	start_date=None,
+	end_date=None,
+	start_time=None,
+	end_time=None,
+	session_type=None,
+) -> dict:
+	"""A session that isn't saved yet, shaped like a task row. It has no name,
+	so it can't be mistaken for an existing task."""
+	return {
+		"name": None,
+		"assigned_to": assigned_to or None,
+		"session_type": session_type or None,
+		"status": "To Do",
+		"start_date": start_date or None,
+		"end_date": end_date or start_date or None,
+		"start_time": start_time or None,
+		"end_time": end_time or None,
+	}
+
+
+@frappe.whitelist()
+def check_clashes(
+	assigned_to: str | None = None,
+	start_date: str | None = None,
+	end_date: str | None = None,
+	start_time: str | None = None,
+	end_time: str | None = None,
+	session_type: str | None = None,
+) -> dict:
+	"""Would this session double-book its assignee? The New task form on the
+	calendar asks before anything is saved."""
+	_assert_agent()
+	return _clashes_for(
+		proposed_session(assigned_to, start_date, end_date, start_time, end_time, session_type)
+	)

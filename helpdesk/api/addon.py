@@ -814,9 +814,15 @@ def add_task(
 	end_date: str | None = None,
 	description: str | None = None,
 	is_internal: int = 0,
+	session_type: str | None = None,
+	start_time: str | None = None,
+	end_time: str | None = None,
+	location: str | None = None,
+	meeting_link: str | None = None,
 ) -> str:
 	"""Add a task to an add-on, a project, or standalone (no parent).
-	Agents only."""
+	Agents only. A task can be a client session: `session_type` Onsite or
+	Online, with optional times and a location or meeting link."""
 	_assert_agent()
 	_assert_parent_access(addon=addon, project=project)
 	if not (subject or "").strip():
@@ -855,6 +861,12 @@ def add_task(
 			"end_date": end_date,
 			"description": description,
 			"is_internal": 1 if cint(is_internal) else 0,
+			"session_type": session_type or None,
+			# Times, place and link only mean something on a session.
+			"start_time": (start_time or None) if session_type else None,
+			"end_time": (end_time or None) if session_type else None,
+			"location": (location or None) if session_type == "Onsite" else None,
+			"meeting_link": (meeting_link or None) if session_type == "Online" else None,
 		}
 	).insert(ignore_permissions=True)
 	_grant_task_access(doc)
